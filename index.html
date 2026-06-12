@@ -39,7 +39,8 @@
     <!-- Firebase SDK v11 (ESM via CDN)                          -->
     <!-- ======================================================= -->
     <script type="module">
-        import { initializeApp }                            from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { initializeApp, deleteApp }                from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getFunctions, httpsCallable }             from "https://www.gstatic.com/firebasejs/11.0.0/firebase-functions.js";
         import { getAuth, onAuthStateChanged,
                  signInWithEmailAndPassword, signOut,
                  createUserWithEmailAndPassword,
@@ -47,7 +48,8 @@
                  fetchSignInMethodsForEmail,
                  updatePassword,
                  reauthenticateWithCredential,
-                 EmailAuthProvider }                        from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+                 EmailAuthProvider,
+                 deleteUser }                              from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
         import { getFirestore, collection, doc,
                  getDocs, getDoc, setDoc, addDoc,
                  updateDoc, deleteDoc, onSnapshot,
@@ -67,17 +69,20 @@
         };
 
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db   = getFirestore(app);
+        const app       = initializeApp(firebaseConfig);
+        const auth      = getAuth(app);
+        const db        = getFirestore(app);
+        const functions = getFunctions(app);
 
         // --- نشر الـ SDK على window ليستخدمها React ---
         window._firebase = {
-            auth, db,
+            auth, db, functions,
+            initializeApp, deleteApp, getAuth,
+            getFunctions, httpsCallable,
             onAuthStateChanged, signInWithEmailAndPassword,
             signOut, createUserWithEmailAndPassword,
             sendPasswordResetEmail, fetchSignInMethodsForEmail,
-            updatePassword, reauthenticateWithCredential, EmailAuthProvider,
+            updatePassword, reauthenticateWithCredential, EmailAuthProvider, deleteUser,
             collection, doc, getDocs, getDoc,
             setDoc, addDoc, updateDoc, deleteDoc,
             onSnapshot, query, where, serverTimestamp
@@ -179,6 +184,15 @@
                 book:        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>,
                 stethoscope: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>,
                 activity:    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>,
+                briefcase:   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>,
+                award:       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="8" r="5" strokeWidth={2}/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.5 13.5L7 22l5-2.5L17 22l-1.5-8.5"/></svg>,
+                idCard:      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2" strokeWidth={2}/><circle cx="8" cy="11" r="2" strokeWidth={2}/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 17c0-1.5 1-2.5 2-2.5s2 1 2 2.5M13 9h6M13 13h6"/></svg>,
+                mapPin:      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3" strokeWidth={2}/></svg>,
+                building:    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M5 21V5a2 2 0 012-2h6a2 2 0 012 2v16M9 9h.01M9 13h.01M9 17h.01M15 9h2M15 13h2M15 17h2M19 21V9a2 2 0 00-2-2h-2"/></svg>,
+                phone:       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>,
+                whatsapp:    <svg className={className} fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>,
+                mail:        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>,
+                paperclip:   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 01-7.78-7.78l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a1.5 1.5 0 01-2.12-2.12l8.49-8.48"/></svg>,
                 settings:    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
                 bell:        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>,
                 login:       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>,
@@ -264,15 +278,18 @@
             };
 
             return (
-                <div className="h-screen flex items-center justify-center bg-gradient-to-br from-medbox-light to-gray-100 p-4">
-                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-full max-w-md fade-in">
-                        <div className="flex flex-col items-center mb-8">
-                            <div className="bg-medbox-main text-white p-3 rounded-2xl shadow-md mb-4">
-                                <Icon name="activity" className="w-8 h-8" />
+                <div className="h-screen flex items-center justify-center bg-gradient-to-br from-medbox-light to-gray-100 p-4 overflow-y-auto">
+                    <div className="w-full max-w-4xl fade-in flex flex-col md:flex-row gap-6 items-stretch py-6">
+
+                        {/* ── لوحة تسجيل الدخول ── */}
+                        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-full md:max-w-md flex flex-col justify-center">
+                            <div className="flex flex-col items-center mb-8">
+                                <div className="bg-medbox-main text-white p-3 rounded-2xl shadow-md mb-4">
+                                    <Icon name="activity" className="w-8 h-8" />
+                                </div>
+                                <h1 className="text-2xl font-bold text-medbox-dark">MedBox-Education</h1>
+                                <p className="text-gray-500 text-sm mt-1">سجّل دخولك للمتابعة</p>
                             </div>
-                            <h1 className="text-2xl font-bold text-medbox-dark">MedBox-Education</h1>
-                            <p className="text-gray-500 text-sm mt-1">سجّل دخولك للمتابعة</p>
-                        </div>
 
                         <form onSubmit={handleLogin} className="space-y-4">
                             <div>
@@ -330,6 +347,90 @@
                                 للمدير: تأكد من إعداد Firebase Security Rules وإضافة دور المستخدم في Firestore.
                             </p>
                         </div>
+                        </div>
+
+                        {/* ── دليل الطالب ── */}
+                        <div className="flex-1 flex flex-col gap-4">
+                            {/* عنوان */}
+                            <div className="bg-gradient-to-l from-medbox-main to-medbox-dark rounded-2xl p-5 text-white">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z"/>
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422A12.083 12.083 0 0121 21H3a12.083 12.083 0 012.84-10.422L12 14z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h2 className="font-bold text-base">كيف يدخل المتدرب للبرنامج؟</h2>
+                                        <p className="text-white/70 text-xs">دليل سريع لخطوات التسجيل والوصول</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* الخطوات */}
+                            {[
+                                {
+                                    step: '١',
+                                    color: 'bg-purple-100 text-purple-700',
+                                    icon: (
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                                    ),
+                                    title: 'يُضيفك المدير أو المدرب',
+                                    desc: 'يقوم المدير بإضافة بياناتك (الاسم + البريد الإلكتروني) في قائمة المتدربين ضمن الدورة المناسبة.',
+                                },
+                                {
+                                    step: '٢',
+                                    color: 'bg-amber-100 text-amber-700',
+                                    icon: (
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                    ),
+                                    title: 'رابط الدخول يصل لبريدك',
+                                    desc: 'بعد إضافتك مباشرةً يصلك بريد إلكتروني تلقائي يحتوي على رابط لتعيين كلمة السر الخاصة بك.',
+                                },
+                                {
+                                    step: '٣',
+                                    color: 'bg-blue-100 text-blue-700',
+                                    icon: (
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                    ),
+                                    title: 'عيّن كلمة السر',
+                                    desc: 'اضغط على الرابط في البريد، واختر كلمة سر جديدة لحسابك. الرابط صالح لفترة محدودة.',
+                                },
+                                {
+                                    step: '٤',
+                                    color: 'bg-green-100 text-green-700',
+                                    icon: (
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    ),
+                                    title: 'سجّل دخولك وتابع تقدمك',
+                                    desc: 'ادخل بريدك الإلكتروني وكلمة السر من هذه الصفحة لتطّلع على دوراتك ونسبة إنجازك.',
+                                },
+                            ].map((item, i) => (
+                                <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-start gap-4">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${item.color}`}>
+                                        {item.icon}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${item.color}`}>الخطوة {item.step}</span>
+                                            <p className="font-bold text-gray-800 text-sm">{item.title}</p>
+                                        </div>
+                                        <p className="text-xs text-gray-500 leading-relaxed">{item.desc}</p>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* ملاحظة */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                                <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <p className="text-xs text-amber-800 leading-relaxed">
+                                    <strong>لم يصلك الرابط؟</strong> تحقق من مجلد الرسائل غير المرغوب فيها (Spam)، أو تواصل مع المدرب أو مدير البرنامج لإعادة إرسال رابط الدخول.
+                                </p>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             );
@@ -445,9 +546,10 @@
             const [activeTab, setActiveTab]         = useState('programs');
             const [selectedProgram, setSelectedProgram] = useState(null);
             const [selectedStudent, setSelectedStudent] = useState(null);
+            const [selectedTrainer, setSelectedTrainer] = useState(null);
             const [modal, setModal]                 = useState(null);
             const [loading, setLoading]             = useState(false);
-            const [sidebarOpen, setSidebarOpen]     = useState(true);
+            const [sidebarOpen, setSidebarOpen]     = useState(false);
             const [sidebarMode, setSidebarMode]     = useState('programs'); // 'programs' | 'settings'
             const [settingsTab, setSettingsTab]     = useState(null);
             const [programDetails, setProgramDetails] = useState(null);
@@ -607,6 +709,24 @@
                         }
                     }
 
+                    // إذا لم يُحدَّد برنامج/دورة → احفظ في مجموعة students المستقلة
+                    if (!programId || !courseId) {
+                        if (fb?.addDoc && fb?.collection && fb?.db) {
+                            await fb.addDoc(fb.collection(fb.db, 'students'), {
+                                ...formData,
+                                uid: authUid || null,
+                                id: Date.now(),
+                                progress: 0,
+                                status: 'نشط',
+                                createdAt: new Date().toISOString()
+                            });
+                        }
+                        showToast('تمت إضافة المتدرب ✓' + accountMsg);
+                        setModal(null);
+                        setLoading(false);
+                        return;
+                    }
+
                     const prog = programs.find(p => p.id === programId);
                     const updatedCourses = prog.courses.map(c => {
                         if (c.id !== courseId) return c;
@@ -647,6 +767,147 @@
                 setLoading(false);
             };
 
+            const handleEditStudent = async (programId, courseId, studentId, formData) => {
+                setLoading(true);
+                try {
+                    const prog = programs.find(p => p.id === programId);
+                    const updatedCourses = prog.courses.map(c => {
+                        if (c.id !== courseId) return c;
+                        return { ...c, students: c.students.map(s => s.id === studentId ? { ...s, ...formData } : s) };
+                    });
+                    await fb.updateDoc(fb.doc(fb.db, 'programs', programId), { courses: updatedCourses });
+                    setPrograms(prev => prev.map(p => p.id === programId ? { ...p, courses: updatedCourses } : p));
+                    if (selectedProgram?.id === programId)
+                        setSelectedProgram(p => ({ ...p, courses: updatedCourses }));
+                    showToast('تم تحديث بيانات المتدرب ✓');
+                    setModal(null);
+                } catch (e) { showToast('خطأ: ' + e.message); }
+                setLoading(false);
+            };
+
+            const handleEditTrainerInCourse = async (programId, courseId, role, formData) => {
+                setLoading(true);
+                try {
+                    const prog = programs.find(p => p.id === programId);
+                    const updatedCourses = prog.courses.map(c => {
+                        if (c.id !== courseId) return c;
+                        if (role === 'رئيسي') return { ...c, supervisor: formData.name, supervisorEmail: formData.email || c.supervisorEmail };
+                        if (role === 'مساعد') return { ...c, coSupervisor: formData.name, coSupervisorEmail: formData.email || c.coSupervisorEmail };
+                        return c;
+                    });
+                    await fb.updateDoc(fb.doc(fb.db, 'programs', programId), { courses: updatedCourses });
+                    setPrograms(prev => prev.map(p => p.id === programId ? { ...p, courses: updatedCourses } : p));
+                    if (selectedProgram?.id === programId)
+                        setSelectedProgram(p => ({ ...p, courses: updatedCourses }));
+                    showToast('تم تحديث بيانات المدرب ✓');
+                    setModal(null);
+                } catch (e) { showToast('خطأ: ' + e.message); }
+                setLoading(false);
+            };
+
+            const handleDeleteTrainerFromCourse = async (programId, courseId, role) => {
+                if (!confirm('هل أنت متأكد من إزالة هذا المدرب من الدورة؟')) return;
+                setLoading(true);
+                try {
+                    const prog = programs.find(p => p.id === programId);
+                    const updatedCourses = prog.courses.map(c => {
+                        if (c.id !== courseId) return c;
+                        if (role === 'رئيسي') return { ...c, supervisor: '', supervisorEmail: '' };
+                        if (role === 'مساعد') return { ...c, coSupervisor: '', coSupervisorEmail: '' };
+                        return c;
+                    });
+                    await fb.updateDoc(fb.doc(fb.db, 'programs', programId), { courses: updatedCourses });
+                    setPrograms(prev => prev.map(p => p.id === programId ? { ...p, courses: updatedCourses } : p));
+                    if (selectedProgram?.id === programId)
+                        setSelectedProgram(p => ({ ...p, courses: updatedCourses }));
+                    showToast('تمت إزالة المدرب من الدورة ✓');
+                } catch (e) { showToast('خطأ: ' + e.message); }
+                setLoading(false);
+            };
+
+            // حذف مدرب بشكل كامل: من Firestore (trainers + users) + من الدورة + حساب Auth
+            const handleDeleteTrainer = async (trainer) => {
+                if (!confirm(`هل أنت متأكد من حذف المدرب "${trainer.name}" بشكل نهائي؟\nسيتم حذف حسابه وجميع بياناته.`)) return;
+                setLoading(true);
+                const errors = [];
+                try {
+                    const { db, doc, deleteDoc, getDocs, collection, query, where, auth } = window._firebase;
+
+                    // 1. حذف من مجموعة trainers المستقلة (إن وُجد)
+                    if (trainer._firestoreId) {
+                        try {
+                            await deleteDoc(doc(db, 'trainers', trainer._firestoreId));
+                        } catch(e) { errors.push('trainers: ' + e.message); }
+                    } else {
+                        // محاولة البحث بالبريد في مجموعة trainers
+                        if (trainer.email) {
+                            try {
+                                const snap = await getDocs(query(collection(db, 'trainers'), where('email', '==', trainer.email)));
+                                for (const d of snap.docs) await deleteDoc(doc(db, 'trainers', d.id));
+                            } catch(e) { errors.push('trainers lookup: ' + e.message); }
+                        }
+                    }
+
+                    // 2. مسح المدرب من الدورة (إن كان مرتبطاً ببرنامج/دورة)
+                    if (trainer.courseName && trainer.courseName !== '—') {
+                        try {
+                            const prog = programs.find(p => (p.courses||[]).find(c =>
+                                (c.code||c.name) === trainer.courseName &&
+                                (c.supervisor === trainer.name || c.coSupervisor === trainer.name)
+                            ));
+                            const course = prog && (prog.courses||[]).find(c =>
+                                (c.code||c.name) === trainer.courseName &&
+                                (c.supervisor === trainer.name || c.coSupervisor === trainer.name)
+                            );
+                            if (prog && course) {
+                                const updatedCourses = prog.courses.map(c => {
+                                    if (c.id !== course.id) return c;
+                                    const patch = {};
+                                    if (c.supervisor === trainer.name) { patch.supervisor = ''; patch.supervisorEmail = ''; }
+                                    if (c.coSupervisor === trainer.name) { patch.coSupervisor = ''; patch.coSupervisorEmail = ''; }
+                                    return { ...c, ...patch };
+                                });
+                                await window._firebase.updateDoc(doc(db, 'programs', prog.id), { courses: updatedCourses });
+                                setPrograms(prev => prev.map(p => p.id === prog.id ? { ...p, courses: updatedCourses } : p));
+                                if (selectedProgram?.id === prog.id)
+                                    setSelectedProgram(p => ({ ...p, courses: updatedCourses }));
+                            }
+                        } catch(e) { errors.push('course: ' + e.message); }
+                    }
+
+                    // 3. حذف وثيقة users/{uid} من Firestore
+                    let uidToDelete = trainer.uid;
+                    if (!uidToDelete && trainer.email) {
+                        try {
+                            const snap = await getDocs(query(collection(db, 'users'), where('email', '==', trainer.email)));
+                            if (!snap.empty) { uidToDelete = snap.docs[0].id; }
+                        } catch(e) { errors.push('users lookup: ' + e.message); }
+                    }
+                    if (uidToDelete) {
+                        try { await deleteDoc(doc(db, 'users', uidToDelete)); } catch(e) { errors.push('users doc: ' + e.message); }
+                    }
+
+                    // 4. حذف حساب Firebase Auth عبر Cloud Function
+                    // (الطريقة الوحيدة الموثوقة من Client-Side — تتطلب نشر deleteAuthUser Function)
+                    if (uidToDelete) {
+                        try {
+                            const { functions, httpsCallable } = window._firebase;
+                            const deleteAuthUser = httpsCallable(functions, 'deleteAuthUser');
+                            await deleteAuthUser({ uid: uidToDelete });
+                        } catch(e) {
+                            errors.push('Auth delete: ' + (e.message || e.code));
+                        }
+                    }
+
+                    if (errors.length > 0) {
+                        showToast('تم الحذف جزئياً ⚠️ — ' + errors[0]);
+                    } else {
+                        showToast('✓ تم حذف المدرب وحسابه بالكامل');
+                    }
+                } catch(e) { showToast('خطأ: ' + e.message); }
+                setLoading(false);
+            };
+
             const handleUpdateProgress = async (programId, courseId, studentId, newProgress) => {
                 try {
                     const prog = programs.find(p => p.id === programId);
@@ -667,9 +928,10 @@
             // -------------------------------------------------------
             const createAuthAccount = async (email, role, extraData = {}) => {
                 const {
-                    auth, createUserWithEmailAndPassword,
+                    auth, db, setDoc, doc,
                     sendPasswordResetEmail, fetchSignInMethodsForEmail,
-                    db, setDoc, doc
+                    createUserWithEmailAndPassword,
+                    initializeApp, deleteApp, getAuth
                 } = window._firebase;
 
                 // فحص إذا كان البريد مسجل مسبقاً
@@ -683,35 +945,92 @@
                 // كلمة سر مؤقتة عشوائية — لن يستخدمها أحد
                 const tempPass = 'Tmp_' + Math.random().toString(36).slice(2, 10) + '!';
 
-                // الحفظ المؤقت لـ auth الحالي (المدير)
-                const adminUser = auth.currentUser;
+                // ✅ إنشاء Firebase App ثانوي مؤقت لإنشاء المستخدم
+                // بهذا لا يتأثر الـ auth الرئيسي ولا تسقط جلسة المدير
+                const secondaryApp = initializeApp(auth.app.options, 'secondary-' + Date.now());
+                const secondaryAuth = getAuth(secondaryApp);
 
-                // إنشاء الحساب الجديد (سيُسجّل الدخول تلقائياً بالحساب الجديد)
-                const cred = await createUserWithEmailAndPassword(auth, email, tempPass);
-                const newUid = cred.user.uid;
+                try {
+                    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, tempPass);
+                    const newUid = cred.user.uid;
 
-                // إضافة بروفايل المستخدم في Firestore
-                await setDoc(doc(db, 'users', newUid), {
-                    role,
-                    email,
-                    ...extraData,
-                    createdAt: new Date().toISOString()
-                });
+                    // إضافة بروفايل المستخدم في Firestore
+                    await setDoc(doc(db, 'users', newUid), {
+                        role,
+                        email,
+                        ...extraData,
+                        createdAt: new Date().toISOString()
+                    });
 
-                // إرسال رابط تعيين كلمة السر للبريد الجديد
-                await sendPasswordResetEmail(auth, email);
+                    // إرسال رابط تعيين كلمة السر للبريد الجديد (من الـ auth الرئيسي)
+                    await sendPasswordResetEmail(auth, email);
 
-                // إعادة تسجيل دخول المدير
-                // (Firebase تُسجّل الدخول تلقائياً بالحساب الجديد عند createUserWithEmailAndPassword)
-                // نستخدم onAuthStateChanged ليكتشف الـ listener التغيير ويُعيد للمدير
-                // الحل: نعيد تسجيل دخول المدير برفع حدث reload
-                if (adminUser) {
-                    await adminUser.reload().catch(() => {});
-                    // إجبار Firebase على إعادة الجلسة للمدير
-                    await auth.updateCurrentUser(adminUser).catch(() => {});
+                    return { uid: newUid, alreadyExists: false };
+                } finally {
+                    // حذف الـ App الثانوي المؤقت فوراً بعد الانتهاء
+                    await deleteApp(secondaryApp).catch(() => {});
                 }
+            };
 
-                return { uid: newUid, alreadyExists: false };
+            // CRUD — تعديل بيانات مدرب موجود في Firestore
+            const handleSaveTrainerEdit = async (trainer, formData) => {
+                setLoading(true);
+                try {
+                    const { db, doc, updateDoc, getDocs, collection, query, where } = window._firebase;
+                    const { trainerFiles, ...restData } = formData;
+
+                    const patch = {
+                        ...restData,
+                        ...(trainerFiles ? { attachments: trainerFiles } : {}),
+                        updatedAt: new Date().toISOString(),
+                    };
+
+                    // تحديث في مجموعة trainers
+                    let updated = false;
+                    if (trainer._firestoreId) {
+                        await updateDoc(doc(db, 'trainers', trainer._firestoreId), patch);
+                        updated = true;
+                    } else if (trainer.email) {
+                        const snap = await getDocs(query(collection(db, 'trainers'), where('email', '==', trainer.email)));
+                        for (const d of snap.docs) {
+                            await updateDoc(doc(db, 'trainers', d.id), patch);
+                            updated = true;
+                        }
+                    }
+
+                    // تحديث في Firestore users إن وُجد uid
+                    if (trainer.uid) {
+                        try {
+                            await updateDoc(doc(db, 'users', trainer.uid), {
+                                name: formData.name,
+                                nameEn: formData.nameEn,
+                                specialty: formData.specialty,
+                                updatedAt: new Date().toISOString(),
+                            });
+                        } catch(e) { /* تجاهل إن لم يوجد */ }
+                    }
+
+                    // تحديث الاسم في الدورات المرتبطة
+                    if (trainer.name !== formData.name) {
+                        const progs = programs.filter(p =>
+                            (p.courses||[]).some(c => c.supervisor === trainer.name || c.coSupervisor === trainer.name)
+                        );
+                        for (const prog of progs) {
+                            const updatedCourses = prog.courses.map(c => {
+                                const patch2 = {};
+                                if (c.supervisor === trainer.name) patch2.supervisor = formData.name;
+                                if (c.coSupervisor === trainer.name) patch2.coSupervisor = formData.name;
+                                return Object.keys(patch2).length ? { ...c, ...patch2 } : c;
+                            });
+                            await fb.updateDoc(fb.doc(fb.db, 'programs', prog.id), { courses: updatedCourses });
+                            setPrograms(prev => prev.map(p => p.id === prog.id ? { ...p, courses: updatedCourses } : p));
+                        }
+                    }
+
+                    showToast(updated ? '✓ تم حفظ التعديلات' : '⚠️ لم يُعثر على سجل المدرب في قاعدة البيانات');
+                    setModal(null);
+                } catch(e) { showToast('خطأ: ' + e.message); }
+                setLoading(false);
             };
 
             // CRUD — إضافة مدرب مستقل (يُحفظ في مجموعة trainers منفصلة)
@@ -725,15 +1044,19 @@
                     const { uid, alreadyExists } = await createAuthAccount(
                         formData.email.trim(),
                         'trainer',
-                        { name: formData.name, specialty: formData.specialty }
+                        { name: formData.name, nameEn: formData.nameEn, specialty: formData.specialty }
                     );
 
                     if (fb?.addDoc && fb?.collection && fb?.db) {
+                        // استبعاد trainerFiles من Firestore وحفظها بشكل منفصل أو تجاهلها إن كانت كبيرة
+                        const { trainerFiles, ...restData } = formData;
                         await fb.addDoc(fb.collection(fb.db, 'trainers'), {
-                            ...formData,
+                            ...restData,
                             uid: uid || null,
                             id: Date.now(),
-                            createdAt: new Date().toISOString()
+                            createdAt: new Date().toISOString(),
+                            // حفظ المرفقات كـ base64 في Firestore (مناسب للملفات الصغيرة)
+                            ...(trainerFiles ? { attachments: trainerFiles } : {})
                         });
                     }
 
@@ -772,7 +1095,7 @@
                         <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                             {['programs','skills','books'].map(tab => (
                                 <button key={tab}
-                                    onClick={() => { setActiveTab(tab); setSelectedStudent(null); setProgramDetails(null); }}
+                                    onClick={() => { setActiveTab(tab); setSelectedStudent(null); setProgramDetails(null); setSelectedTrainer(null); if(tab==='programs'){ setSidebarMode('programs'); setSidebarOpen(false); } }}
                                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab===tab ? 'bg-white text-medbox-main shadow-sm' : 'text-gray-600 hover:text-medbox-main'}`}
                                 >
                                     {tab==='programs'?'البرامج التدريبية':tab==='skills'?'المهارات السريرية':'كتب وأبحاث'}
@@ -1065,6 +1388,23 @@
             // -------------------------------------------------------
             const SettingsContent = ({ searchQuery: settingsSearchQuery = '', sortOrder: settingsSortOrder = 'default' }) => {
                 const [resendingId, setResendingId] = React.useState(null);
+                const [independentTrainers, setIndependentTrainers] = React.useState([]);
+                const [independentStudents, setIndependentStudents] = React.useState([]);
+
+                // جلب المدربين والمتدربين المستقلين من Firestore عند فتح القسم
+                React.useEffect(() => {
+                    if (!fb?.getDocs || !fb?.collection || !fb?.db) return;
+                    fb.getDocs(fb.collection(fb.db, 'trainers'))
+                        .then(snap => {
+                            setIndependentTrainers(snap.docs.map(d => ({ ...d.data(), _firestoreId: d.id, _independent: true })));
+                        })
+                        .catch(() => {});
+                    fb.getDocs(fb.collection(fb.db, 'students'))
+                        .then(snap => {
+                            setIndependentStudents(snap.docs.map(d => ({ ...d.data(), _firestoreId: d.id, _independent: true })));
+                        })
+                        .catch(() => {});
+                }, []);
 
                 const allTrainers = [];
                 const allStudents = [];
@@ -1084,7 +1424,76 @@
                     });
                 });
 
-                // أيقونة الحالة: حساب مفعّل / بريد بدون حساب / بدون بريد
+                // دمج المدربين/المتدربين المستقلين (المضافين من سجل الإعدادات)
+                independentTrainers.forEach(t => {
+                    const exists = allTrainers.find(x => x.email && x.email === t.email);
+                    if (!exists) allTrainers.push({ ...t, role: t.role || 'مستقل', courseName: t.courseName || '—', programName: t.programName || '—', email: t.email || null, uid: t.uid || null, _independent: true });
+                });
+                independentStudents.forEach(s => {
+                    const exists = allStudents.find(x => (x.email && x.email === s.email) || (x.id && x.id === s.id));
+                    if (!exists) allStudents.push({ ...s, courseName: s.courseName || '—', programName: s.programName || '—', _independent: true });
+                });
+
+                // دائرة الحالة فوق الأفاتار
+                const StatusDot = ({ uid }) => {
+                    if (!uid) return null;
+                    return (
+                        <span title="حساب مفعّل" style={{position:'absolute',top:0,right:0,width:10,height:10,borderRadius:'50%',background:'#22c55e',border:'2px solid white',display:'block'}} />
+                    );
+                };
+
+                // زر Glass صغير
+                const GlassBtn = ({ onClick, title, children, danger }) => (
+                    <button
+                        onClick={onClick}
+                        title={title}
+                        style={{
+                            background: danger ? 'rgba(239,68,68,0.10)' : 'rgba(255,255,255,0.55)',
+                            backdropFilter: 'blur(6px)',
+                            WebkitBackdropFilter: 'blur(6px)',
+                            border: danger ? '1px solid rgba(239,68,68,0.20)' : '1px solid rgba(255,255,255,0.55)',
+                            borderRadius: 8,
+                            width: 30,
+                            height: 30,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: danger ? '#ef4444' : '#4b5563',
+                            transition: 'all .15s',
+                            flexShrink: 0,
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = danger ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.80)'}
+                        onMouseLeave={e => e.currentTarget.style.background = danger ? 'rgba(239,68,68,0.10)' : 'rgba(255,255,255,0.55)'}
+                    >
+                        {children}
+                    </button>
+                );
+
+                // زر إعادة إرسال الرابط (أيقونة glass فقط)
+                const ResendBtn = ({ email, uid, rowId }) => {
+                    if (!email) return null;
+                    const isBusy = resendingId === rowId;
+                    return (
+                        <GlassBtn
+                            title={uid ? 'إعادة إرسال رابط الدخول' : 'إرسال رابط تعيين كلمة السر'}
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                setResendingId(rowId);
+                                await resendPasswordLink(email, () => {});
+                                setResendingId(null);
+                            }}
+                        >
+                            {isBusy ? (
+                                <div className="spinner" style={{width:11,height:11,borderWidth:2}} />
+                            ) : (
+                                <svg style={{width:13,height:13}} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                            )}
+                        </GlassBtn>
+                    );
+                };
+
+                // شارة الحالة للمتدربين
                 const AuthBadge = ({ uid, email }) => {
                     if (uid) return (
                         <span title="حساب مفعّل" className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 shrink-0">
@@ -1093,42 +1502,11 @@
                         </span>
                     );
                     if (email) return (
-                        <span title="بريد مسجل — لم يُنشأ الحساب بعد" className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 14a6 6 0 110-12 6 6 0 010 12zm-1-5h2v2H9v-2zm0-6h2v4H9V5z"/></svg>
+                        <span title="بريد مسجل" className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">
                             في الانتظار
                         </span>
                     );
-                    return (
-                        <span title="لا يوجد بريد إلكتروني" className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 shrink-0">
-                            بدون حساب
-                        </span>
-                    );
-                };
-
-                // زر إعادة إرسال الرابط
-                const ResendBtn = ({ email, uid, rowId }) => {
-                    if (!email) return null;
-                    const isBusy = resendingId === rowId;
-                    return (
-                        <button
-                            title={uid ? 'إعادة إرسال رابط الدخول' : 'إرسال رابط تعيين كلمة السر'}
-                            disabled={isBusy}
-                            onClick={async (e) => {
-                                e.stopPropagation();
-                                setResendingId(rowId);
-                                await resendPasswordLink(email, () => {});
-                                setResendingId(null);
-                            }}
-                            className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg border border-medbox-main text-medbox-main hover:bg-medbox-light transition-colors disabled:opacity-50 shrink-0"
-                        >
-                            {isBusy ? (
-                                <div className="spinner" style={{width:12,height:12,borderWidth:2}} />
-                            ) : (
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                            )}
-                            إرسال رابط
-                        </button>
-                    );
+                    return null;
                 };
 
                 const BackBtn = ({ label }) => (
@@ -1185,26 +1563,132 @@
                             ) : (
                                 <div className="space-y-3">
                                     {filtered.map((t, i) => (
-                                        <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold text-sm shrink-0">
-                                                    {t.name?.charAt(0)}
+                                        <div key={i}
+                                            onClick={() => { setSelectedTrainer(t); setProgramDetails(null); setSelectedStudent(null); }}
+                                            style={{
+                                            background: 'linear-gradient(135deg, #0790AC 0%, #05687d 100%)',
+                                            borderRadius: 16,
+                                            boxShadow: '0 4px 16px rgba(7,144,172,0.25)',
+                                            padding: '13px 14px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            direction: 'rtl',
+                                            cursor: 'pointer',
+                                        }}>
+                                            {/* معلومات المدرب — يمين */}
+                                            <div style={{flex:1, minWidth:0}}>
+                                                {/* الاسم + نقطة الحالة */}
+                                                <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:3}}>
+                                                    {t.uid && (
+                                                        <span title="حساب مفعّل" style={{width:9,height:9,borderRadius:'50%',background:'#4ade80',border:'1.5px solid rgba(255,255,255,0.7)',display:'inline-block',flexShrink:0}} />
+                                                    )}
+                                                    <p style={{fontWeight:700, fontSize:15, color:'#fff', whiteSpace:'normal', wordBreak:'break-word', lineHeight:1.3, margin:0}}>{t.name}</p>
                                                 </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <p className="font-bold text-gray-800 text-sm truncate">{t.name}</p>
-                                                        <AuthBadge uid={t.uid} email={t.email} />
-                                                    </div>
-                                                    <p className="text-xs text-gray-400 truncate mt-0.5">{t.programName} · {t.courseName}</p>
-                                                    {t.email && <p className="text-xs text-gray-500 mt-0.5" dir="ltr">{t.email}</p>}
+                                                {/* الرقم */}
+                                                {t.phone && (
+                                                    <p style={{fontSize:12, color:'rgba(255,255,255,0.80)', margin:'0 0 10px 0', direction:'ltr', textAlign:'right', letterSpacing:0.3}}>{t.phone}</p>
+                                                )}
+                                                {!t.phone && t.email && (
+                                                    <p style={{fontSize:11, color:'rgba(255,255,255,0.65)', margin:'0 0 10px 0', direction:'ltr', textAlign:'right'}}>{t.email}</p>
+                                                )}
+                                                {/* أزرار التواصل الأفقية: اتصال، رسالة، واتساب */}
+                                                <div style={{display:'flex', gap:7, flexDirection:'row'}}>
+                                                    <button
+                                                        title="اتصال"
+                                                        onClick={e => { e.stopPropagation(); if(t.phone) window.open('tel:' + t.phone); }}
+                                                        style={{
+                                                            background:'rgba(255,255,255,0.18)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)',
+                                                            border:'1px solid rgba(255,255,255,0.30)', borderRadius:10,
+                                                            width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+                                                            cursor:'pointer', color:'#fff', flexShrink:0,
+                                                        }}
+                                                    >
+                                                        <svg style={{width:15,height:15}} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                                                    </button>
+                                                    <button
+                                                        title="رسالة نصية"
+                                                        onClick={e => { e.stopPropagation(); if(t.phone) window.open('sms:' + t.phone); }}
+                                                        style={{
+                                                            background:'rgba(255,255,255,0.18)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)',
+                                                            border:'1px solid rgba(255,255,255,0.30)', borderRadius:10,
+                                                            width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+                                                            cursor:'pointer', color:'#fff', flexShrink:0,
+                                                        }}
+                                                    >
+                                                        <svg style={{width:15,height:15}} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 16a2 2 0 01-2 2H7l-4 4V6a2 2 0 012-2h14a2 2 0 012 2v10z"/></svg>
+                                                    </button>
+                                                    <button
+                                                        title="واتساب"
+                                                        onClick={e => { e.stopPropagation(); if(t.phone) window.open('https://wa.me/' + t.phone.replace(/\D/g,'')); }}
+                                                        style={{
+                                                            background:'rgba(255,255,255,0.18)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)',
+                                                            border:'1px solid rgba(255,255,255,0.30)', borderRadius:10,
+                                                            width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+                                                            cursor:'pointer', color:'#fff', flexShrink:0,
+                                                        }}
+                                                    >
+                                                        <svg style={{width:15,height:15}} fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                                    </button>
                                                 </div>
-                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${t.role === 'رئيسي' ? 'bg-medbox-light text-medbox-dark' : 'bg-purple-100 text-purple-600'}`}>{t.role}</span>
                                             </div>
-                                            {t.email && (
-                                                <div className="mt-3 pt-3 border-t border-gray-50 flex justify-end">
-                                                    <ResendBtn email={t.email} uid={t.uid} rowId={`trainer-${i}`} />
-                                                </div>
-                                            )}
+
+                                            {/* فاصل عمودي */}
+                                            <div style={{width:1, alignSelf:'stretch', background:'rgba(255,255,255,0.20)', borderRadius:1, flexShrink:0}} />
+
+                                            {/* أزرار الإجراءات — أقصى اليسار */}
+                                            <div style={{display:'flex', flexDirection:'column', gap:7, alignItems:'center', flexShrink:0}}>
+                                                {/* إرسال رابط */}
+                                                {t.email && (
+                                                    <button
+                                                        title={t.uid ? 'إعادة إرسال رابط الدخول' : 'إرسال رابط تعيين كلمة السر'}
+                                                        disabled={resendingId === `trainer-${i}`}
+                                                        onClick={async (e) => { e.stopPropagation(); setResendingId(`trainer-${i}`); await resendPasswordLink(t.email, () => {}); setResendingId(null); }}
+                                                        style={{
+                                                            background:'rgba(255,255,255,0.18)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)',
+                                                            border:'1px solid rgba(255,255,255,0.30)', borderRadius:10,
+                                                            width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+                                                            cursor:'pointer', color:'#fff', flexShrink:0, opacity: resendingId===`trainer-${i}` ? 0.5 : 1,
+                                                        }}
+                                                    >
+                                                        {resendingId === `trainer-${i}` ? (
+                                                            <div className="spinner" style={{width:12,height:12,borderWidth:2,borderColor:'rgba(255,255,255,0.3)',borderTopColor:'#fff'}} />
+                                                        ) : (
+                                                            <svg style={{width:15,height:15}} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                                        )}
+                                                    </button>
+                                                )}
+                                                {/* تعديل */}
+                                                {isAdmin && (
+                                                    <button
+                                                        title="تعديل المدرب"
+                                                        onClick={e => { e.stopPropagation(); setModal({ type: 'editTrainer', programId: programs.find(p => (p.courses||[]).find(c => (c.code||c.name) === t.courseName && (c.supervisor===t.name||c.coSupervisor===t.name)))?.id, courseId: programs.flatMap(p=>(p.courses||[])).find(c=>(c.code||c.name)===t.courseName&&(c.supervisor===t.name||c.coSupervisor===t.name))?.id, role: t.role, trainer: t }); }}
+                                                        style={{
+                                                            background:'rgba(255,255,255,0.18)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)',
+                                                            border:'1px solid rgba(255,255,255,0.30)', borderRadius:10,
+                                                            width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+                                                            cursor:'pointer', color:'#fff', flexShrink:0,
+                                                        }}
+                                                    >
+                                                        <svg style={{width:14,height:14}} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                    </button>
+                                                )}
+                                                {/* حذف */}
+                                                {isAdmin && (
+                                                    <button
+                                                        title="حذف المدرب نهائياً"
+                                                        onClick={e => { e.stopPropagation(); handleDeleteTrainer(t); }}
+                                                        style={{
+                                                            background:'rgba(239,68,68,0.25)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)',
+                                                            border:'1px solid rgba(239,68,68,0.40)', borderRadius:10,
+                                                            width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+                                                            cursor:'pointer', color:'#fca5a5', flexShrink:0,
+                                                        }}
+                                                    >
+                                                        <svg style={{width:14,height:14}} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1253,6 +1737,24 @@
                                                 <div className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${s.status === 'نشط' || !s.status ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                                                     {s.status || 'نشط'}
                                                 </div>
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={e => { e.stopPropagation(); const prog = programs.find(p => (p.courses||[]).find(c => (c.code||c.name)===s.courseName)); const course = (prog?.courses||[]).find(c=>(c.code||c.name)===s.courseName); setModal({ type: 'editStudent', programId: prog?.id, courseId: course?.id, student: s }); }}
+                                                        className="btn btn-icon btn-ghost text-medbox-main hover:bg-medbox-light"
+                                                        title="تعديل المتدرب"
+                                                    >
+                                                        <Icon name="edit" className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={e => { e.stopPropagation(); const prog = programs.find(p => (p.courses||[]).find(c => (c.code||c.name)===s.courseName)); const course = (prog?.courses||[]).find(c=>(c.code||c.name)===s.courseName); if(prog&&course) handleDeleteStudent(prog.id, course.id, s.id); }}
+                                                        className="btn btn-icon btn-danger-ghost"
+                                                        title="حذف المتدرب"
+                                                    >
+                                                        <Icon name="trash" className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
                                             </div>
                                             {s.email && (
                                                 <div className="mt-3 pt-3 border-t border-gray-50 flex justify-end">
@@ -1362,8 +1864,19 @@
                 const globalResults = getGlobalSearchResults();
 
                 // ===== الهيدر الثابت (يظهر دائماً) =====
-                const SidebarHeader = ({ title }) => (
-                    <div className="shrink-0 flex items-center gap-2 px-6 md:px-8 py-3" style={{background:'linear-gradient(135deg, #0790AC 0%, #0f6b7a 100%)', boxShadow:'0 2px 8px rgba(7,144,172,0.35)'}}>
+                const SidebarHeader = ({ title }) => {
+                    // تحديد اسم القسم الحالي
+                    const sectionName = sidebarMode === 'settings'
+                        ? (settingsTab === 'trainers' ? 'سجل المدربين / المدرسين'
+                            : settingsTab === 'students' ? 'سجل المتدربين / الطلاب'
+                            : settingsTab === 'changePassword' ? 'تغيير كلمة السر'
+                            : 'الإعدادات')
+                        : title;
+
+                    return (
+                    <div className="shrink-0 flex flex-col" style={{background:'linear-gradient(135deg, #0790AC 0%, #0f6b7a 100%)', boxShadow:'0 2px 8px rgba(7,144,172,0.35)'}}>
+                        {/* صف الأزرار */}
+                        <div className="flex items-center gap-2 px-4 py-2">
                         {sidebarMode === 'settings' ? (
                             <>
                                 {settingsTab === null ? (
@@ -1385,9 +1898,6 @@
                                                 onChange={e => setSettingsSearchQuery(e.target.value)}
                                                 className={`sidebar-search-input ${settingsSearchOpen ? 'expanded' : ''}`}
                                             />
-                                            {!settingsSearchOpen && (
-                                                <h2 className="text-sm font-bold text-white truncate">الإعدادات</h2>
-                                            )}
                                         </div>
                                         <button onClick={() => { setSidebarOpen(false); setSidebarMode('programs'); }} className="btn btn-icon btn-white-ghost shrink-0" title="إغلاق">
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
@@ -1416,9 +1926,6 @@
                                                 onChange={e => setSettingsSearchQuery(e.target.value)}
                                                 className={`sidebar-search-input ${settingsSearchOpen ? 'expanded' : ''}`}
                                             />
-                                            {!settingsSearchOpen && (
-                                                <h2 className="text-sm font-bold text-white truncate">سجل المتدربين</h2>
-                                            )}
                                         </div>
                                         {/* Sort button */}
                                         <div className="relative shrink-0">
@@ -1481,9 +1988,6 @@
                                                 onChange={e => setSettingsSearchQuery(e.target.value)}
                                                 className={`sidebar-search-input ${settingsSearchOpen ? 'expanded' : ''}`}
                                             />
-                                            {!settingsSearchOpen && (
-                                                <h2 className="text-sm font-bold text-white truncate">سجل المدربين</h2>
-                                            )}
                                         </div>
                                         {/* Sort button */}
                                         <div className="relative shrink-0">
@@ -1524,12 +2028,12 @@
                                         </button>
                                     </>
                                 ) : (
-                                    /* ====== هيدر افتراضي للإعدادات ====== */
+                                    /* ====== هيدر افتراضي للإعدادات (changePassword) ====== */
                                     <>
-                                        <div className="flex items-center gap-2 text-white flex-1 min-w-0">
-                                            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                            <h2 className="text-sm font-bold truncate">الإعدادات</h2>
-                                        </div>
+                                        <button onClick={() => setSettingsTab(null)} className="btn btn-icon btn-white-ghost shrink-0" title="رجوع">
+                                            <svg className="w-4 h-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+                                        </button>
+                                        <div className="flex-1" />
                                         <button onClick={() => { setSidebarOpen(false); setSidebarMode('programs'); }} className="btn btn-icon btn-white-ghost shrink-0" title="إغلاق">
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
                                         </button>
@@ -1555,7 +2059,6 @@
                                         onChange={e => setSearchQuery(e.target.value)}
                                         className={`sidebar-search-input ${searchOpen ? 'expanded' : ''}`}
                                     />
-                                    {!searchOpen && <h2 className="text-sm font-bold text-white truncate">{title}</h2>}
                                 </div>
                                 {/* Sort button */}
                                 <div className="relative shrink-0">
@@ -1596,8 +2099,16 @@
                                 </button>
                             </>
                         )}
+                        </div>
+                        {/* شريط اسم القسم تحت الأزرار */}
+                        {sectionName && (
+                            <div className="px-4 pb-2 pt-0">
+                                <p className="text-xs font-bold text-white/80 tracking-wide">{sectionName}</p>
+                            </div>
+                        )}
                     </div>
-                );
+                    );
+                };
 
                 // ===== حالة البحث العام (عرض نتائج من كل الأنواع) =====
                 if (globalResults && sidebarMode !== 'settings') {
@@ -1616,7 +2127,7 @@
                                         <div className="space-y-2">
                                             {pRes.map(p => (
                                                 <div key={p.id}
-                                                    onClick={() => { setSelectedProgram(p); setSelectedStudent(null); setProgramDetails(null); setSearchQuery(''); setSearchOpen(false); }}
+                                                    onClick={() => { setSelectedProgram(p); setSelectedStudent(null); setProgramDetails(null); setSelectedTrainer(null); setSearchQuery(''); setSearchOpen(false); }}
                                                     className="bg-white rounded-lg p-3 text-sm shadow-sm border border-gray-100 cursor-pointer hover:shadow-md flex items-center gap-2"
                                                 >
                                                     <Icon name="stethoscope" className="w-4 h-4 text-medbox-main shrink-0" />
@@ -1634,7 +2145,7 @@
                                                 <div key={c.id}
                                                     onClick={() => {
                                                         const prog = programs.find(p => p.id === c.programId);
-                                                        setSelectedProgram(prog); setSelectedStudent(null); setProgramDetails(null); setSearchQuery(''); setSearchOpen(false);
+                                                        setSelectedProgram(prog); setSelectedStudent(null); setProgramDetails(null); setSelectedTrainer(null); setSearchQuery(''); setSearchOpen(false);
                                                     }}
                                                     className="bg-white rounded-lg p-3 text-sm shadow-sm border border-gray-100 cursor-pointer hover:shadow-md"
                                                 >
@@ -1651,7 +2162,7 @@
                                         <div className="space-y-2">
                                             {sRes.map(s => (
                                                 <div key={s.id}
-                                                    onClick={() => { setSelectedStudent(s); setProgramDetails(null); setSearchQuery(''); setSearchOpen(false); }}
+                                                    onClick={() => { setSelectedStudent(s); setProgramDetails(null); setSelectedTrainer(null); setSearchQuery(''); setSearchOpen(false); }}
                                                     className="bg-white rounded-lg p-3 text-sm shadow-sm border border-gray-100 cursor-pointer hover:shadow-md flex items-center gap-2"
                                                 >
                                                     <div className="w-6 h-6 rounded-full bg-medbox-main text-white flex items-center justify-center text-xs shrink-0">
@@ -1905,6 +2416,97 @@
                 );
             };
 
+            // ===== عرض بيانات المدرب على لوحة العرض الرئيسية =====
+            const TrainerDetailsView = ({ trainer: t }) => {
+                const SectionCard = ({ title, children }) => (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                        <h3 className="text-base font-bold text-gray-800 border-b pb-2">{title}</h3>
+                        {children}
+                    </div>
+                );
+                const Field = ({ label, value, ltr }) => (
+                    <div>
+                        <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+                        <p className={`font-medium text-gray-800 text-sm ${ltr ? 'dir-ltr' : ''}`} dir={ltr ? 'ltr' : undefined}>{value || '—'}</p>
+                    </div>
+                );
+
+                const attachmentDefs = [
+                    { key: 'idCard', label: 'صورة الهوية الوطنية', icon: '🪪' },
+                    { key: 'cert',   label: 'صورة الشهادة العلمية', icon: '🎓' },
+                    { key: 'cv',     label: 'السيرة الذاتية (PDF)',  icon: '📄' },
+                ];
+
+                return (
+                    <div className="flex-1 p-6 md:p-8 overflow-y-auto fade-in">
+
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                            <div className="bg-gradient-to-l from-medbox-main to-medbox-dark p-8 text-white flex items-center gap-6">
+                                <div className="w-20 h-20 bg-white text-medbox-main rounded-full flex items-center justify-center text-3xl font-bold shadow-lg border-4 border-medbox-light shrink-0">
+                                    {t.name?.charAt(0)}
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-bold mb-1">{t.name}</h2>
+                                    <p className="text-medbox-light text-sm flex items-center gap-2" dir="ltr">
+                                        <Icon name="mail" className="w-4 h-4"/>
+                                        {t.email || '—'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            {/* البيانات الشخصية */}
+                            <SectionCard title="البيانات الشخصية">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Field label="الاسم الثلاثي بالعربي" value={t.name} />
+                                    <Field label="الاسم الثلاثي بالإنجليزي" value={t.nameEn} ltr />
+                                    <Field label="الرقم الوطني" value={t.nationalId} ltr />
+                                    <Field label="البريد الإلكتروني" value={t.email} ltr />
+                                    <Field label="رقم الهاتف" value={t.phone} ltr />
+                                    <Field label="رقم الواتساب" value={t.whatsapp} ltr />
+                                    <Field label="العنوان" value={t.address} />
+                                </div>
+                            </SectionCard>
+
+                            {/* البيانات الأكاديمية */}
+                            <SectionCard title="البيانات الأكاديمية">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Field label="الشهادة العلمية" value={t.degree} />
+                                    <Field label="الاختصاص" value={t.specialty} />
+                                    <Field label="البرنامج" value={t.programName && t.programName !== '—' ? t.programName : null} />
+                                    <Field label="الدورة الحالية" value={t.courseName && t.courseName !== '—' ? t.courseName : null} />
+                                </div>
+                            </SectionCard>
+
+                            {/* المرفقات */}
+                            <SectionCard title="المرفقات">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {attachmentDefs.map(({ key, label, icon }) => {
+                                        const file = t.attachments?.[key];
+                                        return (
+                                            <div key={key}>
+                                                <p className="text-xs text-gray-500 mb-1">{icon} {label}</p>
+                                                {file ? (
+                                                    <a href={file.data} download={file.name} target="_blank" rel="noreferrer"
+                                                        className="flex items-center justify-between bg-medbox-light rounded-lg px-4 py-2.5 hover:shadow-sm transition-shadow"
+                                                    >
+                                                        <span className="text-xs text-medbox-dark font-medium truncate">{file.name}</span>
+                                                        <Icon name="paperclip" className="w-3.5 h-3.5 text-medbox-main shrink-0 mr-2" />
+                                                    </a>
+                                                ) : (
+                                                    <p className="font-medium text-gray-400 text-sm bg-gray-50 rounded-lg px-4 py-2.5 border border-gray-100">لا يوجد ملف</p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </SectionCard>
+                        </div>
+                    </div>
+                );
+            };
+
             // -------------------------------------------------------
             // عرض تفاصيل البرنامج (لوحة العرض الرئيسية)
             // -------------------------------------------------------
@@ -2030,8 +2632,72 @@
                         <p className="mt-2 text-sm">قريباً...</p>
                     </div>
                 );
+                if (selectedTrainer) return <TrainerDetailsView trainer={selectedTrainer} />;
                 if (selectedStudent) return <StudentDetails student={selectedStudent} />;
                 if (programDetails) return <ProgramDetailsView program={programDetails} />;
+
+                // ── لوحة الإعدادات ──
+                if (sidebarMode === 'settings' && sidebarOpen) {
+                    // تسميات الأقسام
+                    const settingsTabLabel = {
+                        trainers: 'سجل المدربين / المدرسين',
+                        students: 'سجل المتدربين / الطلاب',
+                        changePassword: 'تغيير كلمة السر',
+                    }[settingsTab] || null;
+
+                    return (
+                    <div className="flex-1 flex flex-col overflow-hidden fade-in">
+                        {/* هيدر الإعدادات الثابت */}
+                        <div className="px-6 md:px-8 py-4 flex items-center gap-3 text-white shrink-0"
+                            style={{background: 'linear-gradient(135deg, #0790AC 0%, #0f6b7a 100%)'}}>
+                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 className="text-base font-bold">الإعدادات</h2>
+                                <p className="text-xs text-white/70">
+                                    {settingsTabLabel ? settingsTabLabel : 'اختر قسماً من القائمة الجانبية لعرضه هنا'}
+                                </p>
+                            </div>
+                        </div>
+                        {/* محتوى: إرشاد أو placeholder */}
+                        {!settingsTab ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center px-8 fade-in">
+                            <div className="w-20 h-20 bg-medbox-light rounded-2xl flex items-center justify-center mb-5">
+                                <svg className="w-10 h-10 text-medbox-main" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-700 mb-2">اختر قسماً من القائمة</h3>
+                            <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
+                                اختر أحد الأقسام من القائمة الجانبية على اليمين (المدربون، المتدربون، كلمة السر...) لعرض تفاصيله هنا.
+                            </p>
+                            <div className="flex items-center gap-2 mt-6 text-medbox-main bg-medbox-light px-4 py-2 rounded-full text-sm font-medium">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                                </svg>
+                                القائمة الجانبية على اليمين
+                            </div>
+                        </div>
+                        ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center px-8 fade-in">
+                            <div className="w-20 h-20 bg-medbox-light rounded-2xl flex items-center justify-center mb-5">
+                                <svg className="w-10 h-10 text-medbox-main" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-700 mb-2">{settingsTabLabel}</h3>
+                            <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
+                                يمكنك إدارة هذا القسم من خلال القائمة الجانبية على اليمين.
+                            </p>
+                        </div>
+                        )}
+                    </div>
+                    );
+                }
                 return (
                     <div className="flex-1 p-6 md:p-8 overflow-y-auto fade-in">
                         <div className="flex justify-between items-center mb-8">
@@ -2061,7 +2727,7 @@
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {visiblePrograms.map(program => (
                                     <div key={program.id}
-                                        onClick={() => { setProgramDetails(program); setSelectedProgram(program); setSelectedStudent(null); setSidebarOpen(true); }}
+                                        onClick={() => { setProgramDetails(program); setSelectedProgram(program); setSelectedStudent(null); setSelectedTrainer(null); setSidebarOpen(true); }}
                                         className={`bg-white rounded-2xl p-6 shadow-sm border-2 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 transform
                                             ${selectedProgram?.id === program.id ? 'border-medbox-main ring-4 ring-medbox-light' : 'border-transparent'}`}
                                     >
@@ -2124,7 +2790,7 @@
             // -------------------------------------------------------
             const Modal = () => {
                 const [form, setForm] = useState({});
-                const [activeModalTab, setActiveModalTab] = useState('info');
+                const [activeModalTab, setActiveModalTab] = useState((modal?.type === 'addTrainer' || modal?.type === 'editTrainer') ? 'personal' : 'info');
                 const [fileName, setFileName] = useState('');
                 if (!modal) return null;
 
@@ -2135,7 +2801,9 @@
                     if (modal.type === 'addCourse')   handleAddCourse(modal.programId, form);
                     if (modal.type === 'editCourse')  handleEditCourse(modal.programId, modal.course.id, form);
                     if (modal.type === 'addStudent')  handleAddStudent(modal.programId, modal.courseId, form);
+                    if (modal.type === 'editStudent') handleEditStudent(modal.programId, modal.courseId, modal.student.id, form);
                     if (modal.type === 'addTrainer')  handleAddTrainer(form);
+                    if (modal.type === 'editTrainer') handleSaveTrainerEdit(modal.trainer, form);
                 };
 
                 const handleFileChange = (e) => {
@@ -2179,15 +2847,21 @@
                     ],
                     addStudent: [
                         { key: 'name',  label: 'اسم المتدرب',       required: true },
-                        { key: 'email', label: 'البريد الإلكتروني',  type: 'email', placeholder: 'اختياري — سيُرسل له رابط الدخول' },
+                        { key: 'email', label: 'البريد الإلكتروني',  type: 'email', required: true, placeholder: 'example@email.com — سيُرسل له رابط الدخول تلقائياً' },
                         { key: 'phone', label: 'رقم الهاتف',         type: 'tel'    },
                         { key: 'level', label: 'المستوى الدراسي',    placeholder: 'السنة الأولى' },
                     ],
-                    addTrainer: [
-                        { key: 'name',      label: 'اسم المدرب',           required: true },
-                        { key: 'email',     label: 'البريد الإلكتروني',     type: 'email', required: true, placeholder: 'سيُرسل له رابط تعيين كلمة السر' },
-                        { key: 'phone',     label: 'رقم الهاتف',            type: 'tel'    },
-                        { key: 'specialty', label: 'التخصص / المجال',       placeholder: 'مثال: الإدارة، تقنية المعلومات' },
+                    editStudent: [
+                        { key: 'name',  label: 'اسم المتدرب',       required: true },
+                        { key: 'email', label: 'البريد الإلكتروني',  type: 'email' },
+                        { key: 'phone', label: 'رقم الهاتف',         type: 'tel'    },
+                        { key: 'level', label: 'المستوى الدراسي'    },
+                        { key: 'status',label: 'الحالة',             placeholder: 'نشط' },
+                    ],
+                    addTrainer: [], // يُعرض عبر renderTrainerForm
+                    editTrainer: [
+                        { key: 'name',  label: 'اسم المدرب',         required: true },
+                        { key: 'email', label: 'البريد الإلكتروني',   type: 'email' },
                     ],
                 };
 
@@ -2200,6 +2874,22 @@
                         setFileName(atts.map(a => a.name).join('، '));
                     } else if (modal?.type === 'editCourse' && modal.course) {
                         setForm({ ...modal.course });
+                    } else if (modal?.type === 'editStudent' && modal.student) {
+                        setForm({ ...modal.student });
+                    } else if (modal?.type === 'editTrainer' && modal.trainer) {
+                        const t = modal.trainer;
+                        setForm({
+                            name:       t.name       || '',
+                            nameEn:     t.nameEn     || '',
+                            nationalId: t.nationalId || '',
+                            email:      t.email      || '',
+                            phone:      t.phone      || '',
+                            whatsapp:   t.whatsapp   || '',
+                            address:    t.address    || '',
+                            degree:     t.degree     || '',
+                            specialty:  t.specialty  || '',
+                            trainerFiles: t.attachments || {},
+                        });
                     }
                 }, []);
 
@@ -2209,12 +2899,32 @@
                     addCourse:   'إضافة دورة جديدة',
                     editCourse:  'تعديل الدورة',
                     addStudent:  'إضافة متدرب جديد',
+                    editStudent: 'تعديل بيانات المتدرب',
                     addTrainer:  'إضافة مدرب جديد',
+                    editTrainer: 'تعديل بيانات المدرب',
                 };
 
                 // ===== نموذج بسيط (دورة / متدرب) =====
                 const renderSimpleForm = () => (
                     <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+                        {/* بانر توضيحي عند إضافة متدرب */}
+                        {modal.type === 'addStudent' && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+                                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                                    <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-blue-800 mb-0.5">البريد الإلكتروني مطلوب لتفعيل حساب المتدرب</p>
+                                    <p className="text-xs text-blue-600 leading-relaxed">
+                                        فور الإضافة يصل المتدرب رابطاً تلقائياً لتعيين كلمة السر والدخول لبوابته الخاصة.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {fields[modal.type]?.map(({ key, label, required, textarea, type, placeholder }) => (
                             <div key={key}>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">{label}{required && <span className="text-red-500 mr-1">*</span>}</label>
@@ -2233,6 +2943,7 @@
                                         value={form[key] || ''}
                                         onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                                         className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main"
+                                        dir={type === 'email' || type === 'tel' ? 'ltr' : undefined}
                                     />
                                 )}
                             </div>
@@ -2381,14 +3092,223 @@
                     );
                 };
 
+                // ===== نموذج إضافة مدرب (تبويبات: شخصي / أكاديمي / مرفقات) =====
+                const renderTrainerForm = () => {
+                    const inputCls = "w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main";
+                    const labelCls = "block text-sm font-medium text-gray-700 mb-1";
+                    const req      = <span className="text-red-500 mr-1">*</span>;
+                    const upd      = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+                    const handleAttachmentChange = (key, accept) => (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => setForm(f => ({
+                            ...f,
+                            trainerFiles: { ...(f.trainerFiles || {}), [key]: { name: file.name, type: file.type, data: reader.result } }
+                        }));
+                        reader.readAsDataURL(file);
+                    };
+
+                    const removeFile = (key) => setForm(f => {
+                        const tf = { ...(f.trainerFiles || {}) };
+                        delete tf[key];
+                        return { ...f, trainerFiles: tf };
+                    });
+
+                    const tabs = [
+                        { key: 'personal',  label: 'البيانات الشخصية' },
+                        { key: 'academic',  label: 'البيانات الأكاديمية' },
+                        { key: 'files',     label: 'المرفقات' },
+                    ];
+
+                    return (
+                        <form onSubmit={handleSubmit} noValidate>
+                            {/* Tabs */}
+                            <div className="flex items-center gap-1 px-6 pt-3 border-b border-gray-100">
+                                {tabs.map(t => (
+                                    <button key={t.key} type="button"
+                                        onClick={() => setActiveModalTab(t.key)}
+                                        className={`px-4 py-2 text-sm font-bold rounded-t-lg transition-colors -mb-px border-b-2
+                                            ${activeModalTab === t.key ? 'text-medbox-main border-medbox-main bg-medbox-light' : 'text-gray-500 border-transparent hover:text-medbox-main'}`}>
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+
+                                {/* ── تبويب البيانات الشخصية ── */}
+                                {activeModalTab === 'personal' && (
+                                    <div className="space-y-4 fade-in">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className={labelCls}>الاسم الثلاثي بالعربي {req}</label>
+                                                <input type="text" required dir="rtl"
+                                                    value={form.name || ''}
+                                                    onChange={upd('name')}
+                                                    className={inputCls} placeholder="محمد عبدالله الأحمد" />
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>الاسم الثلاثي بالإنجليزي {req}</label>
+                                                <input type="text" required dir="ltr"
+                                                    value={form.nameEn || ''}
+                                                    onChange={upd('nameEn')}
+                                                    className={inputCls} placeholder="Mohammed Abdullah Al-Ahmad" />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className={labelCls}>الرقم الوطني {req}</label>
+                                                <input type="text" required dir="ltr"
+                                                    value={form.nationalId || ''}
+                                                    onChange={upd('nationalId')}
+                                                    className={inputCls} placeholder="1XXXXXXXXX" />
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>البريد الإلكتروني {modal.type === 'addTrainer' && req}</label>
+                                                <input type="email" dir="ltr"
+                                                    required={modal.type === 'addTrainer'}
+                                                    disabled={modal.type === 'editTrainer'}
+                                                    value={form.email || ''}
+                                                    onChange={upd('email')}
+                                                    className={`${inputCls} ${modal.type === 'editTrainer' ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
+                                                    placeholder="example@email.com" />
+                                                {modal.type === 'addTrainer' && <p className="text-xs text-gray-400 mt-1">سيُرسل له رابط تعيين كلمة السر</p>}
+                                                {modal.type === 'editTrainer' && <p className="text-xs text-gray-400 mt-1">لا يمكن تغيير البريد الإلكتروني</p>}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className={labelCls}>رقم الهاتف {req}</label>
+                                                <input type="tel" required dir="ltr"
+                                                    value={form.phone || ''}
+                                                    onChange={upd('phone')}
+                                                    className={inputCls} placeholder="05XXXXXXXX" />
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>رقم الواتساب {req}</label>
+                                                <input type="tel" required dir="ltr"
+                                                    value={form.whatsapp || ''}
+                                                    onChange={upd('whatsapp')}
+                                                    className={inputCls} placeholder="05XXXXXXXX" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className={labelCls}>العنوان</label>
+                                            <input type="text" dir="rtl"
+                                                value={form.address || ''}
+                                                onChange={upd('address')}
+                                                className={inputCls} placeholder="المدينة، الحي" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ── تبويب البيانات الأكاديمية ── */}
+                                {activeModalTab === 'academic' && (
+                                    <div className="space-y-4 fade-in">
+                                        <div>
+                                            <label className={labelCls}>الشهادة العلمية {req}</label>
+                                            <select required
+                                                value={form.degree || ''}
+                                                onChange={upd('degree')}
+                                                className={inputCls}>
+                                                <option value="">-- اختر الشهادة --</option>
+                                                <option value="دكتوراه">دكتوراه</option>
+                                                <option value="ماجستير">ماجستير</option>
+                                                <option value="بكالوريوس">بكالوريوس</option>
+                                                <option value="دبلوم عالي">دبلوم عالي</option>
+                                                <option value="دبلوم">دبلوم</option>
+                                                <option value="أخرى">أخرى</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className={labelCls}>الاختصاص {req}</label>
+                                            <input type="text" required dir="rtl"
+                                                value={form.specialty || ''}
+                                                onChange={upd('specialty')}
+                                                className={inputCls} placeholder="مثال: إدارة الأعمال، تقنية المعلومات" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ── تبويب المرفقات ── */}
+                                {activeModalTab === 'files' && (
+                                    <div className="space-y-5 fade-in">
+                                        {[
+                                            { key: 'idCard',   label: 'صورة الهوية الوطنية',    accept: 'image/*',       icon: '🪪' },
+                                            { key: 'cert',     label: 'صورة الشهادة العلمية',   accept: 'image/*',       icon: '🎓' },
+                                            { key: 'cv',       label: 'السيرة الذاتية (PDF)',    accept: 'application/pdf', icon: '📄' },
+                                        ].map(({ key, label, accept, icon }) => {
+                                            const file = form.trainerFiles?.[key];
+                                            return (
+                                                <div key={key}>
+                                                    <label className={labelCls}>{icon} {label}</label>
+                                                    {file ? (
+                                                        <div className="flex items-center justify-between bg-medbox-light rounded-lg px-4 py-2.5">
+                                                            <span className="text-xs text-medbox-dark font-medium truncate">{file.name}</span>
+                                                            <button type="button" onClick={() => removeFile(key)} className="text-red-400 hover:text-red-600 shrink-0 mr-2 text-lg leading-none">✕</button>
+                                                        </div>
+                                                    ) : (
+                                                        <label className="flex items-center gap-3 border-2 border-dashed border-gray-200 rounded-lg px-4 py-3 cursor-pointer hover:border-medbox-main hover:bg-medbox-light transition-colors">
+                                                            <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                                            <span className="text-sm text-gray-500">اضغط لرفع الملف</span>
+                                                            <input type="file" accept={accept} className="hidden" onChange={handleAttachmentChange(key, accept)} />
+                                                        </label>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* أزرار التنقل بين التبويبات + حفظ */}
+                            <div className="flex gap-3 p-6 pt-0">
+                                {activeModalTab !== 'personal' && (
+                                    <button type="button"
+                                        onClick={() => setActiveModalTab(activeModalTab === 'files' ? 'academic' : 'personal')}
+                                        className="btn btn-neutral btn-md px-5">
+                                        السابق
+                                    </button>
+                                )}
+                                {activeModalTab !== 'files' ? (
+                                    <button type="button"
+                                        onClick={() => {
+                                            if (activeModalTab === 'personal') {
+                                                const emailRequired = modal.type === 'addTrainer';
+                                                if (!form.name || !form.nameEn || !form.nationalId || (emailRequired && !form.email) || !form.phone || !form.whatsapp) {
+                                                    showToast('يرجى تعبئة جميع الحقول المطلوبة (*)');
+                                                    return;
+                                                }
+                                            }
+                                            setActiveModalTab(activeModalTab === 'personal' ? 'academic' : 'files');
+                                        }}
+                                        className="btn btn-primary btn-md flex-1">
+                                        التالي
+                                    </button>
+                                ) : (
+                                    <button type="submit" disabled={loading}
+                                        className={`btn btn-md flex-1 ${modal.type === 'editTrainer'
+                                            ? 'bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors'
+                                            : 'btn-primary'}`}>
+                                        {loading ? 'جاري الحفظ...' : modal.type === 'editTrainer' ? '✓ حفظ التعديلات' : '✓ حفظ المدرب'}
+                                    </button>
+                                )}
+                                <button type="button" onClick={() => setModal(null)} className="btn btn-neutral btn-md px-5">إلغاء</button>
+                            </div>
+                        </form>
+                    );
+                };
+
                 return (
                     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-                        <div className={`bg-white rounded-2xl shadow-2xl w-full fade-in ${(modal.type === 'addProgram' || modal.type === 'editProgram') ? 'max-w-2xl' : 'max-w-md'}`}>
+                        <div className={`bg-white rounded-2xl shadow-2xl w-full fade-in ${(modal.type === 'addProgram' || modal.type === 'editProgram' || modal.type === 'addTrainer' || modal.type === 'editTrainer') ? 'max-w-2xl' : 'max-w-md'}`}>
                             <div className="flex items-center justify-between p-6 border-b border-gray-100">
                                 <h3 className="font-bold text-gray-800">{titles[modal.type]}</h3>
                                 <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl font-light">✕</button>
                             </div>
-                            {(modal.type === 'addProgram' || modal.type === 'editProgram') ? renderProgramForm() : renderSimpleForm()}
+                            {(modal.type === 'addTrainer' || modal.type === 'editTrainer') ? renderTrainerForm() : (modal.type === 'addProgram' || modal.type === 'editProgram') ? renderProgramForm() : renderSimpleForm()}
                         </div>
                     </div>
                 );
