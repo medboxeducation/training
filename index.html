@@ -2776,89 +2776,61 @@
 
                 // ── لوحة الإعدادات ──
                 if (sidebarMode === 'settings' && sidebarOpen) {
-                    // تسميات وأيقونات الأقسام
-                    const settingsTabs = {
-                        trainers:       { label: 'سجل المدربين / المدرسين', icon: 'user' },
-                        students:       { label: 'سجل المتدربين / الطلاب',  icon: 'users' },
-                        changePassword: { label: 'تغيير كلمة السر',          icon: 'lock' },
-                    };
-                    const currentTab = settingsTabs[settingsTab] || null;
+                    // تسميات الأقسام
+                    const settingsTabLabel = {
+                        trainers: 'سجل المدربين / المدرسين',
+                        students: 'سجل المتدربين / الطلاب',
+                        changePassword: 'تغيير كلمة السر',
+                    }[settingsTab] || null;
 
                     return (
                     <div className="flex-1 flex flex-col overflow-hidden fade-in">
-                        {/* ═══ هيدر الإعدادات الثابت ═══ */}
-                        <div className="px-6 md:px-8 py-4 flex items-center gap-4 text-white shrink-0"
-                            style={{background: 'linear-gradient(135deg, #0790AC 0%, #0f6b7a 100%)', boxShadow:'0 2px 12px rgba(7,144,172,0.30)'}}>
-                            {/* أيقونة القسم الحالي */}
-                            <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center shrink-0 border border-white/25">
-                                {currentTab ? (
-                                    <Icon name={currentTab.icon} className="w-5 h-5" />
-                                ) : (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    </svg>
-                                )}
+                        {/* هيدر الإعدادات الثابت */}
+                        <div className="px-6 md:px-8 py-4 flex items-center gap-3 text-white shrink-0"
+                            style={{background: 'linear-gradient(135deg, #0790AC 0%, #0f6b7a 100%)'}}>
+                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
                             </div>
-                            {/* العنوان */}
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] font-semibold text-white/60 uppercase tracking-widest mb-0.5">الإعدادات</p>
-                                <h2 className="text-base font-bold leading-tight truncate">
-                                    {currentTab ? currentTab.label : 'لوحة الإعدادات'}
-                                </h2>
-                            </div>
-                            {/* شريط التنقل بين الأقسام */}
-                            <div className="flex items-center gap-1 shrink-0">
-                                {Object.entries(settingsTabs).map(([key, tab]) => (
-                                    <button key={key}
-                                        onClick={() => setSettingsTab(key)}
-                                        title={tab.label}
-                                        style={{
-                                            background: settingsTab === key ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.10)',
-                                            border: settingsTab === key ? '1px solid rgba(255,255,255,0.50)' : '1px solid rgba(255,255,255,0.18)',
-                                            borderRadius: 9,
-                                            width: 34, height: 34,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            cursor: 'pointer', color: '#fff', transition: 'all .15s',
-                                        }}
-                                    >
-                                        <Icon name={tab.icon} className="w-4 h-4" />
-                                    </button>
-                                ))}
+                            <div>
+                                <h2 className="text-base font-bold">الإعدادات</h2>
+                                <p className="text-xs text-white/70">
+                                    {settingsTabLabel ? settingsTabLabel : 'اختر قسماً من القائمة الجانبية لعرضه هنا'}
+                                </p>
                             </div>
                         </div>
-
-                        {/* ═══ محتوى اللوحة الرئيسية ═══ */}
+                        {/* محتوى: إرشاد أو placeholder */}
                         {!settingsTab ? (
-                        /* ── الصفحة الرئيسية للإعدادات ── */
-                        <div className="flex-1 overflow-y-auto p-6 md:p-8 fade-in">
-                            <p className="text-sm text-gray-500 mb-6">اختر أحد الأقسام أدناه أو من خلال أيقونات الهيدر</p>
-                            <div className="grid grid-cols-1 gap-4">
-                                {[
-                                    { key: 'trainers',       label: 'سجل المدربين / المدرسين', sub: 'عرض وإدارة جميع المدربين والمدرسين',     icon: 'user',  color: 'bg-purple-100 text-purple-600' },
-                                    { key: 'students',       label: 'سجل المتدربين / الطلاب',  sub: 'عرض وإدارة جميع المتدربين والطلاب',      icon: 'users', color: 'bg-medbox-light text-medbox-main' },
-                                    { key: 'changePassword', label: 'تغيير كلمة السر',          sub: 'تحديث كلمة سر حسابك الحالي',             icon: 'lock',  color: 'bg-blue-100 text-blue-600' },
-                                ].map(item => (
-                                    <div key={item.key}
-                                        onClick={() => setSettingsTab(item.key)}
-                                        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transform transition-all flex items-center gap-4"
-                                    >
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${item.color}`}>
-                                            <Icon name={item.icon} className="w-6 h-6" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-gray-800">{item.label}</p>
-                                            <p className="text-xs text-gray-400 mt-0.5">{item.sub}</p>
-                                        </div>
-                                        <svg className="w-5 h-5 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
-                                    </div>
-                                ))}
+                        <div className="flex-1 flex flex-col items-center justify-center text-center px-8 fade-in">
+                            <div className="w-20 h-20 bg-medbox-light rounded-2xl flex items-center justify-center mb-5">
+                                <svg className="w-10 h-10 text-medbox-main" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-700 mb-2">اختر قسماً من القائمة</h3>
+                            <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
+                                اختر أحد الأقسام من القائمة الجانبية على اليمين (المدربون، المتدربون، كلمة السر...) لعرض تفاصيله هنا.
+                            </p>
+                            <div className="flex items-center gap-2 mt-6 text-medbox-main bg-medbox-light px-4 py-2 rounded-full text-sm font-medium">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                                </svg>
+                                القائمة الجانبية على اليمين
                             </div>
                         </div>
                         ) : (
-                        /* ── محتوى القسم المختار ── */
-                        <div className="flex-1 flex flex-col overflow-hidden fade-in">
-                            <SettingsContent searchQuery="" sortOrder="default" />
+                        <div className="flex-1 flex flex-col items-center justify-center text-center px-8 fade-in">
+                            <div className="w-20 h-20 bg-medbox-light rounded-2xl flex items-center justify-center mb-5">
+                                <svg className="w-10 h-10 text-medbox-main" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-700 mb-2">{settingsTabLabel}</h3>
+                            <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
+                                يمكنك إدارة هذا القسم من خلال القائمة الجانبية على اليمين.
+                            </p>
                         </div>
                         )}
                     </div>
