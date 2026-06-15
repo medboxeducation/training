@@ -2422,6 +2422,7 @@
                 const [searchQuery, setSearchQuery] = useState('');
                 const [panelPos, setPanelPos] = React.useState({ top: 0, left: 0, width: 220 });
                 const addBtnRef = React.useRef(null);
+                const panelRef = React.useRef(null);
 
                 // حساب موضع اللوحة عند الفتح
                 const openDropdown = (e) => {
@@ -2443,14 +2444,17 @@
                 React.useEffect(() => {
                     if (!dropdownOpen) return;
                     const handler = (e) => {
-                        if (!e.target.closest('[data-course-panel]')) {
+                        if (
+                            panelRef.current && !panelRef.current.contains(e.target) &&
+                            addBtnRef.current && !addBtnRef.current.contains(e.target)
+                        ) {
                             setDropdownOpen(false);
                             setSearchMode(false);
                             setSearchQuery('');
                         }
                     };
-                    document.addEventListener('mousedown', handler);
-                    return () => document.removeEventListener('mousedown', handler);
+                    document.addEventListener('click', handler);
+                    return () => document.removeEventListener('click', handler);
                 }, [dropdownOpen]);
                 const allStudentsLocal = React.useMemo(() => {
                     const list = [];
@@ -2581,7 +2585,7 @@
                                 {/* ── لوحة الإضافة Fixed Portal ── */}
                                 {dropdownOpen && ReactDOM.createPortal(
                                     <div
-                                        data-course-panel
+                                        ref={panelRef}
                                         style={{
                                             position: 'fixed',
                                             top: panelPos.top,
@@ -2590,7 +2594,6 @@
                                             zIndex: 9999,
                                         }}
                                         className="bg-white rounded-xl border border-gray-200 shadow-lg fade-in"
-                                        onClick={e => e.stopPropagation()}
                                     >
                                         {!searchMode ? (
                                             <div className="p-1">
