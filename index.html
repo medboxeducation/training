@@ -3,553 +3,1282 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedBox-Education</title>
-    
-    <!-- خطوط جوجل (Tajawal) لدعم اللغة العربية بشكل جميل -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-    
+    <title>MedBox.Education</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- إعدادات Tailwind للخطوط والألوان -->
+    <!-- Phosphor Icons (Modern Glassy Icons) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Cairo Font - Modern Arabic Typeface -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Tajawal', 'sans-serif'],
-                    },
                     colors: {
-                        medbox: {
-                            dark: '#0f6b7a',
-                            main: '#138496',
-                            light: '#e0f2f4',
-                            accent: '#f39c12'
-                        }
+                        primary: '#0790AC',
+                    },
+                    fontFamily: {
+                        sans: ['Cairo', 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', 'sans-serif'],
                     }
                 }
             }
         }
     </script>
 
-    <!-- React & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel (لتحويل JSX في المتصفح) -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- أيقونات Lucide -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
     <style>
-        /* تخصيص شريط التمرير (Scrollbar) ليناسب التصميم */
-        ::-webkit-scrollbar {
-            width: 8px;
+        /* Modern Typography */
+        body, button, input, h1, h2, h3, h4, p, span {
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1; 
+
+        /* Glassmorphism Styles */
+        body {
+            /* Modern gradient background */
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #138496; 
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(7, 144, 172, 0.1);
+        }
+
+        .glass-element {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            transition: all 0.3s ease;
+        }
+
+        .glass-element:hover {
+            background: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 15px rgba(7, 144, 172, 0.15);
+        }
+
+        /* Glass Icon Buttons - True Glassmorphism (depth + inner glow + reflective edge) */
+        .glass-icon-btn {
+            position: relative;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.25));
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            color: #4a5568;
+            box-shadow:
+                0 4px 12px rgba(31, 38, 135, 0.12),
+                inset 0 1px 1px rgba(255, 255, 255, 0.9),
+                inset 0 -1px 2px rgba(255, 255, 255, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .glass-icon-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent);
+            border-radius: inherit;
+            pointer-events: none;
+        }
+
+        .glass-icon-btn:hover {
+            background: linear-gradient(145deg, rgba(7, 144, 172, 0.3), rgba(7, 144, 172, 0.12));
+            border-color: rgba(7, 144, 172, 0.5);
+            color: #0790AC;
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 20px rgba(7, 144, 172, 0.25),
+                inset 0 1px 1px rgba(255, 255, 255, 0.9),
+                inset 0 -1px 2px rgba(7, 144, 172, 0.15);
+        }
+
+        .glass-icon-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Glass tile used for sidebar item icons */
+        .glass-icon-tile {
+            position: relative;
+            background: linear-gradient(145deg, rgba(7, 144, 172, 0.22), rgba(7, 144, 172, 0.08));
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow:
+                0 3px 10px rgba(7, 144, 172, 0.15),
+                inset 0 1px 1px rgba(255, 255, 255, 0.8);
+            overflow: hidden;
+        }
+
+        .glass-icon-tile::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent);
+            pointer-events: none;
+        }
+
+        /* Search input animation */
+        .search-input {
+            width: 0;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0;
+        }
+        .search-input.active {
+            width: 200px;
+            opacity: 1;
+            padding-right: 2.5rem;
+            padding-left: 1rem;
+        }
+
+        /* Analog Clock */
+        .clock-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .hand {
+            position: absolute;
+            bottom: 50%;
+            transform-origin: bottom;
             border-radius: 4px;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #0f6b7a; 
+        .hour-hand { width: 4px; height: 50px; background-color: #2d3748; }
+        .min-hand { width: 3px; height: 70px; background-color: #4a5568; }
+        .sec-hand { width: 2px; height: 85px; background-color: #0790AC; }
+        .clock-center {
+            width: 12px; height: 12px;
+            background-color: #0790AC;
+            border-radius: 50%;
+            position: absolute;
+            z-index: 10;
         }
-        
-        .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(7, 144, 172, 0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(7, 144, 172, 0.6); }
+
+        /* Calendar Grid */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            text-align: center;
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .calendar-day-header { font-weight: bold; color: #0790AC; padding: 5px; }
+        .calendar-day { padding: 8px; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+        .calendar-day:hover { background: rgba(7, 144, 172, 0.1); }
+        .calendar-day.today { background: #0790AC; color: white; font-weight: bold; }
+        .calendar-day.empty { visibility: hidden; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 h-screen overflow-hidden flex flex-col font-sans">
-    <div id="root" class="h-full flex flex-col"></div>
+<body class="text-gray-800 overflow-hidden flex flex-col">
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <!-- 2. التول بار (Toolbar) -->
+    <nav class="glass-panel z-50 px-6 py-3 flex justify-between items-center shrink-0">
+        <!-- اليمين -->
+        <div class="flex items-center gap-6">
+            <!-- ايقونة واسم البرنامج -->
+            <div class="flex items-center gap-3 cursor-pointer" onclick="showDashboard()">
+                <div class="w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-primary/30 ring-1 ring-white/60 bg-white/40 flex items-center justify-center">
+                    <img src="data:image/jpeg;base64,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" alt="MedBox.Education" class="w-full h-full object-cover">
+                </div>
+                <h1 class="text-xl font-bold tracking-wide hidden md:flex items-baseline gap-0.5">
+                    <span dir="ltr" class="inline-flex"><span class="text-primary">MedBox</span><span class="text-gray-400 font-medium">.</span><span class="text-gray-700">Education</span></span>
+                </h1>
+            </div>
+            
+            <!-- روابط الأقسام -->
+            <div class="hidden lg:flex items-center gap-2 border-r-2 border-white/40 pr-6 mr-2">
+                <button class="glass-element px-4 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-2" onclick="showProgramsGrid()">
+                    <i class="ph ph-books"></i> البرامج التدريبية
+                </button>
+                <button class="glass-element px-4 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-2" onclick="showComingSoon('المهارات السريرية')">
+                    <i class="ph ph-stethoscope"></i> المهارات السريرية
+                </button>
+                <button class="glass-element px-4 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-2" onclick="showComingSoon('كتب وأبحاث')">
+                    <i class="ph ph-book-open-text"></i> كتب وأبحاث
+                </button>
+            </div>
+        </div>
 
-        // --- البيانات الوهمية الأولية ---
-        const initialData = {
-            programs: [
-                {
-                    id: 1,
-                    name: "البورد العربي للأمراض الباطنة",
-                    description: "برنامج تدريبي شامل معتمد يغطي كافة فروع الطب الباطني والممارسات السريرية المتقدمة.",
-                    icon: "stethoscope",
-                    courses: [
-                        {
-                            id: 101,
-                            name: "دورة أمراض القلب والأوعية الدموية",
-                            code: "IM-CAR-01",
-                            date: "2026/08/15",
-                            supervisor: "د. أحمد العوضي",
-                            students: [
-                                { id: 1001, name: "حسام كمال جهجاه", phone: "0551234567", email: "husam@example.com", status: "نشط", progress: 85, level: "السنة الثانية" },
-                                { id: 1002, name: "حلا قصيص", phone: "0559876543", email: "hala@example.com", status: "مكتمل", progress: 100, level: "السنة الرابعة" }
-                            ]
-                        },
-                        {
-                            id: 102,
-                            name: "دورة العناية المركزة (ICU)",
-                            code: "IM-ICU-02",
-                            date: "2026/09/01",
-                            supervisor: "د. تحسين النجار",
-                            students: [
-                                { id: 1003, name: "أحمد بن حنبل", phone: "0501122334", email: "ahmad@example.com", status: "نشط", progress: 40, level: "السنة الأولى" }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    id: 2,
-                    name: "دبلوم طب الطوارئ والإسعاف",
-                    description: "تدريب مكثف على التعامل مع الحالات الحرجة والإسعافات الأولية المتقدمة (ATLS, ACLS).",
-                    icon: "activity",
-                    courses: [
-                        {
-                            id: 201,
-                            name: "دعم الحياة المتقدم (ACLS)",
-                            code: "EM-ACLS-05",
-                            date: "2026/07/20",
-                            supervisor: "د. هاني سعيد",
-                            students: [
-                                { id: 2001, name: "ياسر المصري", phone: "0566677889", email: "yaser@example.com", status: "نشط", progress: 60, level: "السنة الثالثة" }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        };
+        <!-- اليسار -->
+        <div class="flex items-center gap-3">
+            <button class="glass-icon-btn w-10 h-10 rounded-full flex items-center justify-center" title="الإعدادات">
+                <i class="ph ph-gear text-xl"></i>
+            </button>
+            <button class="glass-icon-btn w-10 h-10 rounded-full flex items-center justify-center" title="السجلات">
+                <i class="ph ph-clipboard-text text-xl"></i>
+            </button>
+            <!-- زر الهوم -->
+            <button onclick="showDashboard()" class="glass-icon-btn w-10 h-10 rounded-full flex items-center justify-center text-primary border-primary/30 bg-primary/10" title="الرئيسية">
+                <i class="ph ph-house text-xl"></i>
+            </button>
+            
+            <!-- فاصل -->
+            <div class="h-6 w-px bg-white/50 mx-1"></div>
+            
+            <button class="glass-element px-5 py-2 rounded-full font-semibold text-sm text-primary flex items-center gap-2 hover:bg-primary hover:text-white transition-colors duration-300 border-primary/30">
+                تسجيل الدخول <i class="ph ph-sign-in"></i>
+            </button>
+        </div>
+    </nav>
 
-        // --- المكونات (Components) ---
-
-        // 1. أيقونات مخصصة باستخدام SVG
-        const Icon = ({ name, className = "w-5 h-5" }) => {
-            const icons = {
-                book: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>,
-                stethoscope: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>,
-                activity: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
-                settings: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
-                sync: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
-                bell: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>,
-                qr: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>,
-                login: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>,
-                user: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
-                download: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>,
-                upload: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>,
-                chevronDown: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>,
-                chevronLeft: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>,
-            };
-            return icons[name] || null;
-        };
-
-        const App = () => {
-            // --- حالات التطبيق (State) ---
-            const [data, setData] = useState(initialData);
-            const [activeTab, setActiveTab] = useState('programs'); // programs, skills, books
-            const [selectedProgram, setSelectedProgram] = useState(null);
-            const [selectedStudent, setSelectedStudent] = useState(null);
-            const [toastMessage, setToastMessage] = useState('');
-
-            // --- التخزين المحلي (LocalStorage) ---
-            useEffect(() => {
-                const savedData = localStorage.getItem('medbox_data');
-                if (savedData) {
-                    try {
-                        setData(JSON.parse(savedData));
-                    } catch (e) {
-                        console.error("Error parsing local data", e);
-                    }
-                }
-            }, []);
-
-            useEffect(() => {
-                localStorage.setItem('medbox_data', JSON.stringify(data));
-            }, [data]);
-
-            // --- دوال مساعدة للتنبيهات ---
-            const showToast = (msg) => {
-                setToastMessage(msg);
-                setTimeout(() => setToastMessage(''), 3000);
-            };
-
-            // --- دوال حفظ وتصدير البيانات ---
-            const handleSyncDrive = () => {
-                // محاكاة المزامنة مع غوغل درايف
-                showToast('جاري المزامنة مع Google Drive...');
-                setTimeout(() => {
-                    showToast('تمت المزامنة بنجاح وحفظ البيانات بصيغة JSON على Drive.');
-                }, 1500);
-            };
-
-            const handleExportJSON = () => {
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
-                const downloadAnchorNode = document.createElement('a');
-                downloadAnchorNode.setAttribute("href", dataStr);
-                downloadAnchorNode.setAttribute("download", "medbox_backup.json");
-                document.body.appendChild(downloadAnchorNode);
-                downloadAnchorNode.click();
-                downloadAnchorNode.remove();
-                showToast('تم تصدير البيانات بنجاح.');
-            };
-
-            const handleImportJSON = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const importedData = JSON.parse(e.target.result);
-                        if (importedData && importedData.programs) {
-                            setData(importedData);
-                            showToast('تم استيراد البيانات بنجاح.');
-                            setSelectedProgram(null);
-                            setSelectedStudent(null);
-                        } else {
-                            showToast('ملف JSON غير صالح.');
-                        }
-                    } catch (err) {
-                        showToast('حدث خطأ أثناء قراءة الملف.');
-                    }
-                };
-                reader.readAsText(file);
-            };
-
-            // --- التفاعلات ---
-            const handleProgramClick = (program) => {
-                setSelectedProgram(program);
-                setSelectedStudent(null); // إعادة تعيين الطالب عند تغيير البرنامج
-            };
-
-            const handleStudentClick = (student, courseName) => {
-                setSelectedStudent({ ...student, courseName });
-            };
-
-            const handleNavClick = (tab) => {
-                setActiveTab(tab);
-                if (tab === 'programs') {
-                    setSelectedStudent(null);
-                    // لا نقوم بتفريغ البرنامج المحدد لنبقي القائمة الجانبية مفتوحة كما طلب
-                }
-            };
-
-            // --- مكون شريط الأدوات العلوي ---
-            const Navbar = () => (
-                <nav className="bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-6 py-3 shrink-0 z-10 relative">
-                    {/* اليمين: الشعار والتبويبات */}
-                    <div className="flex items-center gap-8">
-                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavClick('programs')}>
-                            <div className="bg-medbox-main text-white p-2 rounded-lg">
-                                <Icon name="activity" />
-                            </div>
-                            <h1 className="text-xl font-bold text-medbox-dark tracking-wide">MedBox<span className="font-light text-gray-500">-Education</span></h1>
-                        </div>
-                        
-                        <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                            <button 
-                                onClick={() => handleNavClick('programs')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'programs' ? 'bg-white text-medbox-main shadow-sm' : 'text-gray-600 hover:text-medbox-main'}`}
-                            >
-                                البرامج التدريبية
-                            </button>
-                            <button 
-                                onClick={() => handleNavClick('skills')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'skills' ? 'bg-white text-medbox-main shadow-sm' : 'text-gray-600 hover:text-medbox-main'}`}
-                            >
-                                المهارات السريرية
-                            </button>
-                            <button 
-                                onClick={() => handleNavClick('books')}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'books' ? 'bg-white text-medbox-main shadow-sm' : 'text-gray-600 hover:text-medbox-main'}`}
-                            >
-                                كتب وأبحاث علمية
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* اليسار: أدوات التحكم */}
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 border-l pl-4 border-gray-200">
-                            <button onClick={handleSyncDrive} title="مزامنة مع Google Drive" className="p-2 text-gray-500 hover:text-medbox-main hover:bg-medbox-light rounded-full transition-colors">
-                                <Icon name="sync" />
-                            </button>
-                            <button title="الإشعارات" className="p-2 text-gray-500 hover:text-medbox-main hover:bg-medbox-light rounded-full transition-colors relative">
-                                <Icon name="bell" />
-                                <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-                            </button>
-                            <button title="مسح QR Code" className="p-2 text-gray-500 hover:text-medbox-main hover:bg-medbox-light rounded-full transition-colors">
-                                <Icon name="qr" />
-                            </button>
-                            <button title="الإعدادات" className="p-2 text-gray-500 hover:text-medbox-main hover:bg-medbox-light rounded-full transition-colors">
-                                <Icon name="settings" />
-                            </button>
-                        </div>
-                        <button className="flex items-center gap-2 bg-medbox-main hover:bg-medbox-dark text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm shadow-sm">
-                            <Icon name="login" className="w-4 h-4" />
-                            <span>تسجيل الدخول</span>
-                        </button>
-                    </div>
-                </nav>
-            );
-
-            // --- مكون القائمة الجانبية (للدورات والطلاب) ---
-            const Sidebar = () => {
-                if (!selectedProgram) {
-                    return (
-                        <aside className="w-80 bg-white border-l border-gray-200 flex flex-col p-6 items-center justify-center text-center shadow-inner">
-                            <Icon name="book" className="w-16 h-16 text-gray-300 mb-4" />
-                            <h3 className="text-gray-500 font-medium">يرجى اختيار برنامج تدريبي من اللوحة الرئيسية لعرض دوراته هنا.</h3>
-                        </aside>
-                    );
-                }
-
-                return (
-                    <aside className="w-80 bg-gray-50 border-l border-gray-200 flex flex-col h-full overflow-hidden shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)]">
-                        <div className="bg-medbox-main text-white p-5 shrink-0 shadow-md">
-                            <h2 className="text-lg font-bold flex items-center gap-2">
-                                <Icon name="activity" />
-                                {selectedProgram.name}
-                            </h2>
-                            <p className="text-medbox-light text-xs mt-2 opacity-90">الدورات المنجزة والمتاحة</p>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                            {selectedProgram.courses.map(course => (
-                                <CourseCard key={course.id} course={course} />
-                            ))}
-                        </div>
-                    </aside>
-                );
-            };
-
-            // --- مكون بطاقة الدورة (مع القائمة المنسدلة للطلاب) ---
-            const CourseCard = ({ course }) => {
-                const [isOpen, setIsOpen] = useState(false);
-
-                return (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md">
-                        <div 
-                            className="p-4 cursor-pointer hover:bg-gray-50 transition-colors relative"
-                            onClick={() => setIsOpen(!isOpen)}
-                        >
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-bold text-medbox-dark text-sm leading-tight ml-4">{course.name}</h3>
-                                <div className={`transform transition-transform text-gray-400 ${isOpen ? 'rotate-180' : ''}`}>
-                                    <Icon name="chevronDown" className="w-4 h-4" />
-                                </div>
-                            </div>
-                            <div className="space-y-1 mt-3">
-                                <div className="flex items-center justify-between text-xs text-gray-500">
-                                    <span className="bg-gray-100 px-2 py-1 rounded text-gray-600 font-mono">{course.code}</span>
-                                    <span className="flex items-center gap-1"><Icon name="book" className="w-3 h-3"/> {course.date}</span>
-                                </div>
-                                <div className="text-xs text-gray-600 mt-2 flex items-center gap-1 border-t pt-2">
-                                    <Icon name="user" className="w-3 h-3 text-medbox-main"/> المشرف: <strong>{course.supervisor}</strong>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* قائمة الطلاب المنسدلة */}
-                        {isOpen && (
-                            <div className="bg-gray-50 border-t border-gray-100 p-2 fade-in">
-                                <p className="text-xs text-gray-400 mb-2 px-2 font-medium">الطلاب المسجلين ({course.students.length}):</p>
-                                <ul className="space-y-1">
-                                    {course.students.map(student => (
-                                        <li 
-                                            key={student.id}
-                                            onClick={() => handleStudentClick(student, course.name)}
-                                            className={`text-sm px-3 py-2 rounded-lg cursor-pointer transition-colors flex items-center justify-between ${selectedStudent?.id === student.id ? 'bg-medbox-light text-medbox-dark font-bold' : 'hover:bg-gray-200 text-gray-700'}`}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-medbox-main text-white flex items-center justify-center text-xs">
-                                                    {student.name.charAt(0)}
-                                                </div>
-                                                {student.name}
-                                            </div>
-                                            <Icon name="chevronLeft" className="w-3 h-3 opacity-50" />
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                );
-            };
-
-            // --- لوحة العرض الرئيسية ---
-            const MainBoard = () => {
-                if (activeTab !== 'programs') {
-                    return (
-                        <div className="flex-1 flex items-center justify-center flex-col text-gray-400">
-                            <Icon name="book" className="w-20 h-20 mb-4 opacity-50" />
-                            <h2 className="text-xl">قسم {activeTab === 'skills' ? 'المهارات السريرية' : 'الكتب والأبحاث'}</h2>
-                            <p className="mt-2">قريباً...</p>
-                        </div>
-                    );
-                }
-
-                if (selectedStudent) {
-                    return <StudentDetails student={selectedStudent} />;
-                }
-
-                return (
-                    <div className="flex-1 p-8 overflow-y-auto fade-in">
-                        <div className="flex justify-between items-center mb-8">
-                            <div>
-                                <h2 className="text-2xl font-bold text-gray-800">البرامج التدريبية المتاحة</h2>
-                                <p className="text-gray-500 mt-1 text-sm">اختر برنامجاً لعرض تفاصيله والدورات التابعة له في القائمة الجانبية.</p>
-                            </div>
-                            
-                            {/* أزرار استيراد وتصدير البيانات */}
-                            <div className="flex gap-2">
-                                <label className="cursor-pointer bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
-                                    <Icon name="upload" className="w-4 h-4 text-medbox-main" />
-                                    <span>استيراد JSON</span>
-                                    <input type="file" accept=".json" onChange={handleImportJSON} className="hidden" />
-                                </label>
-                                <button onClick={handleExportJSON} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
-                                    <Icon name="download" className="w-4 h-4 text-medbox-main" />
-                                    <span>تصدير JSON</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {data.programs.map(program => (
-                                <div 
-                                    key={program.id} 
-                                    onClick={() => handleProgramClick(program)}
-                                    className={`bg-white rounded-2xl p-6 shadow-sm border-2 cursor-pointer transition-all hover:shadow-lg transform hover:-translate-y-1 ${selectedProgram?.id === program.id ? 'border-medbox-main ring-4 ring-medbox-light' : 'border-transparent'}`}
-                                >
-                                    <div className="w-12 h-12 bg-medbox-light text-medbox-main rounded-xl flex items-center justify-center mb-4">
-                                        <Icon name={program.icon} className="w-6 h-6" />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-gray-800 mb-2">{program.name}</h3>
-                                    <p className="text-gray-500 text-sm leading-relaxed mb-4">{program.description}</p>
-                                    
-                                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                                        <span className="text-xs font-bold text-medbox-main bg-medbox-light px-3 py-1 rounded-full">
-                                            {program.courses.length} دورات
-                                        </span>
-                                        <span className="text-medbox-main text-sm font-medium flex items-center gap-1">
-                                            عرض <Icon name="chevronLeft" className="w-4 h-4" />
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                );
-            };
-
-            // --- تفاصيل الطالب ---
-            const StudentDetails = ({ student }) => (
-                <div className="flex-1 p-8 overflow-y-auto fade-in">
-                    <button 
-                        onClick={() => setSelectedStudent(null)}
-                        className="mb-6 flex items-center gap-2 text-gray-500 hover:text-medbox-main font-medium transition-colors"
-                    >
-                        <svg className="w-4 h-4 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                        العودة للبرامج
+    <!-- منطقة المحتوى الرئيسية مع القائمة الجانبية -->
+    <div class="flex flex-1 overflow-hidden p-4 gap-4">
+        
+        <!-- 3. القائمة الجانبية التفاعلية -->
+        <aside id="sidebar" class="glass-panel w-80 rounded-2xl flex flex-col shrink-0 transition-transform duration-300 relative z-40">
+            <!-- هيدر القائمة الجانبية -->
+            <div class="p-4 border-b border-white/40 flex items-center justify-between gap-2">
+                <!-- اليمين: زر البحث (يتمدد) -->
+                <div class="relative flex items-center flex-1">
+                    <button id="searchBtn" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center absolute right-0 z-10" onclick="toggleSearch()">
+                        <i class="ph ph-magnifying-glass text-lg"></i>
                     </button>
+                    <input type="text" id="searchInput" class="search-input glass-element h-9 rounded-full outline-none text-sm" placeholder="ابحث هنا...">
+                </div>
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        {/* ترويسة بطاقة الطالب */}
-                        <div className="bg-gradient-to-r from-medbox-main to-medbox-dark p-8 text-white flex items-center gap-6">
-                            <div className="w-24 h-24 bg-white text-medbox-main rounded-full flex items-center justify-center text-4xl font-bold shadow-lg border-4 border-medbox-light">
-                                {student.name.charAt(0)}
-                            </div>
-                            <div>
-                                <h2 className="text-3xl font-bold mb-1">{student.name}</h2>
-                                <p className="text-medbox-light flex items-center gap-2">
-                                    <Icon name="book" className="w-4 h-4"/> 
-                                    مسجل في: {student.courseName}
-                                </p>
-                            </div>
+                <!-- اليسار: الإضافة، الإغلاق، والفرز -->
+                <div class="flex items-center gap-1 shrink-0">
+                    <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary" title="إضافة جديد" onclick="addProgram()">
+                        <i class="ph ph-plus text-lg"></i>
+                    </button>
+                    <!-- زر الفرز (أقصى اليسار في الهيدر بجانب الإغلاق) -->
+                    <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center" title="ترتيب وفرز">
+                        <i class="ph ph-sort-ascending text-lg"></i>
+                    </button>
+                    <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" title="إغلاق القائمة" onclick="toggleSidebar()">
+                        <i class="ph ph-x text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- محتوى القائمة -->
+            <div id="sidebarProgramList" class="flex-1 overflow-y-auto p-3 space-y-1">
+                <!-- سيتم توليد عناصر القائمة بواسطة JS -->
+            </div>
+
+        </aside>
+
+        <style>
+            .course-list {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+                opacity: 0;
+            }
+            .course-list.open {
+                max-height: 600px;
+                opacity: 1;
+            }
+            .program-chevron {
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                flex-shrink: 0;
+            }
+            .program-chevron.rotated {
+                transform: rotate(180deg);
+            }
+            .sidebar-program-item.active-program > .program-header-row {
+                background: rgba(7, 144, 172, 0.10);
+                border-color: rgba(7, 144, 172, 0.35);
+            }
+            .sidebar-course-item.active-course {
+                background: rgba(7, 144, 172, 0.15) !important;
+                border-right: 3px solid #0790AC;
+            }
+        </style>
+
+        <!-- زر إظهار القائمة المخفية (يظهر عند إغلاق القائمة) -->
+        <button id="showSidebarBtn" class="hidden absolute right-4 top-24 glass-panel p-3 rounded-full text-primary z-50 shadow-lg cursor-pointer hover:scale-105 transition-transform" onclick="toggleSidebar()">
+            <i class="ph ph-list text-2xl"></i>
+        </button>
+
+        <!-- 1. لوحة العرض الرئيسية (Main Display Area) -->
+        <main class="glass-panel flex-1 rounded-2xl p-6 relative overflow-y-auto" id="mainContentArea">
+            
+            <!-- أ. الداش بورد (Dashboard) - العرض الافتراضي -->
+            <div id="dashboardView" class="h-full flex flex-col">
+                <div class="flex items-center gap-3 mb-8">
+                    <i class="ph ph-squares-four text-3xl text-primary"></i>
+                    <h2 class="text-2xl font-bold text-gray-800">لوحة المتابعة الرئيسية</h2>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 flex-1">
+                    <!-- قسم الوقت (ساعة عقارب + رقمية) -->
+                    <div class="glass-element rounded-2xl p-6 flex flex-col items-center justify-center shadow-sm">
+                        <h3 class="text-lg font-bold text-gray-700 mb-6 w-full text-right"><i class="ph ph-clock mr-2 text-primary"></i> التوقيت المحلي</h3>
+                        
+                        <!-- ساعة عقارب -->
+                        <div class="glass-panel clock-container mb-8 border-4 border-white/60 shadow-inner">
+                            <div class="clock-center"></div>
+                            <div class="hand hour-hand" id="hrHand"></div>
+                            <div class="hand min-hand" id="minHand"></div>
+                            <div class="hand sec-hand" id="secHand"></div>
+                            
+                            <!-- علامات الساعة -->
+                            <div class="absolute top-2 font-bold text-gray-400 text-xs">12</div>
+                            <div class="absolute bottom-2 font-bold text-gray-400 text-xs">6</div>
+                            <div class="absolute right-2 font-bold text-gray-400 text-xs">3</div>
+                            <div class="absolute left-2 font-bold text-gray-400 text-xs">9</div>
                         </div>
 
-                        {/* معلومات الطالب */}
-                        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-gray-800 border-b pb-2">المعلومات الشخصية</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-sm text-gray-500">رقم الهاتف</p>
-                                        <p className="font-medium text-gray-800" dir="ltr">{student.phone}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-500">البريد الإلكتروني</p>
-                                        <p className="font-medium text-gray-800">{student.email}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-500">المستوى الدراسي</p>
-                                        <p className="font-medium text-gray-800 bg-gray-100 inline-block px-2 py-1 rounded">{student.level}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-500">الحالة</p>
-                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-1 ${student.status === 'نشط' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                            {student.status}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                        <!-- ساعة رقمية -->
+                        <div class="glass-panel px-6 py-3 rounded-xl text-3xl font-bold text-primary tracking-widest" id="digitalClock" style="font-family: monospace;">
+                            00:00:00
+                        </div>
+                    </div>
 
-                            <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-gray-800 border-b pb-2">التقدم الأكاديمي</h3>
-                                <div>
-                                    <div className="flex justify-between items-end mb-2">
-                                        <p className="font-medium text-gray-700">نسبة إنجاز الدورة</p>
-                                        <span className="text-2xl font-bold text-medbox-main">{student.progress}%</span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-3">
-                                        <div className="bg-medbox-main h-3 rounded-full transition-all duration-1000" style={{ width: `${student.progress}%` }}></div>
-                                    </div>
+                    <!-- قسم التاريخ (ميلادي + هجري) -->
+                    <div class="glass-element rounded-2xl p-6 flex flex-col gap-4 shadow-sm">
+                        <h3 class="text-lg font-bold text-gray-700 mb-2"><i class="ph ph-calendar-blank mr-2 text-primary"></i> معلومات التاريخ</h3>
+                        
+                        <div class="glass-panel p-5 rounded-xl flex-1 flex flex-col justify-center items-center text-center">
+                            <p class="text-sm text-gray-500 mb-1">التاريخ الميلادي</p>
+                            <p class="text-2xl font-bold text-gray-800" id="gregorianDate">--</p>
+                        </div>
+                        
+                        <div class="glass-panel p-5 rounded-xl flex-1 flex flex-col justify-center items-center text-center bg-primary/5 border-primary/20">
+                            <p class="text-sm text-gray-500 mb-1">التاريخ الهجري</p>
+                            <p class="text-2xl font-bold text-primary" id="hijriDate">--</p>
+                        </div>
+                    </div>
+
+                    <!-- قسم التقويم الميلادي -->
+                    <div class="glass-element rounded-2xl p-6 shadow-sm flex flex-col xl:col-span-1 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-gray-700"><i class="ph ph-calendar-days mr-2 text-primary"></i> التقويم الميلادي</h3>
+                            <span id="calendarMonthYear" class="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full"></span>
+                        </div>
+                        
+                        <div class="glass-panel p-4 rounded-xl flex-1">
+                            <div class="calendar-grid text-sm mb-2">
+                                <div class="calendar-day-header">ح</div>
+                                <div class="calendar-day-header">ن</div>
+                                <div class="calendar-day-header">ث</div>
+                                <div class="calendar-day-header">ر</div>
+                                <div class="calendar-day-header">خ</div>
+                                <div class="calendar-day-header">ج</div>
+                                <div class="calendar-day-header">س</div>
+                            </div>
+                            <div class="calendar-grid text-sm" id="calendarDays">
+                                <!-- سيتم تعبئة الأيام بواسطة الجافاسكربت -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ج. عرض "قريباً" (Coming Soon View) - مخفي افتراضياً -->
+            <div id="comingSoonView" class="hidden h-full flex flex-col items-center justify-center text-center">
+                <div class="glass-icon-tile w-24 h-24 rounded-3xl flex items-center justify-center text-primary text-5xl mb-6">
+                    <i class="ph ph-hourglass-medium"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2" id="comingSoonTitle">القسم</h2>
+                <p class="text-gray-500 max-w-md">سيتم توفير هذا القسم قريباً، نعمل حالياً على إضافة محتوى وأدوات هذه الصفحة.</p>
+            </div>
+
+            <!-- د. عرض بطاقات البرامج التدريبية (Programs Grid View) - مخفي افتراضياً -->
+            <div id="programsGridView" class="hidden h-full flex flex-col">
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-3">
+                        <i class="ph ph-books text-3xl text-primary"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">البرامج التدريبية</h2>
+                    </div>
+                    <button class="glass-panel px-4 py-2 rounded-lg text-sm font-semibold text-primary flex items-center gap-2 hover:border-primary transition-colors" onclick="addProgram()">
+                        <i class="ph ph-plus"></i> إضافة برنامج جديد
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- بطاقة: برنامج طب الأسرة -->
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" data-program-key="family-medicine">
+                        <div onclick="showDetails('family-medicine')">
+                            <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
+                                <i class="ph ph-first-aid"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-gray-800 mb-1" data-field="title">برنامج طب الأسرة</h3>
+                            <p class="text-sm text-gray-500 mb-4">د. أحمد محمد</p>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="bg-primary/10 text-primary px-3 py-1 rounded-full font-semibold flex items-center gap-1"><i class="ph ph-users-three"></i> 15 متدرب</span>
+                                <span class="text-green-600 font-semibold flex items-center gap-1"><i class="ph ph-circle-fill text-[8px]"></i> نشط</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 mt-4 pt-4 border-t border-white/40">
+                            <button class="flex-1 glass-panel py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:border-primary transition-colors" onclick="event.stopPropagation(); editProgram('family-medicine')">
+                                <i class="ph ph-pencil-simple"></i> تعديل
+                            </button>
+                            <button class="flex-1 glass-panel py-2 rounded-lg text-xs font-semibold text-red-600 flex items-center justify-center gap-1 hover:border-red-500 hover:bg-red-50 transition-colors" onclick="event.stopPropagation(); deleteProgram('family-medicine')">
+                                <i class="ph ph-trash"></i> حذف
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة: برنامج الجراحة العامة -->
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" data-program-key="general-surgery">
+                        <div onclick="showDetails('general-surgery')">
+                            <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
+                                <i class="ph ph-bandaids"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-gray-800 mb-1" data-field="title">برنامج الجراحة العامة</h3>
+                            <p class="text-sm text-gray-500 mb-4">د. خالد عبدالله</p>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="bg-primary/10 text-primary px-3 py-1 rounded-full font-semibold flex items-center gap-1"><i class="ph ph-users-three"></i> 8 متدربين</span>
+                                <span class="text-green-600 font-semibold flex items-center gap-1"><i class="ph ph-circle-fill text-[8px]"></i> نشط</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 mt-4 pt-4 border-t border-white/40">
+                            <button class="flex-1 glass-panel py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:border-primary transition-colors" onclick="event.stopPropagation(); editProgram('general-surgery')">
+                                <i class="ph ph-pencil-simple"></i> تعديل
+                            </button>
+                            <button class="flex-1 glass-panel py-2 rounded-lg text-xs font-semibold text-red-600 flex items-center justify-center gap-1 hover:border-red-500 hover:bg-red-50 transition-colors" onclick="event.stopPropagation(); deleteProgram('general-surgery')">
+                                <i class="ph ph-trash"></i> حذف
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة: دورة الإنعاش القلبي -->
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" data-program-key="cpr-course">
+                        <div onclick="showDetails('cpr-course')">
+                            <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
+                                <i class="ph ph-heartbeat"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-gray-800 mb-1" data-field="title">دورة الإنعاش القلبي</h3>
+                            <p class="text-sm text-gray-500 mb-4">المهارات السريرية</p>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="bg-primary/10 text-primary px-3 py-1 rounded-full font-semibold flex items-center gap-1"><i class="ph ph-users-three"></i> -</span>
+                                <span class="text-green-600 font-semibold flex items-center gap-1"><i class="ph ph-circle-fill text-[8px]"></i> نشط</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 mt-4 pt-4 border-t border-white/40">
+                            <button class="flex-1 glass-panel py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:border-primary transition-colors" onclick="event.stopPropagation(); editProgram('cpr-course')">
+                                <i class="ph ph-pencil-simple"></i> تعديل
+                            </button>
+                            <button class="flex-1 glass-panel py-2 rounded-lg text-xs font-semibold text-red-600 flex items-center justify-center gap-1 hover:border-red-500 hover:bg-red-50 transition-colors" onclick="event.stopPropagation(); deleteProgram('cpr-course')">
+                                <i class="ph ph-trash"></i> حذف
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ب. عرض التفاصيل (Details View) - مخفي افتراضياً -->
+            <div id="detailsView" class="hidden h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <!-- هيدر الدورة -->
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                    <button onclick="backToCoursesList()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 flex-shrink-0" title="رجوع">
+                        <i class="ph ph-arrow-right text-lg"></i>
+                    </button>
+                    <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
+                        <i class="ph ph-graduation-cap"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h2 class="text-xl font-bold text-gray-800 truncate" id="detailsTitle">عنوان الدورة</h2>
+                        <p class="text-xs text-gray-400" id="detailsSubtitle">تفاصيل الدورة التدريبية</p>
+                    </div>
+                </div>
+
+                <!-- جسم المحتوى - يُحقن بواسطة renderCourseDetailsContent() -->
+                <div id="detailsViewBody" class="flex-1 overflow-y-auto"></div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- نافذة منبثقة: إضافة / تعديل برنامج -->
+    <div id="programModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeProgramModal()">
+        <div class="glass-panel bg-white/90 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/40">
+                <h2 id="programModalTitle" class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-books text-primary"></i> إضافة برنامج جديد
+                </h2>
+                <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeProgramModal()">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- اسم البرنامج بالعربي / بالانجليزي -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم البرنامج بالعربي <span class="text-red-500">*</span></label>
+                        <input id="programNameArInput" type="text" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="مثال: برنامج طب الأسرة">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم البرنامج بالانجليزي <span class="text-red-500">*</span></label>
+                        <input id="programNameEnInput" type="text" dir="ltr" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-right" placeholder="Example: Family Medicine" oninput="generateProgramCode()">
+                    </div>
+                </div>
+
+                <!-- الفئة / رمز البرنامج -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">الفئة <span class="text-red-500">*</span></label>
+                        <select id="programCategorySelect" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" onchange="generateProgramCode()">
+                            <option value="" disabled selected>اختر الفئة</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">رمز البرنامج</label>
+                        <input id="programCodeInput" type="text" dir="ltr" readonly class="w-full glass-panel rounded-lg px-3 py-2 text-sm bg-gray-100/60 text-gray-600 text-left" placeholder="يُولّد تلقائياً">
+                    </div>
+                </div>
+
+                <!-- الرسالة -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">الرسالة</label>
+                    <textarea id="programMessageInput" rows="2" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" placeholder="رسالة البرنامج"></textarea>
+                </div>
+
+                <!-- الرؤية -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">الرؤية</label>
+                    <textarea id="programVisionInput" rows="2" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" placeholder="رؤية البرنامج"></textarea>
+                </div>
+
+                <!-- الهدف العام -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">الهدف العام</label>
+                    <textarea id="programGoalInput" rows="2" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" placeholder="الهدف العام للبرنامج"></textarea>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 mt-6 pt-4 border-t border-white/40">
+                <button class="flex-1 bg-primary text-white py-2.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2" onclick="saveProgramModal()">
+                    <i class="ph ph-check-circle"></i> حفظ
+                </button>
+                <button class="flex-1 glass-panel py-2.5 rounded-lg font-semibold hover:border-gray-400 transition-colors" onclick="closeProgramModal()">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // 0. Programs Data
+        // الفئات المتاحة: { key: المعرف الداخلي, ar: الاسم بالعربي, en: الاسم بالانجليزي (يُستخدم لاستخراج رمز الفئة) }
+        const categoriesData = [
+            { key: 'medical', ar: 'طبي', en: 'Medical' },
+            { key: 'media', ar: 'إعلام', en: 'Media' },
+            { key: 'management', ar: 'إدارة', en: 'Management' },
+            { key: 'development', ar: 'تنمية', en: 'Development' },
+            { key: 'it', ar: 'معلوماتية', en: 'Informatics' }
+        ];
+
+        const programsData = {
+            'family-medicine': {
+                title: 'برنامج طب الأسرة',
+                titleEn: 'Family Medicine',
+                category: 'medical',
+                code: 'MEFA1',
+                message: '',
+                vision: '',
+                goal: '',
+                supervisor: 'د. أحمد محمد',
+                traineesCount: 15,
+                courses: [
+                    { key: 'fm-c1', title: 'مقدمة في طب الأسرة', traineesCount: 15, status: 'active' },
+                    { key: 'fm-c2', title: 'صحة المجتمع والوقاية', traineesCount: 12, status: 'active' },
+                    { key: 'fm-c3', title: 'الأمراض المزمنة وإدارتها', traineesCount: 10, status: 'inactive' },
+                ]
+            },
+            'general-surgery': {
+                title: 'برنامج الجراحة العامة',
+                titleEn: 'General Surgery',
+                category: 'medical',
+                code: 'MEGE2',
+                message: '',
+                vision: '',
+                goal: '',
+                supervisor: 'د. خالد عبدالله',
+                traineesCount: 8,
+                courses: [
+                    { key: 'gs-c1', title: 'أساسيات الجراحة', traineesCount: 8, status: 'active' },
+                    { key: 'gs-c2', title: 'جراحة الجهاز الهضمي', traineesCount: 6, status: 'active' },
+                ]
+            },
+            'cpr-course': {
+                title: 'دورة الإنعاش القلبي',
+                titleEn: 'CPR Course',
+                category: 'medical',
+                code: 'MECP3',
+                message: '',
+                vision: '',
+                goal: '',
+                supervisor: 'المهارات السريرية',
+                traineesCount: 0,
+                courses: [
+                    { key: 'cpr-c1', title: 'الإنعاش القلبي الرئوي للبالغين', traineesCount: 0, status: 'active' },
+                    { key: 'cpr-c2', title: 'الإنعاش القلبي للأطفال', traineesCount: 0, status: 'active' },
+                ]
+            }
+        };
+
+        // 1. Navigation & Views Logic
+        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'detailsView'];
+        const detailsTitle = document.getElementById('detailsTitle');
+
+        function hideAllViews() {
+            allViews.forEach(id => document.getElementById(id).classList.add('hidden'));
+        }
+
+        function showView(id) {
+            hideAllViews();
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function showDashboard() {
+            showView('dashboardView');
+        }
+
+        function showComingSoon(title) {
+            document.getElementById('comingSoonTitle').textContent = title;
+            showView('comingSoonView');
+        }
+
+        function showProgramsGrid() {
+            showView('programsGridView');
+            closeSidebar();
+        }
+
+        // ======== Sidebar Drill-down Logic ========
+        // المستوى الحالي: 'programs' | 'courses'
+        let sidebarLevel = 'programs';
+        let activeProgramKey = null;
+        let activeCourseKey = null;
+
+        // --- بناء مستوى البرامج ---
+        function buildSidebarPrograms() {
+            sidebarLevel = 'programs';
+            activeProgramKey = null;
+            activeCourseKey = null;
+            const list = document.getElementById('sidebarProgramList');
+            list.innerHTML = '';
+
+            // هيدر المستوى: عنوان فقط (لا يوجد رجوع)
+            const header = document.createElement('div');
+            header.className = 'flex items-center gap-2 px-1 pb-2 mb-1 border-b border-white/30';
+            header.innerHTML = `
+                <i class="ph ph-books text-primary text-base"></i>
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">البرامج التدريبية</span>
+            `;
+            list.appendChild(header);
+
+            Object.entries(programsData).forEach(([key, program]) => {
+                const hasCourses = program.courses && program.courses.length > 0;
+                const item = document.createElement('div');
+                item.className = 'sidebar-program-item glass-element p-3 rounded-xl cursor-pointer hover:border-primary/50 flex items-center gap-2.5 group transition-all';
+                item.dataset.programKey = key;
+                item.innerHTML = `
+                    <div class="w-9 h-9 rounded-lg glass-icon-tile flex items-center justify-center text-primary flex-shrink-0">
+                        <i class="ph ph-books text-lg"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-bold text-sm truncate" data-field="title">${program.title}</h3>
+                        <p class="text-xs text-gray-500 truncate">${program.supervisor || ''}</p>
+                    </div>
+                    <div class="flex items-center gap-0.5 shrink-0">
+                        <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-primary hover:bg-primary/10" title="تعديل" onclick="event.stopPropagation(); editProgram('${key}')">
+                                <i class="ph ph-pencil-simple text-xs"></i>
+                            </button>
+                            <button class="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50" title="حذف" onclick="event.stopPropagation(); deleteProgram('${key}')">
+                                <i class="ph ph-trash text-xs"></i>
+                            </button>
+                        </div>
+                        ${hasCourses ? `<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">${program.courses.length}</span>` : ''}
+                        <i class="ph ph-caret-left text-xs text-gray-300 group-hover:text-primary mr-1 transition-colors"></i>
+                    </div>
+                `;
+                item.addEventListener('click', () => buildSidebarCourses(key));
+                list.appendChild(item);
+            });
+        }
+
+        // --- بناء مستوى الدورات (drill-down) ---
+        function buildSidebarCourses(programKey) {
+            sidebarLevel = 'courses';
+            activeProgramKey = programKey;
+            const program = programsData[programKey];
+            if (!program) return;
+
+            const list = document.getElementById('sidebarProgramList');
+            list.innerHTML = '';
+
+            // هيدر المستوى: زر رجوع + اسم البرنامج
+            const header = document.createElement('div');
+            header.className = 'flex items-center gap-2 pb-2 mb-1 border-b border-white/30';
+            header.innerHTML = `
+                <button class="w-7 h-7 rounded-full glass-icon-btn flex items-center justify-center text-primary flex-shrink-0 hover:bg-primary/10" onclick="buildSidebarPrograms()" title="رجوع للبرامج">
+                    <i class="ph ph-arrow-right text-sm"></i>
+                </button>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] text-gray-400 leading-none mb-0.5">البرنامج</p>
+                    <p class="text-xs font-bold text-primary truncate">${program.title}</p>
+                </div>
+            `;
+            list.appendChild(header);
+
+            // عنوان الدورات
+            const subTitle = document.createElement('div');
+            subTitle.className = 'px-1 py-1 mb-1';
+            subTitle.innerHTML = `<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><i class="ph ph-graduation-cap text-xs text-primary"></i> الدورات المسجلة</span>`;
+            list.appendChild(subTitle);
+
+            if (!program.courses || program.courses.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'text-center py-6 text-gray-400 text-xs';
+                empty.innerHTML = `<i class="ph ph-folder-open text-2xl block mb-2 mx-auto text-gray-300"></i>لا توجد دورات مسجلة`;
+                list.appendChild(empty);
+                return;
+            }
+
+            program.courses.forEach(course => {
+                const item = document.createElement('div');
+                item.className = 'sidebar-course-item glass-element px-3 py-2.5 rounded-xl cursor-pointer hover:border-primary/40 flex items-center gap-2.5 group transition-all';
+                item.dataset.courseKey = course.key;
+                item.innerHTML = `
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${course.status === 'active' ? 'bg-green-50 border border-green-200' : 'bg-gray-100 border border-gray-200'}">
+                        <i class="ph ph-graduation-cap text-sm ${course.status === 'active' ? 'text-green-500' : 'text-gray-400'}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-700 truncate">${course.title}</p>
+                        <p class="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                            <i class="ph ph-users text-[10px]"></i>
+                            ${course.traineesCount > 0 ? course.traineesCount + ' متدرب' : 'لا يوجد متدربين'}
+                            <span class="mr-1 ${course.status === 'active' ? 'text-green-500' : 'text-gray-400'}">• ${course.status === 'active' ? 'نشطة' : 'متوقفة'}</span>
+                        </p>
+                    </div>
+                    <i class="ph ph-caret-left text-xs text-gray-300 group-hover:text-primary transition-colors flex-shrink-0"></i>
+                `;
+                item.addEventListener('click', () => showCourseDetails(programKey, course.key));
+                list.appendChild(item);
+            });
+        }
+
+        // --- عرض تفاصيل دورة في منطقة العرض الرئيسية ---
+        function showCourseDetails(programKey, courseKey) {
+            activeCourseKey = courseKey;
+            const program = programsData[programKey];
+            if (!program) return;
+            const course = (program.courses || []).find(c => c.key === courseKey);
+            if (!course) return;
+
+            // تحديث الحالة النشطة في القائمة
+            document.querySelectorAll('.sidebar-course-item').forEach(el => el.classList.remove('active-course'));
+            const activeItem = document.querySelector(`.sidebar-course-item[data-course-key="${courseKey}"]`);
+            if (activeItem) activeItem.classList.add('active-course');
+
+            // تحديث عنوان صفحة التفاصيل وعرضها
+            detailsTitle.textContent = course.title;
+            detailsTitle.dataset.activeKey = programKey;
+            detailsTitle.dataset.activeCourse = courseKey;
+
+            // بناء محتوى الدورة
+            renderCourseDetailsContent(program, course);
+            showView('detailsView');
+            openSidebar();
+        }
+
+        function renderCourseDetailsContent(program, course) {
+            const statusActive = course.status === 'active';
+            const container = document.getElementById('detailsViewBody');
+            container.innerHTML = `
+                <!-- بيانات الدورة الرئيسية -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- العمود الرئيسي -->
+                    <div class="lg:col-span-2 space-y-5">
+
+                        <!-- بطاقة المعلومات الأساسية -->
+                        <div class="glass-element rounded-xl p-5">
+                            <h3 class="font-bold text-base mb-4 text-primary flex items-center gap-2">
+                                <i class="ph ph-info"></i> معلومات الدورة
+                            </h3>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="glass-panel p-3.5 rounded-lg">
+                                    <p class="text-[10px] text-gray-400 mb-1">البرنامج التدريبي</p>
+                                    <p class="font-bold text-sm text-gray-800">${program.title}</p>
                                 </div>
-                                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mt-4">
-                                    <p className="text-sm text-blue-800 flex items-start gap-2">
-                                        <Icon name="activity" className="w-5 h-5 shrink-0" />
-                                        <span>أداء الطالب ممتاز في التقييمات السريرية الأخيرة. يحتاج للتركيز على المراجعات النظرية القادمة.</span>
+                                <div class="glass-panel p-3.5 rounded-lg">
+                                    <p class="text-[10px] text-gray-400 mb-1">المشرف</p>
+                                    <p class="font-bold text-sm text-gray-800">${program.supervisor || '—'}</p>
+                                </div>
+                                <div class="glass-panel p-3.5 rounded-lg">
+                                    <p class="text-[10px] text-gray-400 mb-1">رمز البرنامج</p>
+                                    <p class="font-bold text-sm text-primary" dir="ltr">${program.code || '—'}</p>
+                                </div>
+                                <div class="glass-panel p-3.5 rounded-lg">
+                                    <p class="text-[10px] text-gray-400 mb-1">الحالة</p>
+                                    <p class="font-bold text-sm flex items-center gap-1.5 ${statusActive ? 'text-green-600' : 'text-gray-500'}">
+                                        <i class="ph ph-circle-fill text-[8px]"></i>
+                                        ${statusActive ? 'نشطة' : 'متوقفة'}
                                     </p>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            );
 
-            // --- الهيكل الرئيسي ---
-            return (
-                <div className="h-full flex flex-col w-full relative">
-                    <Navbar />
-                    
-                    <div className="flex-1 flex overflow-hidden">
-                        {/* القائمة الجانبية على اليمين (بسبب RTL) */}
-                        <Sidebar />
-                        
-                        {/* لوحة العرض الرئيسية على اليسار */}
-                        <MainBoard />
-                    </div>
-
-                    {/* رسائل التنبيه (Toast) */}
-                    {toastMessage && (
-                        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 fade-in">
-                            <Icon name="sync" className="w-5 h-5 text-medbox-main" />
-                            <span>{toastMessage}</span>
+                        <!-- قائمة المتدربين -->
+                        <div class="glass-element rounded-xl p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-base text-primary flex items-center gap-2">
+                                    <i class="ph ph-users-three"></i> المتدربون
+                                    <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">${course.traineesCount}</span>
+                                </h3>
+                                <button class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-primary/90 transition-colors">
+                                    <i class="ph ph-user-plus"></i> إضافة متدرب
+                                </button>
+                            </div>
+                            ${course.traineesCount > 0 ? `
+                            <div class="space-y-2">
+                                ${Array.from({length: Math.min(course.traineesCount, 3)}, (_, i) => `
+                                <div class="glass-panel p-3 rounded-lg flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary text-xs font-bold">م${i+1}</div>
+                                        <div>
+                                            <p class="font-semibold text-sm text-gray-700">متدرب ${i+1}</p>
+                                            <p class="text-[10px] text-gray-400">قيد الدراسة</p>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded-full">مستوى ${i+1}</span>
+                                </div>`).join('')}
+                                ${course.traineesCount > 3 ? `
+                                <div class="text-center py-2">
+                                    <button class="text-xs text-primary hover:underline">عرض جميع المتدربين (${course.traineesCount}) ←</button>
+                                </div>` : ''}
+                            </div>` : `
+                            <div class="text-center py-8 text-gray-400">
+                                <i class="ph ph-users text-3xl block mb-2 text-gray-300"></i>
+                                <p class="text-sm">لم يُسجَّل أي متدرب في هذه الدورة بعد</p>
+                            </div>`}
                         </div>
-                    )}
-                </div>
-            );
-        };
+                    </div>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+                    <!-- العمود الجانبي -->
+                    <div class="space-y-5">
+
+                        <!-- إحصائيات -->
+                        <div class="glass-element rounded-xl p-5 text-center">
+                            <div class="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl mx-auto mb-3 border-2 border-primary/20">
+                                <i class="ph ph-chart-pie-slice"></i>
+                            </div>
+                            <p class="text-xs text-gray-500 mb-1">نسبة الإنجاز</p>
+                            <p class="text-3xl font-bold text-primary">${course.traineesCount > 0 ? '65%' : '0%'}</p>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5 mt-3">
+                                <div class="bg-primary h-1.5 rounded-full transition-all" style="width: ${course.traineesCount > 0 ? '65%' : '0%'}"></div>
+                            </div>
+                        </div>
+
+                        <!-- إجراءات سريعة -->
+                        <div class="glass-element rounded-xl p-5">
+                            <h3 class="font-bold text-sm mb-3 text-gray-700">الإجراءات السريعة</h3>
+                            <div class="space-y-2">
+                                <button class="w-full glass-panel py-2 px-3 rounded-lg text-xs text-right hover:border-primary transition-colors flex items-center gap-2">
+                                    <i class="ph ph-pencil-simple text-gray-400"></i> تعديل الدورة
+                                </button>
+                                <button class="w-full glass-panel py-2 px-3 rounded-lg text-xs text-right hover:border-primary transition-colors flex items-center gap-2">
+                                    <i class="ph ph-printer text-gray-400"></i> طباعة التقرير
+                                </button>
+                                <button class="w-full glass-panel py-2 px-3 rounded-lg text-xs text-right hover:border-primary transition-colors flex items-center gap-2">
+                                    <i class="ph ph-export text-gray-400"></i> تصدير البيانات
+                                </button>
+                                <button class="w-full glass-panel py-2 px-3 rounded-lg text-xs text-right text-red-600 hover:border-red-500 hover:bg-red-50 transition-colors flex items-center gap-2">
+                                    <i class="ph ph-trash"></i> حذف الدورة
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showDetails(programKey, courseKey) {
+            if (courseKey) {
+                // عرض تفاصيل دورة محددة
+                buildSidebarCourses(programKey);
+                showCourseDetails(programKey, courseKey);
+            } else {
+                // عرض دورات البرنامج في القائمة الجانبية فقط
+                buildSidebarCourses(programKey);
+                openSidebar();
+            }
+        }
+
+        // بناء القائمة الجانبية عند التحميل
+        buildSidebarPrograms();
+
+        // دالة الرجوع من تفاصيل الدورة إلى قائمة دورات البرنامج
+        function backToCoursesList() {
+            if (activeProgramKey) {
+                buildSidebarCourses(activeProgramKey);
+            } else {
+                buildSidebarPrograms();
+            }
+            showDashboard();
+        }
+
+        // 1.1 Edit / Delete Program Logic
+        function editProgram(programKey) {
+            openProgramModal('edit', programKey);
+        }
+
+        function addProgram() {
+            openProgramModal('add', null);
+        }
+
+        function deleteProgram(programKey) {
+            const program = programsData[programKey];
+            if (!program) return;
+            const confirmed = confirm(`هل أنت متأكد من حذف "${program.title}"؟ لا يمكن التراجع عن هذا الإجراء.`);
+            if (!confirmed) return;
+
+            delete programsData[programKey];
+
+            // إعادة بناء القائمة الجانبية إلى مستوى البرامج
+            buildSidebarPrograms();
+
+            // حذف بطاقة الشبكة
+            document.querySelectorAll(`[data-program-key="${programKey}"]`).forEach(el => el.remove());
+
+            // إن كان المستخدم يعرض تفاصيل البرنامج المحذوف، يتم إرجاعه لقائمة البرامج
+            if (detailsTitle && detailsTitle.dataset.activeKey === programKey) {
+                showProgramsGrid();
+            }
+        }
+
+        function refreshProgramCards(programKey) {
+            const program = programsData[programKey];
+            if (!program) return;
+            // إعادة بناء القائمة الجانبية
+            buildSidebarPrograms();
+            // تحديث بطاقات الشبكة
+            document.querySelectorAll(`[data-program-key="${programKey}"] [data-field="title"]`).forEach(el => {
+                el.textContent = program.title;
+            });
+            if (detailsTitle && detailsTitle.dataset.activeKey === programKey) {
+                detailsTitle.textContent = program.title;
+            }
+        }
+
+        // 1.2 Add/Edit Program Modal Logic
+        const programModal = document.getElementById('programModal');
+        const programModalTitle = document.getElementById('programModalTitle');
+        const programCategorySelect = document.getElementById('programCategorySelect');
+        const programNameArInput = document.getElementById('programNameArInput');
+        const programNameEnInput = document.getElementById('programNameEnInput');
+        const programCodeInput = document.getElementById('programCodeInput');
+        const programMessageInput = document.getElementById('programMessageInput');
+        const programVisionInput = document.getElementById('programVisionInput');
+        const programGoalInput = document.getElementById('programGoalInput');
+        let modalMode = 'add'; // 'add' | 'edit'
+        let modalActiveKey = null;
+
+        // تعبئة قائمة الفئات في القائمة المنسدلة
+        function populateCategoryOptions() {
+            programCategorySelect.innerHTML = '<option value="" disabled selected>اختر الفئة</option>' +
+                categoriesData.map(c => `<option value="${c.key}">${c.ar}</option>`).join('');
+        }
+
+        // استخراج أول حرفين انجليزي (مع تجاهل الفراغات والرموز) وتحويلهما لحروف كبيرة
+        function firstTwoLettersEn(text) {
+            if (!text) return '';
+            const cleaned = text.replace(/[^a-zA-Z]/g, '');
+            return cleaned.substring(0, 2).toUpperCase();
+        }
+
+        // حساب الرقم التسلسلي التالي ضمن نفس الفئة (يبدأ من 1 لكل فئة مستقلة)
+        function nextSequenceForCategory(categoryKey, excludeKey) {
+            let maxSeq = 0;
+            Object.entries(programsData).forEach(([key, p]) => {
+                if (key === excludeKey) return;
+                if (p.category !== categoryKey) return;
+                const match = (p.code || '').match(/(\d+)$/);
+                if (match) {
+                    const num = parseInt(match[1], 10);
+                    if (num > maxSeq) maxSeq = num;
+                }
+            });
+            return maxSeq + 1;
+        }
+
+        // توليد رمز البرنامج بناءً على الفئة والاسم الانجليزي
+        function generateProgramCode() {
+            const categoryKey = programCategorySelect.value;
+            const nameEn = programNameEnInput.value;
+            if (!categoryKey || !nameEn.trim()) {
+                programCodeInput.value = '';
+                return;
+            }
+            const category = categoriesData.find(c => c.key === categoryKey);
+            const catPart = firstTwoLettersEn(category ? category.en : '');
+            const namePart = firstTwoLettersEn(nameEn);
+            const seq = nextSequenceForCategory(categoryKey, modalMode === 'edit' ? modalActiveKey : null);
+            programCodeInput.value = (catPart + namePart + seq);
+        }
+
+        function openProgramModal(mode, programKey) {
+            modalMode = mode;
+            modalActiveKey = programKey;
+            populateCategoryOptions();
+
+            if (mode === 'edit' && programKey && programsData[programKey]) {
+                const program = programsData[programKey];
+                programModalTitle.textContent = 'تعديل البرنامج';
+                programNameArInput.value = program.title || '';
+                programNameEnInput.value = program.titleEn || '';
+                programCategorySelect.value = program.category || '';
+                programCodeInput.value = program.code || '';
+                programMessageInput.value = program.message || '';
+                programVisionInput.value = program.vision || '';
+                programGoalInput.value = program.goal || '';
+            } else {
+                modalMode = 'add';
+                modalActiveKey = null;
+                programModalTitle.textContent = 'إضافة برنامج جديد';
+                programNameArInput.value = '';
+                programNameEnInput.value = '';
+                programCategorySelect.value = '';
+                programCodeInput.value = '';
+                programMessageInput.value = '';
+                programVisionInput.value = '';
+                programGoalInput.value = '';
+            }
+
+            programModal.classList.remove('hidden');
+            setTimeout(() => programNameArInput.focus(), 50);
+        }
+
+        function closeProgramModal() {
+            programModal.classList.add('hidden');
+        }
+
+        function saveProgramModal() {
+            const titleAr = programNameArInput.value.trim();
+            const titleEn = programNameEnInput.value.trim();
+            const category = programCategorySelect.value;
+            const code = programCodeInput.value.trim();
+
+            if (!titleAr || !titleEn || !category) {
+                alert('يرجى تعبئة اسم البرنامج بالعربي والانجليزي، واختيار الفئة.');
+                return;
+            }
+
+            const data = {
+                title: titleAr,
+                titleEn: titleEn,
+                category: category,
+                code: code,
+                message: programMessageInput.value.trim(),
+                vision: programVisionInput.value.trim(),
+                goal: programGoalInput.value.trim()
+            };
+
+            if (modalMode === 'edit' && modalActiveKey) {
+                Object.assign(programsData[modalActiveKey], data);
+                refreshProgramCards(modalActiveKey);
+            } else {
+                // توليد معرف داخلي فريد من الاسم الانجليزي
+                let baseKey = titleEn.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'program';
+                let newKey = baseKey;
+                let i = 2;
+                while (programsData[newKey]) {
+                    newKey = `${baseKey}-${i}`;
+                    i++;
+                }
+                programsData[newKey] = Object.assign({ supervisor: '', traineesCount: 0 }, data);
+                addProgramCardToUI(newKey, programsData[newKey]);
+            }
+
+            closeProgramModal();
+        }
+
+        // إنشاء بطاقة جديدة في القائمة الجانبية وفي شبكة البرامج بعد الإضافة
+        function addProgramCardToUI(key, program) {
+            // إعادة بناء القائمة الجانبية بالكامل (مستوى البرامج)
+            buildSidebarPrograms();
+
+            const gridContainer = document.querySelector('#programsGridView .grid');
+            if (gridContainer) {
+                const gridCard = document.createElement('div');
+                gridCard.className = 'glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all';
+                gridCard.dataset.programKey = key;
+                gridCard.innerHTML = `
+                    <div onclick="showDetails('${key}')">
+                        <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
+                            <i class="ph ph-books"></i>
+                        </div>
+                        <h3 class="font-bold text-lg text-gray-800 mb-1" data-field="title">${program.title}</h3>
+                        <p class="text-sm text-gray-500 mb-4">${program.supervisor || ''}</p>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="bg-primary/10 text-primary px-3 py-1 rounded-full font-semibold flex items-center gap-1"><i class="ph ph-users-three"></i> ${program.traineesCount || '-'}</span>
+                            <span class="text-green-600 font-semibold flex items-center gap-1"><i class="ph ph-circle-fill text-[8px]"></i> نشط</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 mt-4 pt-4 border-t border-white/40">
+                        <button class="flex-1 glass-panel py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:border-primary transition-colors" onclick="event.stopPropagation(); editProgram('${key}')">
+                            <i class="ph ph-pencil-simple"></i> تعديل
+                        </button>
+                        <button class="flex-1 glass-panel py-2 rounded-lg text-xs font-semibold text-red-600 flex items-center justify-center gap-1 hover:border-red-500 hover:bg-red-50 transition-colors" onclick="event.stopPropagation(); deleteProgram('${key}')">
+                            <i class="ph ph-trash"></i> حذف
+                        </button>
+                    </div>`;
+                gridContainer.appendChild(gridCard);
+            }
+        }
+
+        // 2. Sidebar Logic
+        const sidebar = document.getElementById('sidebar');
+        const showSidebarBtn = document.getElementById('showSidebarBtn');
+        let isSidebarOpen = true;
+
+        function openSidebar() {
+            showSidebarBtn.classList.add('hidden');
+            sidebar.style.transform = 'translateX(0)';
+            sidebar.style.width = '20rem'; // w-80
+            sidebar.style.opacity = '1';
+            isSidebarOpen = true;
+        }
+
+        function closeSidebar() {
+            sidebar.style.transform = 'translateX(120%)';
+            sidebar.style.width = '0';
+            sidebar.style.margin = '0';
+            sidebar.style.opacity = '0';
+            setTimeout(() => showSidebarBtn.classList.remove('hidden'), 300);
+            isSidebarOpen = false;
+        }
+
+        function toggleSidebar() {
+            if (isSidebarOpen) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        }
+
+        // 3. Search Bar Expand Logic
+        const searchInput = document.getElementById('searchInput');
+        let isSearchExpanded = false;
+
+        function toggleSearch() {
+            if (!isSearchExpanded) {
+                searchInput.classList.add('active');
+                searchInput.focus();
+            } else {
+                if(searchInput.value.trim() === '') {
+                    searchInput.classList.remove('active');
+                } else {
+                    // Perform search action here
+                    alert('جاري البحث عن: ' + searchInput.value);
+                }
+            }
+            isSearchExpanded = !isSearchExpanded;
+        }
+
+        // Collapse search when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.relative.flex.items-center') && isSearchExpanded && searchInput.value === '') {
+                searchInput.classList.remove('active');
+                isSearchExpanded = false;
+            }
+        });
+
+        // 4. Clocks and Dates Logic
+        function updateTimeAndDate() {
+            const now = new Date();
+            
+            // Digital Clock
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            document.getElementById('digitalClock').textContent = now.toLocaleTimeString('en-US', timeOptions);
+
+            // Analog Clock
+            const seconds = now.getSeconds();
+            const minutes = now.getMinutes();
+            const hours = now.getHours();
+
+            const secDeg = ((seconds / 60) * 360) + 90; // +90 because CSS rotation starts from left by default if origin bottom, actually standard is 12 o'clock so no +90 if we set up correctly. Let's adjust based on design.
+            // Setup: standard math. 0 deg = 12 oclock if origin is bottom.
+            const sDeg = seconds * 6;
+            const mDeg = minutes * 6 + seconds * 0.1;
+            const hDeg = (hours % 12) * 30 + minutes * 0.5;
+
+            document.getElementById('secHand').style.transform = `rotate(${sDeg}deg)`;
+            document.getElementById('minHand').style.transform = `rotate(${mDeg}deg)`;
+            document.getElementById('hrHand').style.transform = `rotate(${hDeg}deg)`;
+
+            // Gregorian Date
+            const gregOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('gregorianDate').textContent = now.toLocaleDateString('ar-EG', gregOptions);
+
+            // Hijri Date
+            const hijriOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', calendar: 'islamic' };
+            document.getElementById('hijriDate').textContent = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', hijriOptions).format(now);
+        }
+
+        setInterval(updateTimeAndDate, 1000);
+        updateTimeAndDate(); // Initial call
+
+        // 5. Calendar Generation
+        function generateCalendar() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            
+            // Set header
+            const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+            document.getElementById('calendarMonthYear').textContent = `${monthNames[month]} ${year}`;
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            
+            // Adjust day index for Sunday start (0 = Sunday in JS, but calendar shows Sunday first)
+            // Arabic calendar usually starts on Sunday.
+            let startingDay = firstDay.getDay(); 
+
+            const calendarDays = document.getElementById('calendarDays');
+            calendarDays.innerHTML = '';
+
+            // Empty cells before start day
+            for (let i = 0; i < startingDay; i++) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'calendar-day empty';
+                calendarDays.appendChild(emptyDiv);
+            }
+
+            // Days of the month
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'calendar-day';
+                dayDiv.textContent = i;
+                
+                // Highlight today
+                if (i === now.getDate() && month === now.getMonth() && year === now.getFullYear()) {
+                    dayDiv.classList.add('today');
+                }
+                
+                calendarDays.appendChild(dayDiv);
+            }
+        }
+        
+        generateCalendar();
+
     </script>
 </body>
 </html>
