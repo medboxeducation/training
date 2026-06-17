@@ -566,13 +566,13 @@
             const [selectedProgram, setSelectedProgram] = useState(null);
             const [selectedStudent, setSelectedStudent] = useState(null);
             const [selectedTrainer, setSelectedTrainer] = useState(null);
-            const [selectedCourse, setSelectedCourse]   = useState(null); // { course, programId, programName }
             const [modal, setModal]                 = useState(null);
             const [loading, setLoading]             = useState(false);
             const [sidebarOpen, setSidebarOpen]     = useState(false);
             const [sidebarMode, setSidebarMode]     = useState('programs'); // 'programs' | 'settings'
             const [settingsTab, setSettingsTab]     = useState(null);
             const [programDetails, setProgramDetails] = useState(null);
+            const [selectedCourse, setSelectedCourse] = useState(null); // { course, programId, programName }
 
             const fb = window._firebase;
             const isAdmin   = userProfile.role === 'admin';
@@ -1054,7 +1054,7 @@
             };
 
             // CRUD — إضافة مدرب مستقل (يُحفظ في مجموعة trainers منفصلة)
-            const handleAddTrainer = async (formData) => {
+            const handleAddTrainer = async (formData, modalSnapshot) => {
                 if (!formData.email?.trim()) {
                     showToast('البريد الإلكتروني مطلوب لإنشاء حساب المدرب');
                     return;
@@ -1068,14 +1068,12 @@
                     );
 
                     if (fb?.addDoc && fb?.collection && fb?.db) {
-                        // استبعاد trainerFiles من Firestore وحفظها بشكل منفصل أو تجاهلها إن كانت كبيرة
                         const { trainerFiles, ...restData } = formData;
                         await fb.addDoc(fb.collection(fb.db, 'trainers'), {
                             ...restData,
                             uid: uid || null,
                             id: Date.now(),
                             createdAt: new Date().toISOString(),
-                            // حفظ المرفقات كـ base64 في Firestore (مناسب للملفات الصغيرة)
                             ...(trainerFiles ? { attachments: trainerFiles } : {})
                         });
                     }
@@ -1085,7 +1083,14 @@
                     } else {
                         showToast('✓ تمت إضافة المدرب وإرسال رابط الدخول لبريده');
                     }
-                    setModal(null);
+
+                    // إذا كانت هناك نافذة سابقة للعودة إليها (مثل إضافة دورة)
+                    const ret = modalSnapshot?.returnTo;
+                    if (ret) {
+                        setModal({ ...ret, pendingTrainer: { field: ret.pendingField, name: formData.name } });
+                    } else {
+                        setModal(null);
+                    }
                 } catch (e) {
                     const msgs = {
                         'auth/email-already-in-use': 'هذا البريد مسجل مسبقاً في النظام',
@@ -2325,7 +2330,7 @@
                                                 <div key={c.id}
                                                     onClick={() => {
                                                         const prog = programs.find(p => p.id === c.programId);
-                                                        setSelectedProgram(prog); setSelectedStudent(null); setProgramDetails(null); setSelectedTrainer(null); setSelectedCourse(null); setSearchQuery(''); setSearchOpen(false); if (window.innerWidth < 768) setSidebarOpen(false);
+                                                        setSelectedProgram(prog); setSelectedStudent(null); setProgramDetails(null); setSelectedTrainer(null); setSearchQuery(''); setSearchOpen(false); if (window.innerWidth < 768) setSidebarOpen(false);
                                                     }}
                                                     className="bg-white rounded-lg p-3 text-sm shadow-sm border border-gray-100 cursor-pointer hover:shadow-md"
                                                 >
@@ -2342,7 +2347,7 @@
                                         <div className="space-y-2">
                                             {sRes.map(s => (
                                                 <div key={s.id}
-                                                    onClick={() => { setSelectedStudent(s); setProgramDetails(null); setSelectedTrainer(null); setSelectedCourse(null); setSearchQuery(''); setSearchOpen(false); if (window.innerWidth < 768) setSidebarOpen(false); }}
+                                                    onClick={() => { setSelectedStudent(s); setProgramDetails(null); setSelectedTrainer(null); setSearchQuery(''); setSearchOpen(false); if (window.innerWidth < 768) setSidebarOpen(false); }}
                                                     className="bg-white rounded-lg p-3 text-sm shadow-sm border border-gray-100 cursor-pointer hover:shadow-md flex items-center gap-2"
                                                 >
                                                     <div className="w-6 h-6 rounded-full bg-medbox-main text-white flex items-center justify-center text-xs shrink-0">
@@ -2534,20 +2539,21 @@
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
                         <div className="p-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setIsOpen(!isOpen)}>
                             <div className="flex justify-between items-start mb-2">
-                                <div className="flex-1 ml-2"
-                                    onClick={e => {
-                                        e.stopPropagation();
-                                        const prog = programs.find(p => p.id === programId);
-                                        setSelectedCourse({ course, programId, programName: prog?.name || '' });
-                                        setSelectedStudent(null);
-                                        setSelectedTrainer(null);
-                                        setProgramDetails(null);
-                                        if (window.innerWidth < 768) setSidebarOpen(false);
-                                    }}
-                                    title="عرض تفاصيل الدورة"
-                                >
-                                    <h3 className="font-bold text-medbox-dark text-sm leading-tight font-mono hover:underline cursor-pointer">{course.code}</h3>
-                                    {course.name && <p className="text-xs text-gray-500 mt-0.5 truncate hover:text-medbox-main">{course.name}</p>}
+                                <div className="flex-1 ml-2">
+                                    <h3
+                                        className="font-bold text-medbox-dark text-sm leading-tight font-mono hover:text-medbox-main hover:underline underline-offset-2 transition-colors cursor-pointer"
+                                        title="عرض تفاصيل الدورة في اللوحة الرئيسية"
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            const prog = programs.find(p => p.id === programId);
+                                            setSelectedCourse({ course, programId, programName: prog?.name || '' });
+                                            setSelectedStudent(null);
+                                            setSelectedTrainer(null);
+                                            setProgramDetails(null);
+                                            if (window.innerWidth < 768) setSidebarOpen(false);
+                                        }}
+                                    >{course.code}</h3>
+                                    {course.name && <p className="text-xs text-gray-500 mt-0.5 truncate">{course.name}</p>}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
                                     {isAdmin && (
@@ -3210,152 +3216,712 @@
             };
 
             // -------------------------------------------------------
-            // CourseDetailsView — لوحة تفاصيل الدورة
+            // عرض تفاصيل الدورة (لوحة العرض الرئيسية) — عند الضغط على اسم الدورة
             // -------------------------------------------------------
-            const CourseDetailsView = ({ courseData }) => {
-                const { course, programId, programName } = courseData;
-                const latestCourse = React.useMemo(() => {
-                    const prog = programs.find(p => p.id === programId);
-                    return (prog?.courses || []).find(c => c.id === course.id) || course;
-                }, [programs, programId, course.id]);
-                const students = latestCourse.students || [];
-                return (
-                    <div className="flex-1 overflow-y-auto fade-in flex flex-col">
-                        <div className="bg-white shadow-sm border-b border-gray-100 shrink-0" style={{position:"sticky", top:0, zIndex:10}}>
-                            <div className="px-6 md:px-8 py-4 flex items-center gap-4 text-white"
-                                style={{background:"linear-gradient(135deg, #0790AC 0%, #0f6b7a 100%)"}}>
-                                <button onClick={() => setSelectedCourse(null)}
-                                    className="btn btn-icon btn-white-ghost shrink-0"
-                                    style={{border:"1px solid rgba(255,255,255,0.25)"}} title="إغلاق">
-                                    <svg className="w-4 h-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
-                                    </svg>
-                                </button>
-                                <div className="w-12 h-12 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center shrink-0">
-                                    <Icon name="book" className="w-6 h-6 text-white" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <h2 className="text-xl font-bold leading-tight">{latestCourse.name || latestCourse.code}</h2>
-                                        {latestCourse.code && latestCourse.name && (
-                                            <span className="text-xs font-mono bg-white/15 border border-white/25 px-2 py-0.5 rounded-full shrink-0">{latestCourse.code}</span>
-                                        )}
-                                    </div>
-                                    <p className="text-sm opacity-75 mt-0.5 flex items-center gap-1">
-                                        <Icon name="stethoscope" className="w-3.5 h-3.5 shrink-0" />
-                                        {programName}
-                                    </p>
-                                </div>
-                                <div className="flex gap-2 shrink-0">
-                                    <div className="bg-white/10 rounded-lg px-3 py-1.5 text-center">
-                                        <p className="text-[10px] opacity-70">المتدربون</p>
-                                        <p className="font-bold text-sm">{students.length}</p>
-                                    </div>
-                                    {latestCourse.date && (
-                                        <div className="bg-white/10 rounded-lg px-3 py-1.5 text-center hidden md:block">
-                                            <p className="text-[10px] opacity-70">التاريخ</p>
-                                            <p className="font-bold text-xs">{latestCourse.date}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            {(latestCourse.supervisor || latestCourse.location || latestCourse.days) && (
-                                <div className="px-6 md:px-8 py-2 flex items-center gap-4 text-xs text-gray-500 border-t border-gray-100 flex-wrap">
-                                    {latestCourse.supervisor && (
-                                        <span className="flex items-center gap-1">
-                                            <Icon name="user" className="w-3.5 h-3.5 text-medbox-main" />
-                                            المدرب: <strong className="text-gray-700">{latestCourse.supervisor}</strong>
-                                        </span>
-                                    )}
-                                    {latestCourse.coSupervisor && (
-                                        <span className="flex items-center gap-1">
-                                            <Icon name="user" className="w-3.5 h-3.5 text-purple-400" />
-                                            المساعد: <strong className="text-gray-700">{latestCourse.coSupervisor}</strong>
-                                        </span>
-                                    )}
-                                    {latestCourse.location && (
-                                        <span className="flex items-center gap-1">
-                                            <Icon name="mapPin" className="w-3.5 h-3.5 text-medbox-main" />
-                                            {latestCourse.location}
-                                        </span>
-                                    )}
-                                    {latestCourse.days && (
-                                        <span className="bg-medbox-light text-medbox-dark px-2 py-0.5 rounded-full font-medium">{latestCourse.days}</span>
-                                    )}
-                                </div>
-                            )}
+            const CourseDetailsView = ({ courseInfo }) => {
+                const { course, programId, programName } = courseInfo;
+                const prog = programs.find(p => p.id === programId);
+                const liveCourse = (prog?.courses || []).find(c => c.id === course.id) || course;
+                const students = liveCourse.students || [];
+
+                // ── حساب أيام الجلسات بناءً على أيام الدورة وتاريخ البداية ──
+                // days مثال: "السبت، الاثنين" أو "السبت - الاثنين"
+                const SESSION_DAYS = React.useMemo(() => {
+                    const arDayMap = {
+                        'الأحد':0, 'الاحد':0,
+                        'الاثنين':1,
+                        'الثلاثاء':2,
+                        'الأربعاء':3, 'الاربعاء':3,
+                        'الخميس':4,
+                        'الجمعة':5, 'الجمعه':5,
+                        'السبت':6,
+                    };
+                    if (!liveCourse.days || !liveCourse.date) return [];
+                    const rawDays = liveCourse.days.split(/[،,\-\/\s]+/).map(d => d.trim()).filter(Boolean);
+                    const targetDowList = rawDays.map(d => arDayMap[d]).filter(n => n !== undefined);
+                    if (!targetDowList.length) return [];
+
+                    const maxSessions = parseInt(liveCourse.sessions) || 16;
+                    const start = new Date(liveCourse.date);
+                    if (isNaN(start)) return [];
+                    const sessions = [];
+                    let cursor = new Date(start);
+                    let tries = 0;
+                    while (sessions.length < maxSessions && tries < 200) {
+                        if (targetDowList.includes(cursor.getDay())) {
+                            sessions.push(new Date(cursor));
+                        }
+                        cursor.setDate(cursor.getDate() + 1);
+                        tries++;
+                    }
+                    return sessions;
+                }, [liveCourse.days, liveCourse.date]);
+
+                // ── state لسجل الحضور: { [studentId]: { [dateStr]: 'حاضر'|'غائب'|'متأخر'|'' } } ──
+                const attendanceKey = `attendance_${liveCourse.id || liveCourse.code}`;
+                const [attendance, setAttendance] = React.useState(() => {
+                    try { return JSON.parse(localStorage.getItem(attendanceKey) || '{}'); }
+                    catch { return {}; }
+                });
+
+                // حفظ الحضور في localStorage فور التغيير
+                React.useEffect(() => {
+                    try { localStorage.setItem(attendanceKey, JSON.stringify(attendance)); }
+                    catch {}
+                }, [attendance, attendanceKey]);
+
+                const setMark = (studentId, dateStr, value) => {
+                    setAttendance(prev => ({
+                        ...prev,
+                        [studentId]: { ...(prev[studentId] || {}), [dateStr]: value }
+                    }));
+                };
+
+                // تدوير الحالة: '' ← حاضر ← غائب ← متأخر ← ''
+                const cycleMark = (studentId, dateStr) => {
+                    const cur = attendance[studentId]?.[dateStr] || '';
+                    const next = cur === '' ? 'حاضر' : cur === 'حاضر' ? 'غائب' : cur === 'غائب' ? 'متأخر' : '';
+                    setMark(studentId, dateStr, next);
+                };
+
+                const markColor = (v) => {
+                    if (v === 'حاضر')  return { bg:'#dcfce7', color:'#15803d', border:'#86efac' };
+                    if (v === 'غائب')  return { bg:'#fee2e2', color:'#b91c1c', border:'#fca5a5' };
+                    if (v === 'متأخر') return { bg:'#fef9c3', color:'#854d0e', border:'#fde047' };
+                    return { bg:'#f3f4f6', color:'#9ca3af', border:'#e5e7eb' };
+                };
+
+                const formatDate = (d) => {
+                    if (!d) return '';
+                    const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+                    return `${days[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
+                };
+
+                // ── إحصاءات الحضور لكل طالب ──
+                const studentStats = (studentId) => {
+                    const rec = attendance[studentId] || {};
+                    const present = Object.values(rec).filter(v => v === 'حاضر').length;
+                    const absent  = Object.values(rec).filter(v => v === 'غائب').length;
+                    const late    = Object.values(rec).filter(v => v === 'متأخر').length;
+                    return { present, absent, late };
+                };
+
+                // ── فرز المتدربين ──
+                const sortedStudents = [...students].sort((a,b) => (a.name||'').localeCompare(b.name||'', 'ar'));
+
+                // ── بحث عن متدرب لإضافته ──
+                const [searchOpen, setSearchOpen] = React.useState(false);
+                const [searchQuery, setSearchQuery] = React.useState('');
+                const searchInputRef = React.useRef(null);
+
+                React.useEffect(() => {
+                    if (searchOpen && searchInputRef.current) searchInputRef.current.focus();
+                }, [searchOpen]);
+
+                const closeSearch = () => { setSearchOpen(false); setSearchQuery(''); };
+
+                // جميع المتدربين المعروفين (من كل الدورات + المستقلين)
+                const allKnownStudents = React.useMemo(() => {
+                    const list = [];
+                    const seen = new Set();
+                    programs.forEach(p => {
+                        (p.courses || []).forEach(c => {
+                            (c.students || []).forEach(s => {
+                                if (!seen.has(s.id)) { seen.add(s.id); list.push({ ...s }); }
+                            });
+                        });
+                    });
+                    independentStudents.forEach(s => {
+                        const sid = s.id || s._firestoreId;
+                        if (!seen.has(sid)) { seen.add(sid); list.push({ ...s, id: sid }); }
+                    });
+                    return list;
+                }, [programs, independentStudents]);
+
+                const currentIds   = new Set(students.map(s => s.id));
+                const currentEmails = new Set(students.map(s => s.email).filter(Boolean));
+
+                const searchResults = React.useMemo(() => {
+                    const q = searchQuery.trim().toLowerCase();
+                    if (!q) return [];
+                    return allKnownStudents.filter(s =>
+                        !currentIds.has(s.id) &&
+                        !(s.email && currentEmails.has(s.email)) &&
+                        (
+                            s.name?.toLowerCase().includes(q) ||
+                            s.email?.toLowerCase().includes(q) ||
+                            s.phone?.includes(q)
+                        )
+                    ).slice(0, 8);
+                }, [searchQuery, allKnownStudents, currentIds, currentEmails]);
+
+                const handleAddExisting = async (student) => {
+                    setLoading(true);
+                    try {
+                        const p = programs.find(pr => pr.id === programId);
+                        const updatedCourses = p.courses.map(c => {
+                            if (c.id !== liveCourse.id) return c;
+                            return { ...c, students: [...(c.students||[]), {
+                                id: student.id, name: student.name,
+                                email: student.email || null, uid: student.uid || null,
+                                phone: student.phone || null, progress: 0,
+                                status: student.status || 'نشط'
+                            }]};
+                        });
+                        await fb.updateDoc(fb.doc(fb.db, 'programs', programId), { courses: updatedCourses });
+                        setPrograms(prev => prev.map(pr => pr.id === programId ? { ...pr, courses: updatedCourses } : pr));
+                        if (selectedProgram?.id === programId)
+                            setSelectedProgram(pr => ({ ...pr, courses: updatedCourses }));
+                        showToast(`تمت إضافة ${student.name} للدورة ✓`);
+                        closeSearch();
+                    } catch (e) { showToast('خطأ: ' + e.message); }
+                    setLoading(false);
+                };
+
+                const InfoRow = ({ icon, label, value }) => value ? (
+                    <div className="flex items-start gap-3 py-3 border-b border-gray-50 last:border-0">
+                        <div className="w-7 h-7 rounded-lg bg-medbox-light flex items-center justify-center shrink-0 mt-0.5">
+                            <Icon name={icon} className="w-3.5 h-3.5 text-medbox-main"/>
                         </div>
-                        <div className="flex-1 p-6 md:p-8">
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                        <Icon name="users" className="w-4 h-4 text-medbox-main" />
-                                        قائمة المتدربين المسجلين
-                                        <span className="text-xs bg-medbox-light text-medbox-dark font-bold px-2.5 py-0.5 rounded-full">{students.length}</span>
-                                    </h3>
-                                    {(isAdmin || isTrainer) && (
-                                        <button onClick={() => setModal({ type: "addStudent", programId, courseId: latestCourse.id })}
-                                            className="btn btn-primary btn-sm flex items-center gap-1">
-                                            <Icon name="plus" className="w-3.5 h-3.5" />
-                                            إضافة متدرب
-                                        </button>
-                                    )}
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-gray-400 font-medium">{label}</p>
+                            <p className="text-sm font-bold text-gray-800 mt-0.5">{value}</p>
+                        </div>
+                    </div>
+                ) : null;
+
+                return (
+                    <div className="flex-1 overflow-y-auto fade-in flex flex-col bg-gray-50">
+
+                        {/* ════════════════════════════════════════
+                            هيدر ثابت — رمز الدورة / اسم البرنامج
+                        ════════════════════════════════════════ */}
+                        <div className="px-6 md:px-8 py-4 flex items-center gap-4 text-white shrink-0"
+                            style={{background:'linear-gradient(135deg, #0790AC 0%, #0f6b7a 100%)', boxShadow:'0 2px 8px rgba(7,144,172,0.3)'}}>
+                            <button
+                                onClick={() => setSelectedCourse(null)}
+                                className="btn btn-icon btn-white-ghost shrink-0"
+                                style={{border:'1px solid rgba(255,255,255,0.25)'}}
+                                title="العودة"
+                            >
+                                <svg className="w-4 h-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
+                                </svg>
+                            </button>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-bold text-lg font-mono">{liveCourse.code}</span>
+                                    {liveCourse.name && <span className="text-sm text-white/75">{liveCourse.name}</span>}
                                 </div>
-                                {students.length === 0 ? (
-                                    <div className="text-center py-16 text-gray-400">
-                                        <Icon name="users" className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                        <p className="text-sm">لا يوجد متدربون مسجلون في هذه الدورة</p>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <div className="grid grid-cols-12 gap-2 px-6 py-2 bg-gray-50 text-xs font-bold text-gray-400 border-b border-gray-100">
-                                            <div className="col-span-1 text-center">#</div>
-                                            <div className="col-span-5">الاسم</div>
-                                            <div className="col-span-3">البريد / الهاتف</div>
-                                            <div className="col-span-2 text-center">الحالة</div>
-                                            <div className="col-span-1"></div>
-                                        </div>
-                                        {students.map((student, idx) => (
-                                            <div key={student.id}
-                                                className="grid grid-cols-12 gap-2 px-6 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors items-center group">
-                                                <div className="col-span-1 text-center text-xs text-gray-400 font-medium">{idx + 1}</div>
-                                                <div className="col-span-5 flex items-center gap-2 min-w-0">
-                                                    <div className="w-8 h-8 rounded-full bg-medbox-main text-white flex items-center justify-center text-sm font-bold shrink-0">{student.name?.charAt(0)}</div>
-                                                    <button className="font-medium text-sm text-gray-800 truncate hover:text-medbox-main text-right transition-colors"
-                                                        onClick={() => { setSelectedStudent({ ...student, courseName: latestCourse.name, courseId: latestCourse.id, programId, programName }); setSelectedCourse(null); }}>
-                                                        {student.name}
-                                                    </button>
-                                                    {student.uid && (<span title="حساب مفعّل" style={{width:8,height:8,borderRadius:"50%",background:"#22c55e",border:"2px solid white",display:"inline-block",flexShrink:0}} />)}
-                                                </div>
-                                                <div className="col-span-3 min-w-0">
-                                                    {student.email ? (<p className="text-xs text-gray-500 truncate" dir="ltr">{student.email}</p>)
-                                                    : student.phone ? (<p className="text-xs text-gray-500 truncate" dir="ltr">{student.phone}</p>)
-                                                    : (<p className="text-xs text-gray-300">—</p>)}
-                                                </div>
-                                                <div className="col-span-2 flex justify-center">
-                                                    <span className={}>
-                                                        {student.status || "نشط"}
-                                                    </span>
-                                                </div>
-                                                <div className="col-span-1 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button title="عرض الملف"
-                                                        onClick={() => { setSelectedStudent({ ...student, courseName: latestCourse.name, courseId: latestCourse.id, programId, programName }); setSelectedCourse(null); }}
-                                                        className="btn btn-icon btn-ghost text-medbox-main hover:bg-medbox-light" style={{padding:"0.2rem"}}>
-                                                        <Icon name="eye" className="w-3.5 h-3.5" />
-                                                    </button>
-                                                    {(isAdmin || isTrainer) && (
-                                                        <button title="حذف من الدورة"
-                                                            onClick={() => handleDeleteStudent(programId, latestCourse.id, student.id)}
-                                                            className="btn btn-icon btn-danger-ghost" style={{padding:"0.2rem"}}>
-                                                            <Icon name="trash" className="w-3.5 h-3.5" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
+                                <p className="text-xs text-white/55 mt-0.5">{programName}</p>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                                <div className="bg-white/10 rounded-lg px-3 py-1 text-center">
+                                    <p className="text-[10px] opacity-70">متدرب</p>
+                                    <p className="font-bold text-sm">{students.length}</p>
+                                </div>
+                                {SESSION_DAYS.length > 0 && (
+                                    <div className="bg-white/10 rounded-lg px-3 py-1 text-center hidden md:block">
+                                        <p className="text-[10px] opacity-70">جلسة</p>
+                                        <p className="font-bold text-sm">{SESSION_DAYS.length}</p>
                                     </div>
                                 )}
                             </div>
+                        </div>
+
+                        <div className="p-5 md:p-7 space-y-6 flex-1">
+
+                            {/* ════════════════════════════════════════
+                                اللائحة الأولى — المعلومات العامة
+                            ════════════════════════════════════════ */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2"
+                                    style={{background:'linear-gradient(90deg,#f0f9fb,#fff)'}}>
+                                    <div className="w-6 h-6 rounded-md bg-medbox-main flex items-center justify-center">
+                                        <Icon name="activity" className="w-3.5 h-3.5 text-white"/>
+                                    </div>
+                                    <h3 className="text-sm font-bold text-gray-800">المعلومات العامة</h3>
+                                </div>
+                                <div className="p-4 space-y-3">
+
+                                    {/* صف 1: البرنامج التدريبي (كامل العرض) */}
+                                    {programName && (
+                                        <div className="flex items-center gap-3 bg-medbox-light/40 rounded-xl px-4 py-3">
+                                            <div className="w-8 h-8 rounded-lg bg-medbox-main flex items-center justify-center shrink-0">
+                                                <Icon name="stethoscope" className="w-4 h-4 text-white"/>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] text-gray-400 font-medium">البرنامج التدريبي</p>
+                                                <p className="text-sm font-bold text-gray-800 truncate">{programName}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* صف 2: رمز الدورة + تاريخ البداية */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {liveCourse.code && (
+                                            <div className="flex items-center gap-2.5 bg-gray-50 rounded-xl px-3 py-3">
+                                                <div className="w-7 h-7 rounded-lg bg-medbox-light flex items-center justify-center shrink-0">
+                                                    <Icon name="activity" className="w-3.5 h-3.5 text-medbox-main"/>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] text-gray-400 font-medium">رمز الدورة</p>
+                                                    <p className="text-sm font-bold text-gray-800 font-mono truncate">{liveCourse.code}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {liveCourse.date && (
+                                            <div className="flex items-center gap-2.5 bg-gray-50 rounded-xl px-3 py-3">
+                                                <div className="w-7 h-7 rounded-lg bg-medbox-light flex items-center justify-center shrink-0">
+                                                    <Icon name="shield" className="w-3.5 h-3.5 text-medbox-main"/>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] text-gray-400 font-medium">تاريخ البداية</p>
+                                                    <p className="text-sm font-bold text-gray-800 truncate">{liveCourse.date}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* صف 3: عدد الساعات + عدد الجلسات + وقت الدورة */}
+                                    {(liveCourse.hours || liveCourse.sessions || SESSION_DAYS.length > 0 || liveCourse.time) && (
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {liveCourse.hours && (
+                                                <div className="flex flex-col items-center justify-center bg-blue-50 rounded-xl px-2 py-3 text-center">
+                                                    <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center mb-1.5">
+                                                        <Icon name="book" className="w-3.5 h-3.5 text-blue-600"/>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-400 font-medium">الساعات</p>
+                                                    <p className="text-sm font-bold text-gray-800">{liveCourse.hours}</p>
+                                                    <p className="text-[10px] text-gray-400">ساعة</p>
+                                                </div>
+                                            )}
+                                            {(liveCourse.sessions || SESSION_DAYS.length > 0) && (
+                                                <div className="flex flex-col items-center justify-center bg-purple-50 rounded-xl px-2 py-3 text-center">
+                                                    <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center mb-1.5">
+                                                        <Icon name="shield" className="w-3.5 h-3.5 text-purple-600"/>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-400 font-medium">الجلسات</p>
+                                                    <p className="text-sm font-bold text-gray-800">{liveCourse.sessions || SESSION_DAYS.length}</p>
+                                                    <p className="text-[10px] text-gray-400">جلسة</p>
+                                                </div>
+                                            )}
+                                            {liveCourse.time && (
+                                                <div className="flex flex-col items-center justify-center bg-orange-50 rounded-xl px-2 py-3 text-center">
+                                                    <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center mb-1.5">
+                                                        <Icon name="bell" className="w-3.5 h-3.5 text-orange-500"/>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-400 font-medium">الوقت</p>
+                                                    <p className="text-sm font-bold text-gray-800 leading-tight">{liveCourse.time}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* صف 4: أيام الدورة */}
+                                    {liveCourse.days && (
+                                        <div className="bg-gray-50 rounded-xl px-4 py-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="w-6 h-6 rounded-md bg-medbox-light flex items-center justify-center">
+                                                    <Icon name="settings" className="w-3 h-3 text-medbox-main"/>
+                                                </div>
+                                                <p className="text-[11px] text-gray-400 font-medium">أيام الدورة</p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {liveCourse.days.split(/[،,\-\/]+/).map(d => d.trim()).filter(Boolean).map((d,i) => (
+                                                    <span key={i} className="text-xs font-bold px-3 py-1 rounded-full bg-medbox-light text-medbox-dark">{d}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* صف 5: مكان إقامة الدورة (كامل العرض) */}
+                                    {liveCourse.location && (
+                                        <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                                            <div className="w-7 h-7 rounded-lg bg-medbox-light flex items-center justify-center shrink-0">
+                                                <Icon name="activity" className="w-3.5 h-3.5 text-medbox-main"/>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] text-gray-400 font-medium">مكان إقامة الدورة</p>
+                                                <p className="text-sm font-bold text-gray-800">{liveCourse.location}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* صف 6: المدرب الرئيسي + المدرب المساعد */}
+                                    {(liveCourse.supervisor || liveCourse.coSupervisor) && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {liveCourse.supervisor && (
+                                                <div className="flex items-center gap-2.5 bg-teal-50 rounded-xl px-3 py-3">
+                                                    <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
+                                                        <Icon name="user" className="w-3.5 h-3.5 text-teal-600"/>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] text-gray-400 font-medium">المدرب الرئيسي</p>
+                                                        <p className="text-sm font-bold text-gray-800 truncate">{liveCourse.supervisor}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {liveCourse.coSupervisor && (
+                                                <div className="flex items-center gap-2.5 bg-teal-50 rounded-xl px-3 py-3">
+                                                    <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
+                                                        <Icon name="users" className="w-3.5 h-3.5 text-teal-600"/>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] text-gray-400 font-medium">المدرب المساعد</p>
+                                                        <p className="text-sm font-bold text-gray-800 truncate">{liveCourse.coSupervisor}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                </div>
+                            </div>
+
+                            {/* ════════════════════════════════════════
+                                اللائحة الثانية — المتدربون المسجلون
+                            ════════════════════════════════════════ */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between"
+                                    style={{background:'linear-gradient(90deg,#f0f9fb,#fff)'}}>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-md bg-medbox-main flex items-center justify-center">
+                                            <Icon name="users" className="w-3.5 h-3.5 text-white"/>
+                                        </div>
+                                        <h3 className="text-sm font-bold text-gray-800">المتدربون المسجلون</h3>
+                                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-medbox-light text-medbox-main">{students.length}</span>
+                                    </div>
+                                    {(isAdmin || isTrainer) && (
+                                        <div className="flex items-center gap-2">
+                                            {/* زر البحث */}
+                                            <button
+                                                onClick={() => { setSearchOpen(v => !v); setSearchQuery(''); }}
+                                                title="بحث عن متدرب لإضافته"
+                                                className="btn btn-secondary btn-sm"
+                                                style={searchOpen ? {background:'#0790AC', color:'#fff'} : {}}
+                                            >
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                                </svg>
+                                                بحث
+                                            </button>
+                                            {/* زر إضافة جديد */}
+                                            <button
+                                                onClick={() => { closeSearch(); setModal({ type:'addStudent', programId, courseId:liveCourse.id }); }}
+                                                className="btn btn-primary btn-sm"
+                                            >
+                                                <Icon name="plus" className="w-3 h-3"/>
+                                                إضافة
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* ── شريط البحث ونتائجه ── */}
+                                {searchOpen && (
+                                    <div className="border-b border-gray-100 fade-in">
+                                        {/* حقل البحث */}
+                                        <div className="flex items-center gap-2 px-4 py-2.5 bg-medbox-light/30">
+                                            <svg className="w-4 h-4 text-medbox-main shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                            </svg>
+                                            <input
+                                                ref={searchInputRef}
+                                                type="text"
+                                                value={searchQuery}
+                                                onChange={e => setSearchQuery(e.target.value)}
+                                                placeholder="ابحث بالاسم أو البريد أو الهاتف..."
+                                                className="flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder-gray-400"
+                                                dir="rtl"
+                                            />
+                                            {searchQuery && (
+                                                <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-gray-600 shrink-0">
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                </button>
+                                            )}
+                                            <button onClick={closeSearch} className="text-gray-400 hover:text-gray-600 shrink-0 mr-1" title="إغلاق البحث">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        {/* نتائج البحث */}
+                                        {searchQuery.trim().length > 0 && (
+                                            <div className="max-h-52 overflow-y-auto divide-y divide-gray-50">
+                                                {searchResults.length === 0 ? (
+                                                    <div className="py-5 text-center text-xs text-gray-400">
+                                                        لا توجد نتائج — يمكنك إضافة متدرب جديد
+                                                    </div>
+                                                ) : (
+                                                    searchResults.map(s => (
+                                                        <div key={s.id}
+                                                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-medbox-light/40 transition-colors cursor-pointer group"
+                                                            onClick={() => handleAddExisting(s)}
+                                                        >
+                                                            <div className="w-7 h-7 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0 group-hover:bg-medbox-main group-hover:text-white transition-colors">
+                                                                {s.name?.charAt(0)}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-bold text-gray-800 truncate">{s.name}</p>
+                                                                {s.email && <p className="text-[11px] text-gray-400 truncate" dir="ltr">{s.email}</p>}
+                                                            </div>
+                                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-medbox-light text-medbox-main shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                + إضافة
+                                                            </span>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                        {searchQuery.trim().length === 0 && (
+                                            <div className="py-3 px-4 text-xs text-gray-400">
+                                                ابدأ الكتابة للبحث في قائمة المتدربين المسجلين مسبقاً...
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {students.length === 0 ? (
+                                    <div className="py-10 text-center text-gray-400">
+                                        <Icon name="users" className="w-10 h-10 mx-auto mb-2 opacity-25"/>
+                                        <p className="text-xs">لا يوجد متدربون بعد</p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-gray-50">
+                                        {sortedStudents.map((student, idx) => {
+                                            const stats = studentStats(student.id);
+                                            return (
+                                                <div
+                                                    key={student.id}
+                                                    className={`flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-medbox-light/30 transition-colors group
+                                                        ${selectedStudent?.id === student.id ? 'bg-medbox-light' : ''}`}
+                                                    onClick={() => {
+                                                        setSelectedStudent({ ...student, courseName: liveCourse.code || liveCourse.name, courseId: liveCourse.id, programId, programName });
+                                                        if (window.innerWidth < 768) setSidebarOpen(false);
+                                                    }}
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-medbox-main text-white flex items-center justify-center text-xs font-bold shrink-0">
+                                                        {student.name?.charAt(0)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-bold text-gray-800 truncate">{student.name}</p>
+                                                        {student.email && <p className="text-[11px] text-gray-400 truncate" dir="ltr">{student.email}</p>}
+                                                    </div>
+                                                    {/* إحصاءات الحضور */}
+                                                    {SESSION_DAYS.length > 0 && (
+                                                        <div className="flex gap-1.5 shrink-0 text-[10px] font-bold">
+                                                            <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700" title="حاضر">{stats.present}✓</span>
+                                                            <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-600" title="غائب">{stats.absent}✗</span>
+                                                            {stats.late > 0 && <span className="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700" title="متأخر">{stats.late}⏱</span>}
+                                                        </div>
+                                                    )}
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0
+                                                        ${(!student.status || student.status === 'نشط') ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                        {student.status || 'نشط'}
+                                                    </span>
+                                                    {(isAdmin || isTrainer) && (
+                                                        <button
+                                                            onClick={e => { e.stopPropagation(); handleDeleteStudent(programId, liveCourse.id, student.id); }}
+                                                            className="btn btn-icon btn-danger-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            style={{padding:'0.2rem'}}
+                                                        >
+                                                            <Icon name="trash" className="w-3 h-3"/>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* ════════════════════════════════════════
+                                اللائحة الثالثة — جدول الحضور والغياب
+                            ════════════════════════════════════════ */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between"
+                                    style={{background:'linear-gradient(90deg,#f0f9fb,#fff)'}}>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-md bg-medbox-main flex items-center justify-center">
+                                            <Icon name="shield" className="w-3.5 h-3.5 text-white"/>
+                                        </div>
+                                        <h3 className="text-sm font-bold text-gray-800">جدول الحضور والغياب</h3>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{background:'#dcfce7',border:'1px solid #86efac'}}></span>حاضر</span>
+                                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{background:'#fee2e2',border:'1px solid #fca5a5'}}></span>غائب</span>
+                                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{background:'#fef9c3',border:'1px solid #fde047'}}></span>متأخر</span>
+                                    </div>
+                                </div>
+
+                                {(!liveCourse.date || !liveCourse.days) ? (
+                                    <div className="py-8 text-center text-gray-400 text-xs">
+                                        <Icon name="bell" className="w-8 h-8 mx-auto mb-2 opacity-25"/>
+                                        <p>يجب تحديد تاريخ البداية وأيام الدورة لعرض الجدول</p>
+                                    </div>
+                                ) : students.length === 0 ? (
+                                    <div className="py-8 text-center text-gray-400 text-xs">
+                                        <p>لا يوجد متدربون لعرض جدول الحضور</p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table style={{borderCollapse:'collapse', width:'100%', minWidth: `${220 + SESSION_DAYS.length * 72}px`, fontSize:'12px'}}>
+                                            <thead>
+                                                <tr style={{background:'#f8fafc'}}>
+                                                    {/* عمود الاسم */}
+                                                    <th style={{
+                                                        position:'sticky', right:0, zIndex:2,
+                                                        background:'#f8fafc',
+                                                        padding:'10px 14px', textAlign:'right',
+                                                        borderBottom:'2px solid #e2e8f0',
+                                                        borderLeft:'1px solid #e2e8f0',
+                                                        fontWeight:700, color:'#374151',
+                                                        minWidth:160, whiteSpace:'nowrap'
+                                                    }}>
+                                                        اسم المتدرب
+                                                    </th>
+                                                    {SESSION_DAYS.map((d, i) => (
+                                                        <th key={i} style={{
+                                                            padding:'6px 8px', textAlign:'center',
+                                                            borderBottom:'2px solid #e2e8f0',
+                                                            borderLeft:'1px solid #f1f5f9',
+                                                            fontWeight:600, color:'#0790AC',
+                                                            minWidth:68, whiteSpace:'nowrap',
+                                                            background:'#f8fafc'
+                                                        }}>
+                                                            <div style={{fontSize:10, color:'#9ca3af', fontWeight:500}}>{formatDate(d).split(' ')[0]}</div>
+                                                            <div style={{fontSize:11, color:'#374151', fontWeight:700}}>{formatDate(d).split(' ').slice(1).join(' ')}</div>
+                                                        </th>
+                                                    ))}
+                                                    {/* عمود الملخص */}
+                                                    <th style={{
+                                                        padding:'6px 10px', textAlign:'center',
+                                                        borderBottom:'2px solid #e2e8f0',
+                                                        fontWeight:700, color:'#374151',
+                                                        minWidth:80, background:'#f0f9fb',
+                                                        whiteSpace:'nowrap'
+                                                    }}>
+                                                        ملخص
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {sortedStudents.map((student, si) => {
+                                                    const stats = studentStats(student.id);
+                                                    const pct = SESSION_DAYS.length > 0 ? Math.round((stats.present / SESSION_DAYS.length) * 100) : 0;
+                                                    return (
+                                                        <tr key={student.id}
+                                                            style={{background: si % 2 === 0 ? '#fff' : '#fafafa'}}>
+                                                            {/* اسم المتدرب — ثابت */}
+                                                            <td style={{
+                                                                position:'sticky', right:0, zIndex:1,
+                                                                background: si % 2 === 0 ? '#fff' : '#fafafa',
+                                                                padding:'8px 14px',
+                                                                borderBottom:'1px solid #f1f5f9',
+                                                                borderLeft:'1px solid #e2e8f0',
+                                                                fontWeight:600, color:'#1f2937',
+                                                                whiteSpace:'nowrap'
+                                                            }}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div style={{width:24,height:24,borderRadius:'50%',background:'#0790AC',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0}}>
+                                                                        {student.name?.charAt(0)}
+                                                                    </div>
+                                                                    <span style={{fontSize:12}}>{student.name}</span>
+                                                                </div>
+                                                            </td>
+                                                            {SESSION_DAYS.map((d, di) => {
+                                                                const ds = d.toISOString().slice(0,10);
+                                                                const val = attendance[student.id]?.[ds] || '';
+                                                                const mc = markColor(val);
+                                                                return (
+                                                                    <td key={di} style={{
+                                                                        padding:'5px 4px', textAlign:'center',
+                                                                        borderBottom:'1px solid #f1f5f9',
+                                                                        borderLeft:'1px solid #f1f5f9',
+                                                                    }}>
+                                                                        <button
+                                                                            onClick={() => cycleMark(student.id, ds)}
+                                                                            title={`${student.name} — ${formatDate(d)} (انقر للتغيير)`}
+                                                                            style={{
+                                                                                width:52, height:26, borderRadius:6,
+                                                                                background:mc.bg, color:mc.color,
+                                                                                border:`1px solid ${mc.border}`,
+                                                                                fontWeight:700, fontSize:10,
+                                                                                cursor:'pointer', transition:'all .15s',
+                                                                                display:'flex', alignItems:'center', justifyContent:'center',
+                                                                                margin:'0 auto'
+                                                                            }}
+                                                                            onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                                                                            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                                                                        >
+                                                                            {val || '—'}
+                                                                        </button>
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                            {/* ملخص */}
+                                                            <td style={{
+                                                                padding:'5px 8px', textAlign:'center',
+                                                                borderBottom:'1px solid #f1f5f9',
+                                                                background: si % 2 === 0 ? '#f0f9fb' : '#e8f5f8',
+                                                            }}>
+                                                                <div style={{fontSize:10, fontWeight:700, color:'#0790AC'}}>{pct}%</div>
+                                                                <div style={{fontSize:9, color:'#6b7280'}}>{stats.present}/{SESSION_DAYS.length}</div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                            {/* تذييل — إجمالي كل جلسة */}
+                                            {SESSION_DAYS.length > 0 && (
+                                                <tfoot>
+                                                    <tr style={{background:'#f0f9fb'}}>
+                                                        <td style={{
+                                                            position:'sticky', right:0, zIndex:1,
+                                                            background:'#f0f9fb',
+                                                            padding:'8px 14px', fontWeight:700, color:'#374151',
+                                                            borderTop:'2px solid #e2e8f0',
+                                                            borderLeft:'1px solid #e2e8f0',
+                                                            fontSize:11, whiteSpace:'nowrap'
+                                                        }}>
+                                                            إجمالي الحضور
+                                                        </td>
+                                                        {SESSION_DAYS.map((d, di) => {
+                                                            const ds = d.toISOString().slice(0,10);
+                                                            const presentCount = students.filter(s => attendance[s.id]?.[ds] === 'حاضر').length;
+                                                            const pct2 = students.length > 0 ? Math.round((presentCount / students.length)*100) : 0;
+                                                            return (
+                                                                <td key={di} style={{
+                                                                    padding:'6px 4px', textAlign:'center',
+                                                                    borderTop:'2px solid #e2e8f0',
+                                                                    borderLeft:'1px solid #e2e8f0',
+                                                                }}>
+                                                                    <div style={{fontSize:11, fontWeight:700, color:'#0790AC'}}>{presentCount}</div>
+                                                                    <div style={{fontSize:9, color:'#9ca3af'}}>{pct2}%</div>
+                                                                </td>
+                                                            );
+                                                        })}
+                                                        <td style={{borderTop:'2px solid #e2e8f0', background:'#e8f5f8'}}></td>
+                                                    </tr>
+                                                </tfoot>
+                                            )}
+                                        </table>
+                                    </div>
+                                )}
+
+                                {/* تلميح الاستخدام */}
+                                {SESSION_DAYS.length > 0 && students.length > 0 && (
+                                    <div className="px-5 py-2.5 border-t border-gray-50 text-[10px] text-gray-400 flex items-center gap-1.5">
+                                        <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        انقر على أي خلية لتدوير الحالة: — ← حاضر ← غائب ← متأخر. يُحفظ تلقائياً.
+                                    </div>
+                                )}
+                            </div>
+
                         </div>
                     </div>
                 );
@@ -3374,7 +3940,7 @@
                 );
                 if (selectedTrainer) return <TrainerDetailsView trainer={selectedTrainer} />;
                 if (selectedStudent) return <StudentDetails student={selectedStudent} />;
-                if (selectedCourse) return <CourseDetailsView courseData={selectedCourse} />;
+                if (selectedCourse) return <CourseDetailsView courseInfo={selectedCourse} />;
                 if (programDetails) return <ProgramDetailsView program={programDetails} />;
 
                 // ── لوحة الإعدادات ──
@@ -3530,7 +4096,7 @@
             // Modal (نوافذ الإضافة)
             // -------------------------------------------------------
             const Modal = () => {
-                const [form, setForm] = useState({});
+                const [form, setForm] = useState(modal?.savedForm || {});
                 const [activeModalTab, setActiveModalTab] = useState((modal?.type === 'addTrainer' || modal?.type === 'editTrainer') ? 'personal' : 'info');
                 const [fileName, setFileName] = useState('');
                 if (!modal) return null;
@@ -3543,8 +4109,17 @@
                     if (modal.type === 'editCourse')  handleEditCourse(modal.programId, modal.course.id, form);
                     if (modal.type === 'addStudent')  handleAddStudent(modal.programId, modal.courseId, form);
                     if (modal.type === 'editStudent') handleEditStudent(modal.programId, modal.courseId, modal.student.id, form);
-                    if (modal.type === 'addTrainer')  handleAddTrainer(form);
+                    if (modal.type === 'addTrainer')  handleAddTrainer(form, modal);
                     if (modal.type === 'editTrainer') handleSaveTrainerEdit(modal.trainer, form);
+                };
+
+                // إغلاق النافذة: إذا كانت هناك نافذة سابقة (returnTo) نعود إليها بدلاً من الإغلاق الكامل
+                const handleClose = () => {
+                    if (modal?.returnTo) {
+                        setModal(modal.returnTo);
+                    } else {
+                        setModal(null);
+                    }
                 };
 
                 const handleFileChange = (e) => {
@@ -3573,6 +4148,8 @@
                     addCourse: [
                         { key: 'date',          label: 'تاريخ البدء',         type: 'date',  required: true },
                         { key: 'days',          label: 'أيام الدورة',          placeholder: 'مثال: السبت، الأحد، الاثنين', required: true },
+                        { key: 'sessions',      label: 'عدد الجلسات',          type: 'number', placeholder: 'مثال: 10' },
+                        { key: 'hours',         label: 'عدد ساعات الدورة',    type: 'number', placeholder: 'مثال: 20' },
                         { key: 'location',      label: 'مكان إقامة الدورة',   placeholder: 'مثال: قاعة التدريب الرئيسية', required: true },
                         { key: 'time',          label: 'وقت الدورة',           type: 'time',  required: true },
                         { key: 'supervisor',    label: 'اسم المدرب الرئيسي',                  required: true },
@@ -3581,6 +4158,8 @@
                     editCourse: [
                         { key: 'date',          label: 'تاريخ البدء',         type: 'date' },
                         { key: 'days',          label: 'أيام الدورة',          placeholder: 'مثال: السبت، الأحد، الاثنين' },
+                        { key: 'sessions',      label: 'عدد الجلسات',          type: 'number', placeholder: 'مثال: 10' },
+                        { key: 'hours',         label: 'عدد ساعات الدورة',    type: 'number', placeholder: 'مثال: 20' },
                         { key: 'location',      label: 'مكان إقامة الدورة',   placeholder: 'مثال: قاعة التدريب الرئيسية' },
                         { key: 'time',          label: 'وقت الدورة',           type: 'time' },
                         { key: 'supervisor',    label: 'اسم المدرب الرئيسي'                  },
@@ -3645,58 +4224,270 @@
                     editTrainer: 'تعديل بيانات المدرب',
                 };
 
+                // ===== مكوّن البحث عن مدرب واختياره =====
+                const TrainerPicker = ({ fieldKey, label, required }) => {
+                    const [query, setQuery] = React.useState('');
+                    const [open, setOpen]   = React.useState(false);
+                    const dropRef = React.useRef(null);
+
+                    // جمع كل المدربين من البرامج + المستقلين
+                    const allT = React.useMemo(() => {
+                        const map = {};
+                        programs.forEach(p => (p.courses||[]).forEach(c => {
+                            if (c.supervisor)   map[c.supervisor]   = { name: c.supervisor,   email: c.supervisorEmail   || '' };
+                            if (c.coSupervisor) map[c.coSupervisor] = { name: c.coSupervisor, email: c.coSupervisorEmail || '' };
+                        }));
+                        independentTrainers.forEach(t => { if (t.name) map[t.name] = { name: t.name, email: t.email || '' }; });
+                        return Object.values(map).sort((a,b) => a.name.localeCompare(b.name, 'ar'));
+                    }, [programs, independentTrainers]);
+
+                    const filtered = query.trim()
+                        ? allT.filter(t => t.name.includes(query) || t.email.includes(query))
+                        : allT;
+
+                    const selected = form[fieldKey] || '';
+
+                    // إغلاق الـ dropdown عند الضغط خارجه
+                    React.useEffect(() => {
+                        const handler = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false); };
+                        document.addEventListener('mousedown', handler);
+                        return () => document.removeEventListener('mousedown', handler);
+                    }, []);
+
+                    // تلقّي المدرب الجديد عند العودة من نافذة الإضافة
+                    React.useEffect(() => {
+                        if (modal?.pendingTrainer?.field === fieldKey && modal.pendingTrainer.name) {
+                            setForm(f => ({ ...f, [fieldKey]: modal.pendingTrainer.name }));
+                            // نحذف pendingTrainer من modal state حتى لا يُعاد تطبيقها
+                            setModal(m => m ? { ...m, pendingTrainer: null } : m);
+                        }
+                    }, [modal?.pendingTrainer]);
+
+                    const select = (name) => { setForm(f => ({ ...f, [fieldKey]: name })); setQuery(''); setOpen(false); };
+                    const clear  = () => { setForm(f => ({ ...f, [fieldKey]: '' })); setQuery(''); };
+
+                    // فتح نافذة إضافة مدرب مع تمرير بيانات العودة + حفظ الفورم الحالي
+                    const openAddTrainer = () => {
+                        setModal({
+                            type: 'addTrainer',
+                            returnTo: { ...modal, pendingField: fieldKey, savedForm: form },
+                        });
+                    };
+
+                    return (
+                        <div className="relative" ref={dropRef}>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                                {label}{required && <span className="text-red-500 mr-1">*</span>}
+                            </label>
+
+                            {/* حقل الاختيار — عند وجود مدرب محدد */}
+                            {selected ? (
+                                <div className="flex items-center gap-2 border border-medbox-main bg-medbox-light/40 rounded-lg px-3 py-2">
+                                    <div className="w-6 h-6 rounded-full bg-medbox-main flex items-center justify-center shrink-0">
+                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                        </svg>
+                                    </div>
+                                    <span className="flex-1 text-sm font-bold text-medbox-dark truncate">{selected}</span>
+                                    <button type="button" onClick={clear}
+                                        className="w-5 h-5 rounded-full bg-gray-200 hover:bg-red-100 flex items-center justify-center text-gray-500 hover:text-red-500 transition-colors shrink-0">
+                                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex gap-1.5">
+                                    {/* حقل البحث */}
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="text"
+                                            placeholder={`بحث عن ${label}...`}
+                                            value={query}
+                                            onChange={e => { setQuery(e.target.value); setOpen(true); }}
+                                            onFocus={() => setOpen(true)}
+                                            className="w-full border border-gray-200 rounded-lg pr-3 pl-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main bg-gray-50"
+                                        />
+                                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                        </svg>
+                                    </div>
+                                    {/* زر إضافة مدرب جديد — يفتح نافذة إضافة مدرب الكاملة */}
+                                    <button type="button" onClick={openAddTrainer}
+                                        title="إضافة مدرب جديد"
+                                        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors border bg-white text-medbox-main border-medbox-main hover:bg-medbox-light">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Dropdown نتائج البحث */}
+                            {open && !selected && (
+                                <div className="absolute z-50 top-full mt-1 w-full bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden"
+                                    style={{maxHeight:'180px', overflowY:'auto'}}>
+                                    {filtered.length === 0 ? (
+                                        <div className="px-4 py-3 text-xs text-gray-400 text-center">
+                                            {query ? `لا نتائج لـ "${query}"` : 'لا يوجد مدربون مسجلون'}
+                                        </div>
+                                    ) : filtered.map((t,i) => (
+                                        <button key={i} type="button"
+                                            onClick={() => select(t.name)}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-medbox-light/50 transition-colors text-right border-b border-gray-50 last:border-0">
+                                            <div className="w-7 h-7 rounded-full bg-medbox-light flex items-center justify-center shrink-0">
+                                                <svg className="w-3.5 h-3.5 text-medbox-main" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-gray-800 truncate">{t.name}</p>
+                                                {t.email && <p className="text-[10px] text-gray-400 truncate">{t.email}</p>}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                };
+
                 // ===== نموذج بسيط (دورة / متدرب) =====
-                const renderSimpleForm = () => (
-                    <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                const renderSimpleForm = () => {
+                    const isCourse = modal.type === 'addCourse' || modal.type === 'editCourse';
+                    return (
+                    <form onSubmit={handleSubmit} className="p-4 space-y-3">
 
                         {/* بانر توضيحي عند إضافة متدرب */}
                         {modal.type === 'addStudent' && (
-                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-                                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
-                                    <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-3">
+                                <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                                    <svg className="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                     </svg>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-blue-800 mb-0.5">البريد الإلكتروني مطلوب لتفعيل حساب المتدرب</p>
-                                    <p className="text-xs text-blue-600 leading-relaxed">
+                                    <p className="text-xs font-bold text-blue-800 mb-0.5">البريد الإلكتروني مطلوب لتفعيل حساب المتدرب</p>
+                                    <p className="text-[11px] text-blue-600 leading-relaxed">
                                         فور الإضافة يصل المتدرب رابطاً تلقائياً لتعيين كلمة السر والدخول لبوابته الخاصة.
                                     </p>
                                 </div>
                             </div>
                         )}
 
-                        {fields[modal.type]?.map(({ key, label, required, textarea, type, placeholder }) => (
-                            <div key={key}>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">{label}{required && <span className="text-red-500 mr-1">*</span>}</label>
-                                {textarea ? (
-                                    <textarea
-                                        rows={3}
-                                        value={form[key] || ''}
-                                        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main resize-none"
-                                    />
-                                ) : (
-                                    <input
-                                        type={type || 'text'}
-                                        required={required}
-                                        placeholder={placeholder}
-                                        value={form[key] || ''}
-                                        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main"
-                                        dir={type === 'email' || type === 'tel' ? 'ltr' : undefined}
-                                    />
-                                )}
+                        {isCourse ? (
+                            /* ── تخطيط شبكي للدورة ── */
+                            <div className="space-y-3">
+                                {/* تاريخ البدء + وقت الدورة */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    {['date','time'].map(k => {
+                                        const f = fields[modal.type]?.find(x => x.key === k);
+                                        if (!f) return null;
+                                        return (
+                                            <div key={k}>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">{f.label}{f.required && <span className="text-red-500 mr-1">*</span>}</label>
+                                                <input
+                                                    type={f.type || 'text'}
+                                                    required={f.required}
+                                                    placeholder={f.placeholder}
+                                                    value={form[k] || ''}
+                                                    onChange={e => setForm(fv => ({ ...fv, [k]: e.target.value }))}
+                                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main bg-gray-50"
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {/* عدد الجلسات + عدد الساعات */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    {['sessions','hours'].map(k => {
+                                        const f = fields[modal.type]?.find(x => x.key === k);
+                                        if (!f) return null;
+                                        return (
+                                            <div key={k}>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">{f.label}{f.required && <span className="text-red-500 mr-1">*</span>}</label>
+                                                <input
+                                                    type={f.type || 'text'}
+                                                    required={f.required}
+                                                    placeholder={f.placeholder}
+                                                    value={form[k] || ''}
+                                                    onChange={e => setForm(fv => ({ ...fv, [k]: e.target.value }))}
+                                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main bg-gray-50"
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {/* أيام الدورة */}
+                                {(() => { const f = fields[modal.type]?.find(x => x.key === 'days'); return f ? (
+                                    <div key="days">
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">{f.label}{f.required && <span className="text-red-500 mr-1">*</span>}</label>
+                                        <input
+                                            type="text"
+                                            required={f.required}
+                                            placeholder={f.placeholder}
+                                            value={form['days'] || ''}
+                                            onChange={e => setForm(fv => ({ ...fv, days: e.target.value }))}
+                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main bg-gray-50"
+                                        />
+                                    </div>
+                                ) : null; })()}
+                                {/* مكان إقامة الدورة */}
+                                {(() => { const f = fields[modal.type]?.find(x => x.key === 'location'); return f ? (
+                                    <div key="location">
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">{f.label}{f.required && <span className="text-red-500 mr-1">*</span>}</label>
+                                        <input
+                                            type="text"
+                                            required={f.required}
+                                            placeholder={f.placeholder}
+                                            value={form['location'] || ''}
+                                            onChange={e => setForm(fv => ({ ...fv, location: e.target.value }))}
+                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main bg-gray-50"
+                                        />
+                                    </div>
+                                ) : null; })()}
+                                {/* المدرب الرئيسي + المدرب المساعد */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <TrainerPicker fieldKey="supervisor"   label="المدرب الرئيسي" required={fields[modal.type]?.find(x=>x.key==='supervisor')?.required} />
+                                    <TrainerPicker fieldKey="coSupervisor" label="المدرب المساعد" />
+                                </div>
                             </div>
-                        ))}
-                        <div className="flex gap-3 pt-2">
+                        ) : (
+                            /* ── تخطيط عادي للمتدرب ── */
+                            fields[modal.type]?.map(({ key, label, required, textarea, type, placeholder }) => (
+                                <div key={key}>
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">{label}{required && <span className="text-red-500 mr-1">*</span>}</label>
+                                    {textarea ? (
+                                        <textarea
+                                            rows={3}
+                                            value={form[key] || ''}
+                                            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main resize-none bg-gray-50"
+                                        />
+                                    ) : (
+                                        <input
+                                            type={type || 'text'}
+                                            required={required}
+                                            placeholder={placeholder}
+                                            value={form[key] || ''}
+                                            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medbox-main bg-gray-50"
+                                            dir={type === 'email' || type === 'tel' ? 'ltr' : undefined}
+                                        />
+                                    )}
+                                </div>
+                            ))
+                        )}
+
+                        <div className="flex gap-3 pt-2 sticky bottom-0 bg-white pb-1">
                             <button type="submit" disabled={loading} className="btn btn-primary btn-md flex-1">
                                 {loading ? 'جاري الحفظ...' : 'حفظ'}
                             </button>
-                            <button type="button" onClick={() => setModal(null)} className="btn btn-neutral btn-md flex-1">إلغاء</button>
+                            <button type="button" onClick={handleClose} className="btn btn-neutral btn-md flex-1">إلغاء</button>
                         </div>
                     </form>
-                );
+                    );
+                };
 
                 // ===== نموذج البرنامج (تبويبات: بيانات البرنامج / المرفقات) =====
                 const renderProgramForm = () => {
@@ -3827,7 +4618,7 @@
                                 <button type="submit" disabled={loading} className="btn btn-primary btn-md flex-1">
                                     {loading ? 'جاري الحفظ...' : 'حفظ'}
                                 </button>
-                                <button type="button" onClick={() => setModal(null)} className="btn btn-neutral btn-md flex-1">إلغاء</button>
+                                <button type="button" onClick={handleClose} className="btn btn-neutral btn-md flex-1">إلغاء</button>
                             </div>
                         </form>
                     );
@@ -4036,20 +4827,29 @@
                                         {loading ? 'جاري الحفظ...' : modal.type === 'editTrainer' ? '✓ حفظ التعديلات' : '✓ حفظ المدرب'}
                                     </button>
                                 )}
-                                <button type="button" onClick={() => setModal(null)} className="btn btn-neutral btn-md px-5">إلغاء</button>
+                                <button type="button" onClick={handleClose} className="btn btn-neutral btn-md px-5">إلغاء</button>
                             </div>
                         </form>
                     );
                 };
 
                 return (
-                    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-                        <div className={`bg-white rounded-2xl shadow-2xl w-full fade-in ${(modal.type === 'addProgram' || modal.type === 'editProgram' || modal.type === 'addTrainer' || modal.type === 'editTrainer') ? 'max-w-2xl' : 'max-w-md'}`}>
-                            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                                <h3 className="font-bold text-gray-800">{titles[modal.type]}</h3>
-                                <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl font-light">✕</button>
+                    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-3 sm:p-4">
+                        <div className={`bg-white rounded-2xl shadow-2xl w-full fade-in flex flex-col ${(modal.type === 'addProgram' || modal.type === 'editProgram' || modal.type === 'addTrainer' || modal.type === 'editTrainer') ? 'max-w-2xl' : 'max-w-md'}`}
+                            style={{maxHeight: 'min(92vh, 700px)'}}>
+                            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 shrink-0"
+                                style={{background:'linear-gradient(90deg,#f0f9fb,#fff)'}}>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-medbox-main flex items-center justify-center">
+                                        <Icon name="activity" className="w-3.5 h-3.5 text-white"/>
+                                    </div>
+                                    <h3 className="font-bold text-gray-800 text-sm">{titles[modal.type]}</h3>
+                                </div>
+                                <button onClick={handleClose} className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors text-base font-light">✕</button>
                             </div>
-                            {(modal.type === 'addTrainer' || modal.type === 'editTrainer') ? renderTrainerForm() : (modal.type === 'addProgram' || modal.type === 'editProgram') ? renderProgramForm() : renderSimpleForm()}
+                            <div className="overflow-y-auto flex-1 min-h-0">
+                                {(modal.type === 'addTrainer' || modal.type === 'editTrainer') ? renderTrainerForm() : (modal.type === 'addProgram' || modal.type === 'editProgram') ? renderProgramForm() : renderSimpleForm()}
+                            </div>
                         </div>
                     </div>
                 );
