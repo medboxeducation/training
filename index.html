@@ -76,7 +76,7 @@
 
         // --- نشر الـ SDK على window ليستخدمها React ---
         window._firebase = {
-            auth, db, functions,
+            auth, db, functions, firebaseConfig,
             initializeApp, deleteApp, getAuth,
             getFunctions, httpsCallable,
             onAuthStateChanged, signInWithEmailAndPassword,
@@ -468,7 +468,7 @@
         // ===========================================================
         // شاشة الطالب (قراءة فقط)
         // ===========================================================
-        const StudentPortal = ({ currentUser, programs, onLogout }) => {
+        const StudentPortal = ({ currentUser, programs, onLogout, dataLoading }) => {
             // جمع الدورات المسجل بها الطالب فقط
             const myEnrollments = [];
             programs.forEach(prog => {
@@ -510,7 +510,20 @@
                             <p className="text-medbox-light text-sm">هذه دوراتك المسجّلة وتقدمك الأكاديمي</p>
                         </div>
 
-                        {myEnrollments.length === 0 ? (
+                        {dataLoading ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {[0,1].map(i => (
+                                    <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                                        <div className="bg-gray-100 h-20"></div>
+                                        <div className="p-5 space-y-3">
+                                            <div className="h-3 bg-gray-100 rounded w-2/3"></div>
+                                            <div className="h-2.5 bg-gray-100 rounded w-full"></div>
+                                            <div className="h-2.5 bg-gray-100 rounded w-1/2"></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : myEnrollments.length === 0 ? (
                             <div className="text-center py-16 text-gray-400">
                                 <Icon name="book" className="w-16 h-16 mx-auto mb-4 opacity-30" />
                                 <p className="text-lg font-medium">لم يتم تسجيلك في أي دورة بعد</p>
@@ -561,7 +574,7 @@
         // ===========================================================
         // التطبيق الرئيسي (مدير + مدرب)
         // ===========================================================
-        const MainApp = ({ currentUser, userProfile, programs, setPrograms, independentTrainers, independentStudents, onLogout, showToast }) => {
+        const MainApp = ({ currentUser, userProfile, programs, setPrograms, independentTrainers, independentStudents, onLogout, showToast, dataLoading }) => {
             const [activeTab, setActiveTab]         = useState('programs');
             const [selectedProgram, setSelectedProgram] = useState(null);
             const [selectedStudent, setSelectedStudent] = useState(null);
@@ -1567,6 +1580,7 @@
                 if (settingsTab === null) return (
                     <div className="flex-1 overflow-y-auto p-4 space-y-3 fade-in">
                         {[
+                            { key: 'firebaseSettings', label: 'إعدادات Firebase',           sub: 'حالة الاتصال ومعلومات المشروع',                                                       icon: 'shield', color: 'bg-orange-100 text-orange-600' },
                             { key: 'trainers', label: 'سجل المدربين / المدرسين',  sub: `${allTrainers.length} مدرب · ${allTrainers.filter(t=>t.uid).length} حساب مفعّل`,  icon: 'user',   color: 'bg-purple-100 text-purple-600' },
                             { key: 'students', label: 'سجل المتدربين / الطلاب',   sub: `${allStudents.length} متدرب · ${allStudents.filter(s=>s.uid).length} حساب مفعّل`, icon: 'users',  color: 'bg-amber-100 text-amber-600'   },
                             { key: 'changePassword', label: 'تغيير كلمة السر',    sub: 'تحديث كلمة سر حسابك الحالي',                                                        icon: 'lock',   color: 'bg-blue-100 text-blue-600'     },
@@ -1587,6 +1601,40 @@
                         ))}
                     </div>
                 );
+
+                if (settingsTab === 'firebaseSettings') {
+                    const cfg = window._firebase?.firebaseConfig || {};
+                    const authInstance = window._firebase?.auth;
+                    const maskKey = (k) => k ? `${k.slice(0, 6)}••••••••${k.slice(-4)}` : '—';
+                    const rows = [
+                        { label: 'حالة الاتصال', value: authInstance ? 'متصل' : 'غير متصل', ok: !!authInstance },
+                        { label: 'معرّف المشروع (Project ID)', value: cfg.projectId || '—' },
+                        { label: 'نطاق المصادقة (Auth Domain)', value: cfg.authDomain || '—' },
+                        { label: 'مساحة التخزين (Storage Bucket)', value: cfg.storageBucket || '—' },
+                        { label: 'معرّف المرسل (Sender ID)', value: cfg.messagingSenderId || '—' },
+                        { label: 'معرّف التطبيق (App ID)', value: cfg.appId || '—' },
+                        { label: 'مفتاح الـ API', value: maskKey(cfg.apiKey) },
+                        { label: 'المستخدم الحالي', value: authInstance?.currentUser?.email || '—' },
+                    ];
+                    return (
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 fade-in">
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
+                                {rows.map((r, i) => (
+                                    <div key={i} className="px-4 py-3 flex items-center justify-between gap-3">
+                                        <span className="text-xs text-gray-500 shrink-0">{r.label}</span>
+                                        <span className={`text-xs font-mono font-bold text-left break-all ${r.ok === true ? 'text-emerald-600' : r.ok === false ? 'text-red-500' : 'text-gray-700'}`} dir="ltr">
+                                            {r.value}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-[11px] text-gray-400 px-2 leading-relaxed">
+                                هذه الإعدادات معروضة فقط للاطلاع. لتعديل اتصال Firebase افتح ملف التطبيق في محرر النصوص وحدّث قيم firebaseConfig في بداية الملف.
+                            </p>
+                        </div>
+                    );
+                }
+
 
                 if (settingsTab === 'trainers') {
                     const filtered = allTrainers
@@ -1949,7 +1997,8 @@
                     }
                 }, [settingsSearchOpen]);
                 const sectionName = sidebarMode === 'settings'
-                    ? (settingsTab === 'trainers' ? 'سجل المدربين / المدرسين'
+                    ? (settingsTab === 'firebaseSettings' ? 'إعدادات Firebase'
+                        : settingsTab === 'trainers' ? 'سجل المدربين / المدرسين'
                         : settingsTab === 'students' ? 'سجل المتدربين / الطلاب'
                         : settingsTab === 'changePassword' ? 'تغيير كلمة السر'
                         : 'الإعدادات')
@@ -3947,6 +3996,7 @@
                 if (sidebarMode === 'settings' && sidebarOpen) {
                     // تسميات الأقسام
                     const settingsTabLabel = {
+                        firebaseSettings: 'إعدادات Firebase',
                         trainers: 'سجل المدربين / المدرسين',
                         students: 'سجل المتدربين / الطلاب',
                         changePassword: 'تغيير كلمة السر',
@@ -4025,7 +4075,18 @@
                             )}
                         </div>
 
-                        {visiblePrograms.length === 0 ? (
+                        {dataLoading ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {[0,1,2].map(i => (
+                                    <div key={i} className="bg-white rounded-2xl p-6 border-2 border-transparent animate-pulse">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-xl mb-4"></div>
+                                        <div className="h-3 bg-gray-100 rounded w-3/4 mb-3"></div>
+                                        <div className="h-2.5 bg-gray-100 rounded w-full mb-2"></div>
+                                        <div className="h-2.5 bg-gray-100 rounded w-1/2"></div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : visiblePrograms.length === 0 ? (
                             <div className="text-center py-20 text-gray-400">
                                 <Icon name="book" className="w-16 h-16 mx-auto mb-4 opacity-30" />
                                 <p>لا توجد برامج متاحة</p>
@@ -4982,15 +5043,21 @@
             if (!isConfigured) return <SetupScreen />;
             if (authState === 'loading') return <LoadingScreen message="جاري التحقق من الجلسة..." />;
             if (authState === 'loggedOut') return <LoginScreen />;
-            if (dataLoading) return <LoadingScreen message="جاري تحميل البيانات..." />;
 
             return (
                 <div className="h-full flex flex-col relative">
+                    {/* شريط تحميل خفيف أثناء جلب بيانات Firebase — لا يحجب الواجهة */}
+                    {dataLoading && (
+                        <div className="fixed top-0 left-0 right-0 h-1 z-50 overflow-hidden bg-medbox-light/50">
+                            <div className="h-full bg-medbox-main animate-pulse" style={{width: '40%'}}></div>
+                        </div>
+                    )}
                     {userProfile?.role === 'student' ? (
                         <StudentPortal
                             currentUser={currentUser}
                             programs={programs}
                             onLogout={handleLogout}
+                            dataLoading={dataLoading}
                         />
                     ) : (
                         <MainApp
@@ -5002,6 +5069,7 @@
                             independentStudents={independentStudents}
                             onLogout={handleLogout}
                             showToast={showToast}
+                            dataLoading={dataLoading}
                         />
                     )}
 
