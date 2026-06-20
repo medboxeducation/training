@@ -424,9 +424,9 @@
                     <i class="ph ph-books"></i>
                     <span>البرامج التدريبية</span>
                 </button>
-                <button class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all" onclick="showComingSoon('المهارات السريرية')">
+                <button class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all" onclick="showComingSoon('المهارات')">
                     <i class="ph ph-stethoscope"></i>
-                    <span>المهارات السريرية</span>
+                    <span>المهارات</span>
                 </button>
                 <button class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all" onclick="showComingSoon('كتب وأبحاث')">
                     <i class="ph ph-book-open-text"></i>
@@ -619,7 +619,7 @@
                 <i class="ph ph-books text-base"></i>
                 <span>البرامج</span>
             </button>
-            <button class="flex-1 glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5" onclick="showComingSoon('المهارات السريرية')">
+            <button class="flex-1 glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5" onclick="showComingSoon('المهارات')">
                 <i class="ph ph-stethoscope text-base"></i>
                 <span>المهارات</span>
             </button>
@@ -753,6 +753,71 @@
                 <div class="flex items-center gap-3 mb-8">
                     <i class="ph ph-squares-four text-3xl text-primary"></i>
                     <h2 class="text-2xl font-bold text-gray-800">لوحة المتابعة الرئيسية</h2>
+                </div>
+
+                <!-- صف البطاقات الإحصائية -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
+                    <!-- بطاقة: عدد البرامج -->
+                    <div class="glass-element rounded-2xl p-5 flex items-center gap-4 shadow-sm">
+                        <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary text-2xl shrink-0">
+                            <i class="ph ph-books"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm text-gray-500">عدد البرامج</p>
+                            <p id="statProgramsCount" class="text-3xl font-bold text-gray-800">--</p>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة: عدد الطلاب المسجلين -->
+                    <div class="glass-element rounded-2xl p-5 flex items-center gap-4 shadow-sm">
+                        <div class="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500 text-2xl shrink-0">
+                            <i class="ph ph-graduation-cap"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm text-gray-500">عدد الطلاب المسجلين</p>
+                            <p id="statTraineesCount" class="text-3xl font-bold text-gray-800">--</p>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة: عدد الدورات (العام والنشطة) — Pie 2D -->
+                    <div class="glass-element rounded-2xl p-5 shadow-sm sm:col-span-2 xl:col-span-1 xl:row-span-1">
+                        <p class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
+                            <i class="ph ph-chart-pie-slice text-primary"></i> عدد الدورات: العام والنشطة
+                        </p>
+                        <div class="flex items-center gap-4">
+                            <div id="coursesPieChart" class="w-20 h-20 rounded-full shrink-0 ring-4 ring-white/60" style="background: conic-gradient(#e5e7eb 0% 100%);"></div>
+                            <div class="flex flex-col gap-1.5 text-xs flex-1 min-w-0">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="flex items-center gap-1.5 text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span> النشطة</span>
+                                    <span id="statActiveCoursesCount" class="font-bold text-gray-800">--</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="flex items-center gap-1.5 text-gray-600"><span class="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block shrink-0"></span> المتوقفة</span>
+                                    <span id="statInactiveCoursesCount" class="font-bold text-gray-800">--</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2 pt-1.5 mt-0.5 border-t border-white/50">
+                                    <span class="font-bold text-gray-700">الإجمالي</span>
+                                    <span id="statTotalCoursesCount" class="font-bold text-primary">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة: عدد الدورات في فترة محددة -->
+                    <div class="glass-element rounded-2xl p-5 shadow-sm flex flex-col gap-2.5">
+                        <p class="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                            <i class="ph ph-calendar-check text-primary"></i> عدد الدورات في فترة محددة
+                        </p>
+                        <div class="flex items-center gap-2">
+                            <input id="statCustomRangeFrom" type="date" class="flex-1 min-w-0 glass-panel rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            <span class="text-gray-400 text-[11px] shrink-0">إلى</span>
+                            <input id="statCustomRangeTo" type="date" class="flex-1 min-w-0 glass-panel rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        </div>
+                        <button onclick="calculateCustomRangeCoursesCount()" class="glass-panel hover:border-primary hover:bg-primary/5 rounded-lg py-2 text-xs font-bold text-primary flex items-center justify-center gap-1.5 transition-colors">
+                            <i class="ph ph-calculator"></i> حساب العدد
+                        </button>
+                        <p class="text-center text-2xl font-bold text-primary leading-none" id="statCustomRangeResult">--</p>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 flex-1">
@@ -1841,6 +1906,57 @@
 
         // ======== Dropdown Login Open / Close ========
         let _ddOutsideHandler = null;
+        let _ddResizeHandler = null;
+        let _ddOriginalParent = null;
+        let _ddOriginalNextSibling = null;
+
+        // Resets stale inline left/right overrides, then either:
+        // - portals the dropdown to <body> and lets the landscape-compact CSS
+        //   (position:fixed, centered) take over — needed because the toolbar
+        //   (.glass-panel) uses backdrop-filter, which makes some browsers treat
+        //   it as the containing block for position:fixed descendants instead of
+        //   the real viewport, otherwise breaking the centering math; or
+        // - restores it to its normal spot under the login button and re-applies
+        //   the desktop/portrait overflow clamp.
+        // Called on open, and again on resize/orientationchange so rotating the
+        // device while the dropdown is open doesn't leave it half off-screen.
+        function _ddPositionDropdown() {
+            const dd = document.getElementById('loginDropdown');
+            if (!dd || dd.classList.contains('hidden')) return;
+
+            const isLandscapeCompact = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+
+            if (isLandscapeCompact) {
+                if (dd.parentElement !== document.body) {
+                    _ddOriginalParent = dd.parentElement;
+                    _ddOriginalNextSibling = dd.nextSibling;
+                    document.body.appendChild(dd);
+                }
+            } else if (_ddOriginalParent && dd.parentElement === document.body) {
+                if (_ddOriginalNextSibling && _ddOriginalNextSibling.parentElement === _ddOriginalParent) {
+                    _ddOriginalParent.insertBefore(dd, _ddOriginalNextSibling);
+                } else {
+                    _ddOriginalParent.appendChild(dd);
+                }
+            }
+
+            dd.style.left  = '';
+            dd.style.right = '';
+
+            if (!isLandscapeCompact) {
+                requestAnimationFrame(() => {
+                    const rect = dd.getBoundingClientRect();
+                    if (rect.left < 8) {
+                        dd.style.right = 'auto';
+                        dd.style.left  = '0';
+                    }
+                    if (rect.right > window.innerWidth - 8) {
+                        dd.style.left  = 'auto';
+                        dd.style.right = '0';
+                    }
+                });
+            }
+        }
 
         function openLoginModal() {
             const dd = document.getElementById('loginDropdown');
@@ -1861,24 +1977,14 @@
                 dd.removeEventListener('animationend', onIn);
             }, { once: true });
 
-            // Viewport clamp: ensure the dropdown doesn't overflow the right edge on desktop
-            // CSS handles mobile centering via @media, including the landscape-compact mode
-            // (fixed + centered transform), so we skip the inline clamp there to avoid
-            // overriding that centering.
-            const isLandscapeCompact = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
-            if (!isLandscapeCompact) {
-                requestAnimationFrame(() => {
-                    const rect = dd.getBoundingClientRect();
-                    if (rect.left < 8) {
-                        dd.style.right = 'auto';
-                        dd.style.left  = '0';
-                    }
-                    if (rect.right > window.innerWidth - 8) {
-                        dd.style.left  = 'auto';
-                        dd.style.right = '0';
-                    }
-                });
-            }
+            // Position it correctly for the current viewport (and clear any leftover
+            // inline overrides from a previous open so they don't fight with this one)
+            _ddPositionDropdown();
+
+            // Keep it correctly positioned if the device is rotated while it's open
+            if (_ddResizeHandler) window.removeEventListener('resize', _ddResizeHandler);
+            _ddResizeHandler = function() { _ddPositionDropdown(); };
+            window.addEventListener('resize', _ddResizeHandler);
 
             // Focus email on open
             setTimeout(() => {
@@ -1886,11 +1992,15 @@
                 if (em) em.focus();
             }, 200);
 
-            // Close on outside click
+            // Close on outside click (account for the dropdown possibly being
+            // portaled to <body>, in which case it's no longer inside wrapper)
             if (_ddOutsideHandler) document.removeEventListener('click', _ddOutsideHandler, true);
             _ddOutsideHandler = function(e) {
                 const wrapper = document.getElementById('loginDropdownWrapper');
-                if (wrapper && !wrapper.contains(e.target)) {
+                const ddEl = document.getElementById('loginDropdown');
+                const insideWrapper  = wrapper && wrapper.contains(e.target);
+                const insideDropdown = ddEl && ddEl.contains(e.target);
+                if (!insideWrapper && !insideDropdown) {
                     closeLoginModal();
                 }
             };
@@ -1906,6 +2016,11 @@
                 document.removeEventListener('click', _ddOutsideHandler, true);
                 _ddOutsideHandler = null;
             }
+            // Remove resize/rotation handler
+            if (_ddResizeHandler) {
+                window.removeEventListener('resize', _ddResizeHandler);
+                _ddResizeHandler = null;
+            }
 
             dd.classList.remove('dd-animating-in');
             dd.classList.add('dd-animating-out');
@@ -1915,6 +2030,15 @@
                 // Reset any viewport-clamp inline overrides so next open recalculates
                 dd.style.left  = '';
                 dd.style.right = '';
+                // Restore it to its normal spot under the login button if it was
+                // portaled to <body> for landscape-compact mode
+                if (_ddOriginalParent && dd.parentElement === document.body) {
+                    if (_ddOriginalNextSibling && _ddOriginalNextSibling.parentElement === _ddOriginalParent) {
+                        _ddOriginalParent.insertBefore(dd, _ddOriginalNextSibling);
+                    } else {
+                        _ddOriginalParent.appendChild(dd);
+                    }
+                }
             }, { once: true });
         }
 
@@ -2061,6 +2185,10 @@
             } catch (e) {
                 console.warn('Auto Firebase init failed:', e);
                 updateFirebaseSetupBannerVisibility();
+            } finally {
+                // تحديث بطاقات الإحصائيات بعد اكتمال التحميل (أو فشله). نؤجلها بـ setTimeout
+                // لضمان أن باقي السكربت (تعريف programsData وregistryTrainees) قد اكتمل تنفيذه أولاً.
+                setTimeout(updateDashboardStats, 0);
             }
         })();
 
@@ -2215,6 +2343,76 @@
             showView('dashboardView');
             exitSettingsSidebar();
             closeSidebar();
+            updateDashboardStats();
+        }
+
+        // ======== بطاقات الإحصائيات في لوحة المتابعة الرئيسية ========
+
+        // يجمع كل الدورات من جميع البرامج في مصفوفة واحدة
+        function getAllCoursesFlat() {
+            return Object.values(programsData).reduce((acc, program) => {
+                if (Array.isArray(program.courses)) acc.push(...program.courses);
+                return acc;
+            }, []);
+        }
+
+        // تحديث بطاقات: عدد البرامج / عدد الدورات (Pie) / عدد الطلاب المسجلين
+        async function updateDashboardStats() {
+            // عدد البرامج
+            const programsCountEl = document.getElementById('statProgramsCount');
+            if (programsCountEl) programsCountEl.textContent = Object.keys(programsData).length;
+
+            // عدد الدورات: الإجمالي والنشطة (Pie 2D)
+            const allCourses = getAllCoursesFlat();
+            const totalCourses = allCourses.length;
+            const activeCourses = allCourses.filter(c => c.status === 'active').length;
+            const inactiveCourses = totalCourses - activeCourses;
+
+            const totalEl    = document.getElementById('statTotalCoursesCount');
+            const activeEl   = document.getElementById('statActiveCoursesCount');
+            const inactiveEl = document.getElementById('statInactiveCoursesCount');
+            const pieEl      = document.getElementById('coursesPieChart');
+            if (totalEl)    totalEl.textContent    = totalCourses;
+            if (activeEl)   activeEl.textContent   = activeCourses;
+            if (inactiveEl) inactiveEl.textContent = inactiveCourses;
+            if (pieEl) {
+                if (totalCourses === 0) {
+                    pieEl.style.background = 'conic-gradient(#e5e7eb 0% 100%)';
+                } else {
+                    const activePct = (activeCourses / totalCourses) * 100;
+                    pieEl.style.background =
+                        `conic-gradient(#10b981 0% ${activePct}%, #e5e7eb ${activePct}% 100%)`;
+                }
+            }
+
+            // عدد الطلاب المسجلين (سجل المتدربين)
+            const traineesCountEl = document.getElementById('statTraineesCount');
+            if (traineesCountEl) {
+                if (registryTrainees.length === 0) await loadTraineesFromFirebase();
+                traineesCountEl.textContent = registryTrainees.length;
+            }
+        }
+
+        // حساب عدد الدورات التي يقع تاريخ بدايتها ضمن فترة محددة يختارها المستخدم
+        function calculateCustomRangeCoursesCount() {
+            const fromVal = document.getElementById('statCustomRangeFrom').value;
+            const toVal   = document.getElementById('statCustomRangeTo').value;
+            const resultEl = document.getElementById('statCustomRangeResult');
+
+            if (!fromVal || !toVal) {
+                showToast('⚠️ يرجى تحديد بداية ونهاية الفترة', 'error');
+                return;
+            }
+            if (fromVal > toVal) {
+                showToast('⚠️ تاريخ البداية يجب أن يسبق تاريخ النهاية', 'error');
+                return;
+            }
+
+            const count = getAllCoursesFlat().filter(c => {
+                return c.startDate && c.startDate >= fromVal && c.startDate <= toVal;
+            }).length;
+
+            resultEl.textContent = count;
         }
 
         function showComingSoon(title) {
