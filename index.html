@@ -12,6 +12,10 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <!-- QR Code Generator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- QR Code Scanner (jsQR) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
     <!-- Cairo Font - Modern Arabic Typeface -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -440,6 +444,10 @@
         <div class="flex items-center gap-2 md:gap-3">
             <button class="admin-only glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center" title="الإعدادات" onclick="showSettingsSidebar()">
                 <i class="ph ph-gear text-lg md:text-xl"></i>
+            </button>
+            <!-- زر مسح QR Code -->
+            <button class="glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center" title="مسح رمز QR للمتدرب" onclick="openQRScannerModal()">
+                <i class="ph ph-scan text-lg md:text-xl"></i>
             </button>
             <button class="admin-only glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center" title="السجلات" onclick="showRegistrySidebar()">
                 <i class="ph ph-clipboard-text text-lg md:text-xl"></i>
@@ -1480,9 +1488,9 @@
                     </h3>
                     <div class="flex items-center gap-3">
                         <div class="flex-1 relative">
-                            <input id="umPassword" type="text" dir="ltr"
+                            <input id="umPassword" type="text" dir="ltr" oninput="onPasswordManualEdit()"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 text-primary tracking-wider"
-                                placeholder="ستُولَّد تلقائياً" readonly>
+                                placeholder="ستُولَّد تلقائياً">
                         </div>
                         <button onclick="regeneratePassword()" title="إعادة توليد" class="glass-icon-btn w-10 h-10 rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 shrink-0">
                             <i class="ph ph-arrows-clockwise text-lg"></i>
@@ -1490,7 +1498,7 @@
                     </div>
                     <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
                         <i class="ph ph-info text-primary/60"></i>
-                        تُولَّد تلقائياً من اسم المستخدم + تاريخ اليوم — يمكن تعديلها يدوياً بعد الإضافة
+                        تُولَّد تلقائياً من اسم المستخدم + تاريخ اليوم — يمكنك أيضاً كتابة كلمة سر مخصصة مباشرة في الحقل
                     </p>
                 </div>
 
@@ -2806,6 +2814,8 @@
 
         let userModalMode = 'add'; // 'add' | 'edit'
         let userModalEditUid = null;
+        // true إذا عدّل المستخدم كلمة السر يدوياً — يمنع الكتابة في اسم المستخدم من استبدالها تلقائياً
+        let umPasswordManuallyEdited = false;
 
         function openUserModal(mode, uid) {
             userModalMode = mode;
@@ -2823,6 +2833,9 @@
                 document.getElementById('umUsername').value  = user.username  || '';
                 document.getElementById('umRole').value      = user.role      || '';
                 document.getElementById('umPassword').value  = user.password  || '';
+                // في وضع التعديل: كلمة السر موجودة بالفعل وقد تكون مستخدمة فعلياً —
+                // لا نريد أن يستبدلها تعديل اسم المستخدم تلقائياً دون قصد
+                umPasswordManuallyEdited = true;
                 // تحميل الصلاحيات
                 const perms = user.permissions || {};
                 USER_PERM_KEYS.forEach(k => {
@@ -2836,6 +2849,7 @@
                 document.getElementById('umUsername').value  = '';
                 document.getElementById('umRole').value      = '';
                 document.getElementById('umPassword').value  = '';
+                umPasswordManuallyEdited = false;
                 USER_PERM_KEYS.forEach(k => {
                     const el = document.getElementById('perm_' + k);
                     if (el) el.checked = false;
@@ -2850,8 +2864,10 @@
             document.getElementById('userModal').classList.add('hidden');
         }
 
-        // توليد كلمة السر عند تغيير اسم المستخدم
+        // توليد كلمة السر تلقائياً عند تغيير اسم المستخدم — فقط إن لم يكن المستخدم
+        // قد عدّل كلمة السر يدوياً، حتى لا نستبدل كلمة سر مخصّصة دون قصد
         function onUsernameInput() {
+            if (umPasswordManuallyEdited) return;
             const username = document.getElementById('umUsername').value.trim();
             if (username) {
                 document.getElementById('umPassword').value = generateUserPassword(username);
@@ -2860,7 +2876,12 @@
             }
         }
 
-        // إعادة توليد كلمة السر
+        // يُستدعى عند كتابة المستخدم في حقل كلمة السر مباشرة
+        function onPasswordManualEdit() {
+            umPasswordManuallyEdited = true;
+        }
+
+        // إعادة توليد كلمة السر (تُرجع الحقل لوضع "التوليد التلقائي" مجدداً)
         function regeneratePassword() {
             const username = document.getElementById('umUsername').value.trim();
             if (!username) {
@@ -2875,6 +2896,7 @@
                              String(now.getDate()).padStart(2, '0');
             const user = username.toLowerCase().replace(/[^a-z0-9]/g, '');
             document.getElementById('umPassword').value = user + '@' + datePart + rand;
+            umPasswordManuallyEdited = false;
         }
 
         // تحديد/إلغاء جميع الصلاحيات
@@ -5307,6 +5329,9 @@
                             <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold">${trainee.code}</span>
                         </div>
                         <div class="flex gap-2 shrink-0">
+                            <button onclick="openTraineeQRModal('${trainee.id}')" class="glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 hover:border-primary text-primary transition-colors" title="عرض رمز QR">
+                                <i class="ph ph-qr-code"></i> QR
+                            </button>
                             <button onclick="editRegistryTrainee('${trainee.id}')" class="glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 hover:border-primary text-primary transition-colors">
                                 <i class="ph ph-pencil-simple"></i> تعديل
                             </button>
@@ -5346,6 +5371,17 @@
                     ${trainee.otherCerts ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700">${trainee.otherCerts}</p></div>` : ''}
                     ${trainee.experience ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700">${trainee.experience}</p></div>` : ''}
                     ${trainee.interests ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700">${trainee.interests}</p></div>` : ''}
+                    <!-- QR Code سريع -->
+                    <div class="glass-panel rounded-xl p-3 mb-3 flex items-center gap-3">
+                        <div id="inlineQR_${trainee.id}" class="shrink-0"></div>
+                        <div>
+                            <p class="text-xs font-semibold text-gray-700 mb-0.5">رمز QR الخاص بالمتدرب</p>
+                            <p class="text-[10px] text-gray-400 mb-2">امسحه للوصول المباشر للملف الشخصي</p>
+                            <button onclick="openTraineeQRModal('${trainee.id}')" class="glass-icon-btn px-3 py-1.5 rounded-lg text-[10px] font-semibold text-primary flex items-center gap-1 hover:border-primary/50">
+                                <i class="ph ph-arrows-out text-xs"></i> عرض بالحجم الكامل
+                            </button>
+                        </div>
+                    </div>
                     <!-- أزرار التواصل الكبيرة -->
                     <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-white/40">
                         ${trainee.phone ? `<a href="tel:${trainee.phone}" class="flex-1 min-w-[80px] glass-panel py-2 rounded-xl text-xs font-semibold text-green-600 flex items-center justify-center gap-1 hover:border-green-400 hover:bg-green-50 transition-colors"><i class="ph ph-phone"></i> اتصال</a>` : ''}
@@ -5355,6 +5391,21 @@
                     </div>
                 </div>
             `;
+
+            // توليد QR Code المصغّر المضمّن في لوحة التفاصيل
+            setTimeout(() => {
+                const inlineQREl = document.getElementById(`inlineQR_${trainee.id}`);
+                if (inlineQREl && typeof QRCode !== 'undefined') {
+                    new QRCode(inlineQREl, {
+                        text: getTraineeProfileURL(trainee.id),
+                        width: 72,
+                        height: 72,
+                        colorDark: '#0790AC',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                }
+            }, 50);
         }
 
         // حذف متدرب من السجل
@@ -5424,13 +5475,13 @@
                                 <label class="block text-sm font-semibold text-gray-700 mb-1.5">الاسم الثلاثي بالعربي <span class="text-red-500">*</span></label>
                                 <input id="rtNameAr" type="text" value="${isEdit ? editData.nameAr : ''}"
                                     class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                    placeholder="مثال: محمد علي أحمد" oninput="autoGenTraineeCode()">
+                                    placeholder="مثال: محمد علي أحمد">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1.5">الاسم الثلاثي بالإنجليزي <span class="text-red-500">*</span></label>
                                 <input id="rtNameEn" type="text" dir="ltr" value="${isEdit ? editData.nameEn : ''}"
                                     class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-left"
-                                    placeholder="Mohammed Ali Ahmed">
+                                    placeholder="Mohammed Ali Ahmed" oninput="autoGenTraineeCode()">
                             </div>
                         </div>
                         <div>
@@ -5524,14 +5575,14 @@
             setTimeout(() => document.getElementById('rtNameAr')?.focus(), 80);
         }
 
-        // توليد رمز المتدرب تلقائياً
+        // توليد رمز المتدرب تلقائياً من الاسم الإنجليزي
         function autoGenTraineeCode() {
-            const nameAr = document.getElementById('rtNameAr')?.value || '';
+            const nameEn = document.getElementById('rtNameEn')?.value || '';
             const codeInput = document.getElementById('rtCode');
             if (!codeInput) return;
-            if (!nameAr.trim()) { codeInput.value = ''; return; }
-            const parts = nameAr.trim().split(/\s+/);
-            const initials = parts.slice(0, 3).map(p => p[0] || '').join('');
+            if (!nameEn.trim()) { codeInput.value = ''; return; }
+            const parts = nameEn.trim().split(/\s+/);
+            const initials = parts.slice(0, 3).map(p => (p[0] || '').toUpperCase()).join('');
             let maxCounter = 0;
             registryTrainees.forEach(t => {
                 if (t.id !== traineeModalEditId) {
@@ -6196,6 +6247,299 @@
             pendingCourseTrainerFieldContext = null;
         }
 
+    </script>
+
+    <!-- ===== مودال ماسح QR Code ===== -->
+    <div id="qrScannerModal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="if(event.target===this) closeQRScannerModal()">
+        <div class="glass-panel bg-white/90 w-full max-w-sm rounded-3xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-scan text-primary text-xl"></i> مسح رمز QR
+                </h3>
+                <button onclick="closeQRScannerModal()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            <!-- منطقة الكاميرا -->
+            <div class="relative rounded-2xl overflow-hidden bg-black mb-4" style="aspect-ratio:1">
+                <video id="qrVideo" class="w-full h-full object-cover" playsinline autoplay muted></video>
+                <!-- إطار التركيز -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div class="w-48 h-48 border-2 border-primary rounded-2xl relative">
+                        <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-xl"></div>
+                        <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl"></div>
+                        <div class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-xl"></div>
+                        <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-xl"></div>
+                        <!-- خط المسح المتحرك -->
+                        <div id="qrScanLine" class="absolute left-0 right-0 h-0.5 bg-primary/70 rounded-full" style="top:50%; animation: scanLine 2s linear infinite;"></div>
+                    </div>
+                </div>
+                <!-- Canvas مخفي للمعالجة -->
+                <canvas id="qrCanvas" class="hidden"></canvas>
+            </div>
+            <!-- حالة المسح -->
+            <div id="qrScanStatus" class="text-center text-sm text-gray-500 mb-3 flex items-center justify-center gap-2">
+                <i class="ph ph-circle-notch animate-spin text-primary"></i> جاري تفعيل الكاميرا...
+            </div>
+            <!-- زر رفع صورة بديلاً عن الكاميرا -->
+            <div class="border-t border-white/40 pt-4 text-center">
+                <p class="text-xs text-gray-400 mb-2">أو ارفع صورة تحتوي على رمز QR</p>
+                <label class="cursor-pointer glass-icon-btn px-4 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-2 hover:border-primary/50 mx-auto w-fit">
+                    <i class="ph ph-image text-base"></i> رفع صورة
+                    <input type="file" accept="image/*" class="hidden" onchange="scanQRFromFile(event)">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== مودال عرض QR Code للمتدرب ===== -->
+    <div id="traineeQRModal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="if(event.target===this) closeTraineeQRModal()">
+        <div class="glass-panel bg-white/95 w-full max-w-xs rounded-3xl p-6 shadow-2xl text-center" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-qr-code text-primary text-lg"></i> رمز QR للمتدرب
+                </h3>
+                <button onclick="closeTraineeQRModal()" class="glass-icon-btn w-8 h-8 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <p id="traineeQRName" class="font-bold text-gray-800 text-lg mb-1"></p>
+            <p id="traineeQRCode" class="font-mono text-xs text-primary/70 mb-4"></p>
+            <!-- حاوية QR Code -->
+            <div class="flex justify-center mb-4">
+                <div id="traineeQRCodeContainer" class="p-3 bg-white rounded-2xl shadow-inner border border-gray-100" style="width:fit-content"></div>
+            </div>
+            <p class="text-[10px] text-gray-400 mb-4">امسح الرمز للوصول المباشر لملف المتدرب</p>
+            <!-- زر تحميل QR -->
+            <button onclick="downloadTraineeQR()" class="w-full glass-panel py-2.5 rounded-xl text-sm font-semibold text-primary flex items-center justify-center gap-2 hover:border-primary/50 transition-colors">
+                <i class="ph ph-download-simple"></i> تحميل رمز QR
+            </button>
+        </div>
+    </div>
+
+    <style>
+        @keyframes scanLine {
+            0%   { top: 10%; }
+            50%  { top: 88%; }
+            100% { top: 10%; }
+        }
+    </style>
+
+    <script>
+        // =============================================
+        // QR Code توليد ومسح
+        // =============================================
+
+        let qrScanStream = null;
+        let qrScanAnimFrame = null;
+        let currentQRTraineeId = null;
+
+        /* ---- توليد رابط ملف المتدرب ---- */
+        function getTraineeProfileURL(traineeId) {
+            // رابط يشير لنفس الصفحة مع معامل المتدرب
+            const base = window.location.href.split('?')[0].split('#')[0];
+            return `${base}?trainee=${traineeId}`;
+        }
+
+        /* ---- فتح مودال QR Code لمتدرب ---- */
+        function openTraineeQRModal(traineeId) {
+            const trainee = registryTrainees.find(t => t.id === traineeId);
+            if (!trainee) return;
+            currentQRTraineeId = traineeId;
+
+            document.getElementById('traineeQRName').textContent = trainee.nameAr;
+            document.getElementById('traineeQRCode').textContent = trainee.code;
+
+            const container = document.getElementById('traineeQRCodeContainer');
+            container.innerHTML = '';
+
+            const profileURL = getTraineeProfileURL(traineeId);
+
+            new QRCode(container, {
+                text: profileURL,
+                width: 200,
+                height: 200,
+                colorDark: '#0790AC',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('traineeQRModal').classList.remove('hidden');
+        }
+
+        function closeTraineeQRModal() {
+            document.getElementById('traineeQRModal').classList.add('hidden');
+            currentQRTraineeId = null;
+        }
+
+        /* ---- تحميل QR كصورة PNG ---- */
+        function downloadTraineeQR() {
+            const trainee = registryTrainees.find(t => t.id === currentQRTraineeId);
+            if (!trainee) return;
+            const container = document.getElementById('traineeQRCodeContainer');
+            const img = container.querySelector('img') || container.querySelector('canvas');
+            if (!img) return;
+
+            let src;
+            if (img.tagName === 'CANVAS') {
+                src = img.toDataURL('image/png');
+            } else {
+                // img element من QRCode.js
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                src = canvas.toDataURL('image/png');
+            }
+
+            const a = document.createElement('a');
+            a.href = src;
+            a.download = `QR_${trainee.code}_${trainee.nameAr}.png`;
+            a.click();
+        }
+
+        /* ---- ماسح QR Code بالكاميرا ---- */
+        async function openQRScannerModal() {
+            document.getElementById('qrScannerModal').classList.remove('hidden');
+            const status = document.getElementById('qrScanStatus');
+            status.innerHTML = '<i class="ph ph-circle-notch animate-spin text-primary"></i> جاري تفعيل الكاميرا...';
+            try {
+                qrScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                const video = document.getElementById('qrVideo');
+                video.srcObject = qrScanStream;
+                video.play();
+                video.addEventListener('loadedmetadata', () => {
+                    status.innerHTML = '<i class="ph ph-scan text-primary"></i> وجّه الكاميرا نحو رمز QR';
+                    requestAnimationFrame(tickQRScan);
+                });
+            } catch (e) {
+                status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> تعذّر الوصول للكاميرا — استخدم رفع صورة';
+            }
+        }
+
+        function closeQRScannerModal() {
+            if (qrScanStream) {
+                qrScanStream.getTracks().forEach(t => t.stop());
+                qrScanStream = null;
+            }
+            if (qrScanAnimFrame) {
+                cancelAnimationFrame(qrScanAnimFrame);
+                qrScanAnimFrame = null;
+            }
+            const video = document.getElementById('qrVideo');
+            video.srcObject = null;
+            document.getElementById('qrScannerModal').classList.add('hidden');
+        }
+
+        function tickQRScan() {
+            const video = document.getElementById('qrVideo');
+            const canvas = document.getElementById('qrCanvas');
+            if (!video || video.readyState < video.HAVE_ENOUGH_DATA) {
+                qrScanAnimFrame = requestAnimationFrame(tickQRScan);
+                return;
+            }
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+            if (code) {
+                handleQRResult(code.data);
+                return; // توقف بعد القراءة
+            }
+            qrScanAnimFrame = requestAnimationFrame(tickQRScan);
+        }
+
+        /* ---- مسح QR من ملف صورة ---- */
+        function scanQRFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            // إعادة تعيين حقل الملف لقبول نفس الملف مرة أخرى
+            event.target.value = '';
+
+            const status = document.getElementById('qrScanStatus');
+            if (status) status.innerHTML = '<i class="ph ph-circle-notch animate-spin text-primary"></i> جاري تحليل الصورة...';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // canvas مؤقت خارج الـ DOM تماماً
+                    const tmpCanvas = document.createElement('canvas');
+                    tmpCanvas.width  = img.naturalWidth  || img.width;
+                    tmpCanvas.height = img.naturalHeight || img.height;
+                    const ctx = tmpCanvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, tmpCanvas.width, tmpCanvas.height);
+                    const imageData = ctx.getImageData(0, 0, tmpCanvas.width, tmpCanvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'attemptBoth'
+                    });
+                    if (code && code.data) {
+                        handleQRResult(code.data);
+                    } else {
+                        if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> لم يُعثر على رمز QR في الصورة — حاول صورة أوضح';
+                    }
+                };
+                img.onerror = function() {
+                    if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> تعذّر قراءة الصورة';
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        /* ---- معالجة نتيجة المسح ---- */
+        function handleQRResult(data) {
+            closeQRScannerModal();
+            // البحث عن trainee ID في الرابط
+            try {
+                const url = new URL(data);
+                const traineeId = url.searchParams.get('trainee');
+                if (traineeId) {
+                    navigateToTraineeProfile(traineeId);
+                    return;
+                }
+            } catch(e) { /* ليس URL */ }
+            // محاولة مباشرة إذا كانت البيانات ID مباشر
+            const trainee = registryTrainees.find(t => t.id === data || t.code === data);
+            if (trainee) {
+                navigateToTraineeProfile(trainee.id);
+            } else {
+                showToast('⚠️ الرمز الممسوح لا يتطابق مع أي متدرب', 'warning');
+            }
+        }
+
+        /* ---- التنقل لملف المتدرب ---- */
+        async function navigateToTraineeProfile(traineeId) {
+            showToast('📂 جاري فتح ملف المتدرب...', 'info');
+            // التأكد من تحميل بيانات المتدربين
+            if (registryTrainees.length === 0) {
+                await loadTraineesFromFirebase();
+            }
+            const trainee = registryTrainees.find(t => t.id === traineeId);
+            if (!trainee) {
+                showToast('❌ لم يتم العثور على المتدرب', 'error');
+                return;
+            }
+            // فتح سجل المتدربين وعرض الملف
+            showTraineesRegistry().then(() => {
+                setTimeout(() => showTraineeDetail(traineeId), 400);
+            });
+        }
+
+        /* ---- فحص معامل URL عند التحميل لفتح ملف متدرب مباشرة ---- */
+        function checkTraineeURLParam() {
+            const params = new URLSearchParams(window.location.search);
+            const traineeId = params.get('trainee');
+            if (traineeId) {
+                // تأخير لضمان تهيئة Firebase
+                setTimeout(() => navigateToTraineeProfile(traineeId), 2000);
+            }
+        }
+
+        // استدعاء الفحص بعد تحميل الصفحة
+        window.addEventListener('DOMContentLoaded', () => setTimeout(checkTraineeURLParam, 500));
     </script>
 </body>
 </html>
