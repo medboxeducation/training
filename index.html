@@ -6283,11 +6283,17 @@
             </div>
             <!-- زر رفع صورة بديلاً عن الكاميرا -->
             <div class="border-t border-white/40 pt-4 text-center">
-                <p class="text-xs text-gray-400 mb-2">أو ارفع صورة تحتوي على رمز QR</p>
-                <label class="cursor-pointer glass-icon-btn px-4 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-2 hover:border-primary/50 mx-auto w-fit">
-                    <i class="ph ph-image text-base"></i> رفع صورة
-                    <input type="file" accept="image/*" class="hidden" onchange="scanQRFromFile(event)">
-                </label>
+                <p class="text-xs text-gray-400 mb-2">أو اختر طريقة أخرى للمسح</p>
+                <div class="flex gap-2 justify-center">
+                    <label class="cursor-pointer glass-icon-btn px-4 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-2 hover:border-primary/50">
+                        <i class="ph ph-image text-base"></i> رفع صورة
+                        <input type="file" accept="image/*" class="hidden" onchange="scanQRFromFile(event)">
+                    </label>
+                    <label class="cursor-pointer glass-icon-btn px-4 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-2 hover:border-primary/50">
+                        <i class="ph ph-camera text-base"></i> التقاط صورة
+                        <input type="file" accept="image/*" capture="environment" class="hidden" onchange="scanQRFromFile(event)">
+                    </label>
+                </div>
             </div>
         </div>
     </div>
@@ -6357,8 +6363,8 @@
 
             new QRCode(container, {
                 text: profileURL,
-                width: 200,
-                height: 200,
+                width: 256,
+                height: 256,
                 colorDark: '#0790AC',
                 colorLight: '#ffffff',
                 correctLevel: QRCode.CorrectLevel.H
@@ -6407,17 +6413,22 @@
                 qrScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 const video = document.getElementById('qrVideo');
                 video.srcObject = qrScanStream;
-                video.play();
+                await video.play();
                 video.addEventListener('loadedmetadata', () => {
                     status.innerHTML = '<i class="ph ph-scan text-primary"></i> وجّه الكاميرا نحو رمز QR';
-                    requestAnimationFrame(tickQRScan);
-                });
+                    qrScanAnimFrame = requestAnimationFrame(tickQRScan);
+                }, { once: true });
+                // fallback إذا تأخّر loadedmetadata
+                if (video.readyState >= video.HAVE_METADATA) {
+                    status.innerHTML = '<i class="ph ph-scan text-primary"></i> وجّه الكاميرا نحو رمز QR';
+                    qrScanAnimFrame = requestAnimationFrame(tickQRScan);
+                }
             } catch (e) {
                 status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> تعذّر الوصول للكاميرا — استخدم رفع صورة';
             }
         }
 
-        function closeQRScannerModal() {
+        function stopQRCamera() {
             if (qrScanStream) {
                 qrScanStream.getTracks().forEach(t => t.stop());
                 qrScanStream = null;
@@ -6427,14 +6438,18 @@
                 qrScanAnimFrame = null;
             }
             const video = document.getElementById('qrVideo');
-            video.srcObject = null;
+            if (video) video.srcObject = null;
+        }
+
+        function closeQRScannerModal() {
+            stopQRCamera();
             document.getElementById('qrScannerModal').classList.add('hidden');
         }
 
         function tickQRScan() {
             const video = document.getElementById('qrVideo');
             const canvas = document.getElementById('qrCanvas');
-            if (!video || video.readyState < video.HAVE_ENOUGH_DATA) {
+            if (!video || !qrScanStream || video.readyState < video.HAVE_ENOUGH_DATA) {
                 qrScanAnimFrame = requestAnimationFrame(tickQRScan);
                 return;
             }
@@ -6443,10 +6458,11 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-            if (code) {
+            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+            if (code && code.data) {
+                stopQRCamera(); // أوقف الكاميرا أولاً
                 handleQRResult(code.data);
-                return; // توقف بعد القراءة
+                return;
             }
             qrScanAnimFrame = requestAnimationFrame(tickQRScan);
         }
@@ -6455,56 +6471,125 @@
         function scanQRFromFile(event) {
             const file = event.target.files[0];
             if (!file) return;
-            // إعادة تعيين حقل الملف لقبول نفس الملف مرة أخرى
-            event.target.value = '';
+            // إعادة تعيين بعد قراءة الملف (بتأخير لتجنب مشكلة iOS)
+            setTimeout(() => { event.target.value = ''; }, 300);
 
             const status = document.getElementById('qrScanStatus');
             if (status) status.innerHTML = '<i class="ph ph-circle-notch animate-spin text-primary"></i> جاري تحليل الصورة...';
 
+            // ===== الطريقة 1: BarcodeDetector (مدمج في Chrome/Edge/Safari 17+) =====
+            if (typeof BarcodeDetector !== 'undefined') {
+                const detector = new BarcodeDetector({ formats: ['qr_code'] });
+                createImageBitmap(file).then(bitmap => {
+                    return detector.detect(bitmap);
+                }).then(barcodes => {
+                    if (barcodes.length > 0) {
+                        handleQRResult(barcodes[0].rawValue, true);
+                    } else {
+                        scanWithJsQR(file, status);
+                    }
+                }).catch(() => {
+                    scanWithJsQR(file, status);
+                });
+            } else {
+                // ===== الطريقة 2: jsQR =====
+                scanWithJsQR(file, status);
+            }
+        }
+
+        function scanWithJsQR(file, status) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const img = new Image();
                 img.onload = function() {
-                    // canvas مؤقت خارج الـ DOM تماماً
-                    const tmpCanvas = document.createElement('canvas');
-                    tmpCanvas.width  = img.naturalWidth  || img.width;
-                    tmpCanvas.height = img.naturalHeight || img.height;
-                    const ctx = tmpCanvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, tmpCanvas.width, tmpCanvas.height);
-                    const imageData = ctx.getImageData(0, 0, tmpCanvas.width, tmpCanvas.height);
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: 'attemptBoth'
-                    });
-                    if (code && code.data) {
-                        handleQRResult(code.data);
-                    } else {
-                        if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> لم يُعثر على رمز QR في الصورة — حاول صورة أوضح';
+                    try {
+                        let w = img.naturalWidth  || 300;
+                        let h = img.naturalHeight || 300;
+
+                        // تكبير الصور الصغيرة
+                        if (Math.max(w, h) < 600) {
+                            const scale = 600 / Math.max(w, h);
+                            w = Math.round(w * scale);
+                            h = Math.round(h * scale);
+                        }
+                        // تحديد حجم أقصى لتجنب بطء المعالجة
+                        if (Math.max(w, h) > 2000) {
+                            const scale = 2000 / Math.max(w, h);
+                            w = Math.round(w * scale);
+                            h = Math.round(h * scale);
+                        }
+
+                        const c = document.createElement('canvas');
+                        c.width = w; c.height = h;
+                        const ctx = c.getContext('2d', { willReadFrequently: true });
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(0, 0, w, h);
+                        ctx.drawImage(img, 0, 0, w, h);
+
+                        let pixels;
+                        try { pixels = ctx.getImageData(0, 0, w, h); }
+                        catch(ex) {
+                            if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> تعذّر قراءة بيانات الصورة';
+                            return;
+                        }
+
+                        // محاولة 1: مباشر
+                        let result = jsQR(pixels.data, w, h, { inversionAttempts: 'attemptBoth' });
+                        if (result && result.data) { handleQRResult(result.data, true); return; }
+
+                        // محاولة 2: زيادة التباين (threshold)
+                        const hi = new Uint8ClampedArray(pixels.data);
+                        for (let i = 0; i < hi.length; i += 4) {
+                            const lum = 0.299*hi[i] + 0.587*hi[i+1] + 0.114*hi[i+2];
+                            const v = lum < 128 ? 0 : 255;
+                            hi[i] = hi[i+1] = hi[i+2] = v; hi[i+3] = 255;
+                        }
+                        result = jsQR(hi, w, h, { inversionAttempts: 'attemptBoth' });
+                        if (result && result.data) { handleQRResult(result.data, true); return; }
+
+                        // محاولة 3: تقليل الحجم إلى النصف (أحياناً تساعد)
+                        const c2 = document.createElement('canvas');
+                        c2.width = Math.round(w/2); c2.height = Math.round(h/2);
+                        const ctx2 = c2.getContext('2d', { willReadFrequently: true });
+                        ctx2.drawImage(img, 0, 0, c2.width, c2.height);
+                        const pixels2 = ctx2.getImageData(0, 0, c2.width, c2.height);
+                        result = jsQR(pixels2.data, c2.width, c2.height, { inversionAttempts: 'attemptBoth' });
+                        if (result && result.data) { handleQRResult(result.data, true); return; }
+
+                        if (status) status.innerHTML = '<i class="ph ph-warning-circle text-amber-400"></i> لم يُعثر على رمز QR — جرّب صورة أوضح أو أقرب';
+                    } catch(err) {
+                        console.error('jsQR error:', err);
+                        if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> خطأ أثناء تحليل الصورة';
                     }
                 };
-                img.onerror = function() {
-                    if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> تعذّر قراءة الصورة';
-                };
+                img.onerror = () => { if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> تعذّر تحميل الصورة'; };
                 img.src = e.target.result;
             };
+            reader.onerror = () => { if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> فشل قراءة الملف'; };
             reader.readAsDataURL(file);
         }
 
         /* ---- معالجة نتيجة المسح ---- */
-        function handleQRResult(data) {
+        // fromImage = true عند المسح من صورة (المودال لا يُغلق بالكاميرا)
+        function handleQRResult(data, fromImage) {
+            if (!fromImage) stopQRCamera();
             closeQRScannerModal();
-            // البحث عن trainee ID في الرابط
+
+            let traineeId = null;
+            // استخراج trainee ID من الـ URL
             try {
                 const url = new URL(data);
-                const traineeId = url.searchParams.get('trainee');
-                if (traineeId) {
-                    navigateToTraineeProfile(traineeId);
-                    return;
-                }
-            } catch(e) { /* ليس URL */ }
-            // محاولة مباشرة إذا كانت البيانات ID مباشر
-            const trainee = registryTrainees.find(t => t.id === data || t.code === data);
-            if (trainee) {
-                navigateToTraineeProfile(trainee.id);
+                traineeId = url.searchParams.get('trainee');
+            } catch(e) { /* ليس URL صحيح */ }
+
+            // إذا لم ينجح URL، جرّب مطابقة مباشرة بالـ ID أو الكود
+            if (!traineeId) {
+                const trainee = registryTrainees.find(t => t.id === data || t.code === data);
+                if (trainee) traineeId = trainee.id;
+            }
+
+            if (traineeId) {
+                navigateToTraineeProfile(traineeId);
             } else {
                 showToast('⚠️ الرمز الممسوح لا يتطابق مع أي متدرب', 'warning');
             }
@@ -6513,7 +6598,7 @@
         /* ---- التنقل لملف المتدرب ---- */
         async function navigateToTraineeProfile(traineeId) {
             showToast('📂 جاري فتح ملف المتدرب...', 'info');
-            // التأكد من تحميل بيانات المتدربين
+            // تحميل البيانات إذا لم تكن محملة
             if (registryTrainees.length === 0) {
                 await loadTraineesFromFirebase();
             }
@@ -6522,10 +6607,23 @@
                 showToast('❌ لم يتم العثور على المتدرب', 'error');
                 return;
             }
-            // فتح سجل المتدربين وعرض الملف
-            showTraineesRegistry().then(() => {
-                setTimeout(() => showTraineeDetail(traineeId), 400);
-            });
+            // 1) فتح الـ sidebar على وضع السجلات
+            sidebarMode = 'registry';
+            activeRegistryCard = 'trainees';
+            document.getElementById('sidebarProgramList')?.classList.add('hidden');
+            document.getElementById('sidebarSettingsList')?.classList.add('hidden');
+            document.getElementById('sidebarUsersList')?.classList.add('hidden');
+            document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
+            openSidebar();
+            updateRegistryAddButton();
+            // 2) فتح view المتدربين
+            showView('traineesRegistryView');
+            document.getElementById('traineeDetailPanel')?.classList.add('hidden');
+            document.getElementById('traineeSelectHint')?.classList.remove('hidden');
+            // 3) بناء القائمة الجانبية
+            buildSidebarTrainees();
+            // 4) عرض تفاصيل المتدرب
+            setTimeout(() => showTraineeDetail(traineeId), 300);
         }
 
         /* ---- فحص معامل URL عند التحميل لفتح ملف متدرب مباشرة ---- */
