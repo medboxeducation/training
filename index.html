@@ -10413,8 +10413,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     /* ---- Mobile: center & full-ish width ---- */
     @media (max-width: 540px) {
         .login-dd {
-            right: 50%;
-            transform: translateX(50%);
+            right: auto;
+            left: 50%;
+            transform: translateX(-50%);
             transform-origin: top center;
             width: calc(100vw - 24px);
         }
@@ -10430,12 +10431,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             animation: ddSlideOutMobile 0.18s ease-in forwards;
         }
         @keyframes ddSlideInMobile {
-            from { opacity:0; transform: translateX(50%) translateY(-10px) scale(0.95); }
-            to   { opacity:1; transform: translateX(50%) translateY(0)      scale(1);   }
+            from { opacity:0; transform: translateX(-50%) translateY(-10px) scale(0.95); }
+            to   { opacity:1; transform: translateX(-50%) translateY(0)      scale(1);   }
         }
         @keyframes ddSlideOutMobile {
-            from { opacity:1; transform: translateX(50%) translateY(0)      scale(1);   }
-            to   { opacity:0; transform: translateX(50%) translateY(-8px)   scale(0.97);}
+            from { opacity:1; transform: translateX(-50%) translateY(0)      scale(1);   }
+            to   { opacity:0; transform: translateX(-50%) translateY(-8px)   scale(0.97);}
         }
     }
 
@@ -10445,9 +10446,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             position: fixed;
             top: 8px;
             bottom: 8px;
-            right: 50%;
-            left: auto;
-            transform: translateX(50%);
+            right: auto;
+            left: 50%;
+            transform: translateX(-50%);
             transform-origin: top center;
             width: min(480px, calc(100vw - 40px));
             max-width: calc(100vw - 20px);
@@ -10471,12 +10472,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             animation: ddSlideOutLandscape 0.16s ease-in forwards;
         }
         @keyframes ddSlideInLandscape {
-            from { opacity:0; transform: translateX(50%) translateY(-8px) scale(0.96); }
-            to   { opacity:1; transform: translateX(50%) translateY(0)    scale(1);    }
+            from { opacity:0; transform: translateX(-50%) translateY(-8px) scale(0.96); }
+            to   { opacity:1; transform: translateX(-50%) translateY(0)    scale(1);    }
         }
         @keyframes ddSlideOutLandscape {
-            from { opacity:1; transform: translateX(50%) translateY(0)    scale(1);    }
-            to   { opacity:0; transform: translateX(50%) translateY(-6px) scale(0.98); }
+            from { opacity:1; transform: translateX(-50%) translateY(0)    scale(1);    }
+            to   { opacity:0; transform: translateX(-50%) translateY(-6px) scale(0.98); }
         }
     }
 
@@ -11205,7 +11206,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         <i class="ph ph-books text-3xl text-primary"></i>
                         <h2 class="text-2xl font-bold text-gray-800">البرامج التدريبية</h2>
                     </div>
-                    <button id="btnAddProgramGrid" class="glass-panel px-4 py-2 rounded-lg text-sm font-semibold text-primary flex items-center gap-2 hover:border-primary transition-colors" onclick="addProgram()">
+                    <button id="btnAddProgramGrid" class="program-actions glass-panel px-4 py-2 rounded-lg text-sm font-semibold text-primary flex items-center gap-2 hover:border-primary transition-colors" onclick="addProgram()">
                         <i class="ph ph-plus"></i> إضافة برنامج جديد
                     </button>
                 </div>
@@ -11219,24 +11220,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
             </div>
 
-            <!-- ب. عرض التفاصيل (Details View) - مخفي افتراضياً -->
-            <div id="detailsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
-                <!-- هيدر الدورة -->
-                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <button onclick="backToCoursesList()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 flex-shrink-0" title="رجوع">
-                        <i class="ph ph-arrow-right text-lg"></i>
-                    </button>
-                    <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
-                        <i class="ph ph-graduation-cap"></i>
-                    </div>
-                    <div class="min-w-0">
-                        <h2 class="text-xl font-bold text-gray-800 truncate" id="detailsTitle">عنوان الدورة</h2>
-                        <p class="text-xs text-gray-400" id="detailsSubtitle">تفاصيل الدورة التدريبية</p>
-                    </div>
-                    <button onclick="openDetailsQRModal()" class="glass-panel mr-auto px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 hover:border-primary text-primary transition-colors flex-shrink-0" title="عرض رمز QR">
-                        <i class="ph ph-qr-code"></i> <span class="hidden sm:inline">QR</span>
-                    </button>
-                </div>
+            <!-- ب. عرض التفاصيل (Details View) - مخفي افتراضياً -->\n            <div id=\"detailsView\" class=\"hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]\">\n                <!-- هيدر الدورة -->\n                <div class=\"flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40\">\n                    <button onclick=\"backToCoursesList()\" class=\"glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 flex-shrink-0\" title=\"رجوع\">\n                        <i class=\"ph ph-arrow-right text-lg\"></i>\n                    </button>\n                    <div class=\"w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0\" id=\"detailsHeaderIcon\">\n                        <i class=\"ph ph-graduation-cap\"></i>\n                    </div>\n                    <div class=\"min-w-0 flex-1\">\n                        <h2 class=\"text-xl font-bold text-gray-800 truncate\" id=\"detailsTitle\">عنوان الدورة</h2>\n                        <p class=\"text-xs text-gray-400\" id=\"detailsSubtitle\">تفاصيل الدورة التدريبية</p>\n                    </div>\n                    <!-- شريط الأزرار — يُحقن بواسطة showProgramDetails / renderCourseDetailsContent -->\n                    <div id=\"detailsHeaderActions\" class=\"flex items-center gap-1.5 flex-shrink-0 mr-auto\"></div>\n                </div>
 
                 <!-- جسم المحتوى - يُحقن بواسطة renderCourseDetailsContent() -->
                 <div id="detailsViewBody" class="flex-1"></div>
@@ -12278,6 +12262,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
             if (!isLandscapeCompact) {
                 requestAnimationFrame(() => {
+                    // On mobile portrait (≤540px), CSS handles centering — don't override
+                    if (window.innerWidth <= 540) return;
                     const rect = dd.getBoundingClientRect();
                     if (rect.left < 8) {
                         dd.style.right = 'auto';
@@ -15195,16 +15181,39 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 return found ? found.ar : d;
             }).join('، ') || '—';
             const realTrainees = course.traineesList || [];
+
+            // ضبط هيدر عرض التفاصيل للدورة
+            const headerIcon = document.getElementById('detailsHeaderIcon');
+            if (headerIcon) headerIcon.innerHTML = '<i class="ph ph-graduation-cap"></i>';
+            if (detailsTitle) {
+                detailsTitle.textContent = course.code || course.key;
+                detailsTitle.dataset.activeKey = programKey;
+                detailsTitle.dataset.activeCourse = course.key;
+            }
+            const subtitleEl = document.getElementById('detailsSubtitle');
+            if (subtitleEl) subtitleEl.textContent = program.title || 'تفاصيل الدورة التدريبية';
+
+            // حقن أزرار الإجراءات في هيدر عرض التفاصيل
+            const actionsBar = document.getElementById('detailsHeaderActions');
+            if (actionsBar) {
+                actionsBar.innerHTML = `
+                    ${hasPermission('editCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل الدورة" onclick="editCourse('${programKey}', '${course.key}')"><i class="ph ph-pencil-simple text-sm"></i></button>` : ''}
+                    ${hasPermission('deleteCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف الدورة" onclick="deleteCourse('${programKey}', '${course.key}')"><i class="ph ph-trash text-sm"></i></button>` : ''}
+                    ${hasPermission('addTrainee') && !document.body.classList.contains('trainer-mode') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="إضافة متدرب جديد" onclick="addTrainee('${programKey}', '${course.key}')"><i class="ph ph-user-plus text-sm"></i></button>` : ''}
+                    <button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="عرض رمز QR" onclick="openCourseQRModal('${programKey}', '${course.key}')"><i class="ph ph-qr-code text-sm"></i></button>
+                `;
+            }
+
             const container = document.getElementById('detailsViewBody');
             container.innerHTML = `
                 <!-- بيانات الدورة الرئيسية -->
                 <div class="space-y-5">
 
-                <!-- الصف العلوي: معلومات + متدربون + جانبي -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- الصف العلوي: معلومات + متدربون -->
+                <div class="grid grid-cols-1 gap-6">
 
                     <!-- العمود الرئيسي -->
-                    <div class="lg:col-span-2 space-y-5">
+                    <div class="space-y-5">
 
                         <!-- بطاقة المعلومات الأساسية -->
                         <div class="glass-element rounded-xl p-5">
@@ -15328,43 +15337,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
                     </div>
 
-                    <!-- العمود الجانبي -->
-                    <div class="space-y-5">
-
-                        <!-- إحصائيات -->
-                        <div class="glass-element rounded-xl p-5 text-center">
-                            <div class="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl mx-auto mb-3 border-2 border-primary/20">
-                                <i class="ph ph-chart-pie-slice"></i>
-                            </div>
-                            <p class="text-xs text-gray-500 mb-1">نسبة الإنجاز</p>
-                            <p class="text-3xl font-bold text-primary">${course.traineesCount > 0 ? '65%' : '0%'}</p>
-                            <div class="w-full bg-gray-200 rounded-full h-1.5 mt-3">
-                                <div class="bg-primary h-1.5 rounded-full transition-all" style="width: ${course.traineesCount > 0 ? '65%' : '0%'}"></div>
-                            </div>
-                        </div>
-
-                        <!-- إجراءات سريعة -->
-                        <div class="glass-element rounded-xl p-5">
-                            <h3 class="font-bold text-sm mb-3 text-gray-700">الإجراءات السريعة</h3>
-                            <div class="space-y-2">
-                                ${hasPermission('editCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="w-full glass-panel py-2 px-3 rounded-lg text-xs text-right hover:border-primary transition-colors flex items-center gap-2" onclick="editCourse('${programKey}', '${course.key}')">
-                                    <i class="ph ph-pencil-simple text-gray-400"></i> تعديل الدورة
-                                </button>` : ''}
-                                <button class="w-full glass-panel py-2 px-3 rounded-lg text-xs text-right hover:border-primary transition-colors flex items-center gap-2" onclick="openCourseQRModal('${programKey}', '${course.key}')">
-                                    <i class="ph ph-qr-code text-gray-400"></i> عرض رمز QR
-                                </button>
-                                <button class="w-full glass-panel py-2 px-3 rounded-lg text-xs text-right hover:border-primary transition-colors flex items-center gap-2">
-                                    <i class="ph ph-printer text-gray-400"></i> طباعة التقرير
-                                </button>
-                                <button class="w-full glass-panel py-2 px-3 rounded-lg text-xs text-right hover:border-primary transition-colors flex items-center gap-2">
-                                    <i class="ph ph-export text-gray-400"></i> تصدير البيانات
-                                </button>
-                                ${hasPermission('deleteCourse') ? `<button class="w-full glass-panel py-2 px-3 rounded-lg text-xs text-right text-red-600 hover:border-red-500 hover:bg-red-50 transition-colors flex items-center gap-2" onclick="deleteCourse('${programKey}', '${course.key}')">
-                                    <i class="ph ph-trash"></i> حذف الدورة
-                                </button>` : ''}
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 <!-- /الصف العلوي -->
 
@@ -15440,6 +15412,23 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             detailsTitle.dataset.activeKey = programKey;
             delete detailsTitle.dataset.activeCourse;
 
+            // ضبط أيقونة الهيدر للبرنامج
+            const headerIcon = document.getElementById('detailsHeaderIcon');
+            if (headerIcon) headerIcon.innerHTML = '<i class="ph ph-books"></i>';
+            document.getElementById('detailsSubtitle').textContent = 'تفاصيل البرنامج التدريبي';
+
+            // حقن أزرار الإجراءات في هيدر عرض التفاصيل
+            const actionsBar = document.getElementById('detailsHeaderActions');
+            if (actionsBar) {
+                const isGuest2 = document.body.classList.contains('guest-mode');
+                actionsBar.innerHTML = !isGuest2 ? `
+                    ${hasPermission('editProgram') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل البرنامج" onclick="editProgram('${programKey}')"><i class="ph ph-pencil-simple text-sm"></i></button>` : ''}
+                    ${hasPermission('deleteProgram') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف البرنامج" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash text-sm"></i></button>` : ''}
+                    ${hasPermission('addCourse') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="إضافة دورة جديدة" onclick="addCourse('${programKey}')"><i class="ph ph-plus text-sm"></i></button>` : ''}
+                    <button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="عرض رمز QR" onclick="openProgramQRModal('${programKey}')"><i class="ph ph-qr-code text-sm"></i></button>
+                ` : '';
+            }
+
             const isGuest = document.body.classList.contains('guest-mode');
             const courses = program.courses || [];
             const container = document.getElementById('detailsViewBody');
@@ -15491,15 +15480,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                 </button>
                             </div>
                         </div>
-                        ${!isGuest ? `
-                        <div class="flex items-center gap-3 mt-4 pt-4 border-t border-white/30">
-                            ${hasPermission('editProgram') ? `<button class="glass-panel px-4 py-2 rounded-lg text-sm font-semibold text-primary flex items-center gap-2 hover:border-primary transition-colors" onclick="editProgram('${programKey}')">
-                                <i class="ph ph-pencil-simple"></i> تعديل البرنامج
-                            </button>` : ''}
-                            ${hasPermission('addCourse') ? `<button class="glass-panel px-4 py-2 rounded-lg text-sm font-semibold text-primary flex items-center gap-2 hover:border-primary transition-colors" onclick="addCourse('${programKey}')">
-                                <i class="ph ph-plus"></i> إضافة دورة
-                            </button>` : ''}
-                        </div>` : ''}
+                        ${!isGuest ? `` : ''}
                     </div>
 
                     <!-- قائمة الدورات (مخفية للضيف) -->
