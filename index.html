@@ -15213,10 +15213,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const actionsBar = document.getElementById('detailsHeaderActions');
             if (actionsBar) {
                 actionsBar.innerHTML = `
-                    ${hasPermission('editCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل الدورة" onclick="editCourse('${programKey}', '${course.key}')"><i class="ph ph-pencil-simple text-sm"></i></button>` : ''}
-                    ${hasPermission('deleteCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف الدورة" onclick="deleteCourse('${programKey}', '${course.key}')"><i class="ph ph-trash text-sm"></i></button>` : ''}
-                    ${hasPermission('addTrainee') && !document.body.classList.contains('trainer-mode') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="إضافة متدرب جديد" onclick="addTrainee('${programKey}', '${course.key}')"><i class="ph ph-user-plus text-sm"></i></button>` : ''}
-                    <button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="عرض رمز QR" onclick="openCourseQRModal('${programKey}', '${course.key}')"><i class="ph ph-qr-code text-sm"></i></button>
+                    <span class="hidden md:flex items-center gap-1">
+                        ${hasPermission('editCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل الدورة" onclick="editCourse('${programKey}', '${course.key}')"><i class="ph ph-pencil-simple text-sm"></i></button>` : ''}
+                        ${hasPermission('deleteCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف الدورة" onclick="deleteCourse('${programKey}', '${course.key}')"><i class="ph ph-trash text-sm"></i></button>` : ''}
+                        ${hasPermission('addTrainee') && !document.body.classList.contains('trainer-mode') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="إضافة متدرب جديد" onclick="addTrainee('${programKey}', '${course.key}')"><i class="ph ph-user-plus text-sm"></i></button>` : ''}
+                        <button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="عرض رمز QR" onclick="openCourseQRModal('${programKey}', '${course.key}')"><i class="ph ph-qr-code text-sm"></i></button>
+                    </span>
                 `;
             }
 
@@ -15224,6 +15226,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             container.innerHTML = `
                 <!-- بيانات الدورة الرئيسية -->
                 <div class="space-y-5">
+
+                <!-- أزرار الإجراءات للموبايل فقط — تحت رمز الدورة واسم البرنامج -->
+                <div class="flex md:hidden items-center gap-2 flex-wrap">
+                    ${hasPermission('editCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10" onclick="editCourse('${programKey}', '${course.key}')"><i class="ph ph-pencil-simple"></i> تعديل</button>` : ''}
+                    ${hasPermission('deleteCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center justify-center gap-1.5 hover:bg-red-50 hover:border-red-300" onclick="deleteCourse('${programKey}', '${course.key}')"><i class="ph ph-trash"></i> حذف</button>` : ''}
+                    ${hasPermission('addTrainee') && !document.body.classList.contains('trainer-mode') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300" onclick="addTrainee('${programKey}', '${course.key}')"><i class="ph ph-user-plus"></i> إضافة متدرب</button>` : ''}
+                    <button class="glass-icon-btn w-9 py-2 rounded-xl text-xs text-primary flex items-center justify-center hover:bg-primary/10" title="عرض رمز QR" onclick="openCourseQRModal('${programKey}', '${course.key}')"><i class="ph ph-qr-code"></i></button>
+                </div>
 
                 <!-- الصف العلوي: معلومات + متدربون -->
                 <div class="grid grid-cols-1 gap-6">
@@ -15438,10 +15448,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (actionsBar) {
                 const isGuest2 = document.body.classList.contains('guest-mode');
                 actionsBar.innerHTML = !isGuest2 ? `
-                    ${hasPermission('editProgram') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل البرنامج" onclick="editProgram('${programKey}')"><i class="ph ph-pencil-simple text-sm"></i></button>` : ''}
-                    ${hasPermission('deleteProgram') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف البرنامج" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash text-sm"></i></button>` : ''}
-                    ${hasPermission('addCourse') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="إضافة دورة جديدة" onclick="addCourse('${programKey}')"><i class="ph ph-plus text-sm"></i></button>` : ''}
-                    <button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="عرض رمز QR" onclick="openProgramQRModal('${programKey}')"><i class="ph ph-qr-code text-sm"></i></button>
+                    <span class="hidden md:flex items-center gap-1">
+                        ${hasPermission('editProgram') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل البرنامج" onclick="editProgram('${programKey}')"><i class="ph ph-pencil-simple text-sm"></i></button>` : ''}
+                        ${hasPermission('deleteProgram') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف البرنامج" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash text-sm"></i></button>` : ''}
+                        ${hasPermission('addCourse') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="إضافة دورة جديدة" onclick="addCourse('${programKey}')"><i class="ph ph-plus text-sm"></i></button>` : ''}
+                        <button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="عرض رمز QR" onclick="openProgramQRModal('${programKey}')"><i class="ph ph-qr-code text-sm"></i></button>
+                    </span>
                 ` : '';
             }
 
@@ -15450,6 +15462,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const container = document.getElementById('detailsViewBody');
             container.innerHTML = `
                 <div class="space-y-6">
+                    <!-- أزرار الإجراءات للموبايل فقط — تحت اسم البرنامج -->
+                    ${!isGuest ? `
+                    <div class="flex md:hidden items-center gap-2 flex-wrap">
+                        ${hasPermission('editProgram') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10" onclick="editProgram('${programKey}')"><i class="ph ph-pencil-simple"></i> تعديل</button>` : ''}
+                        ${hasPermission('deleteProgram') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center justify-center gap-1.5 hover:bg-red-50 hover:border-red-300" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash"></i> حذف</button>` : ''}
+                        ${hasPermission('addCourse') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300" onclick="addCourse('${programKey}')"><i class="ph ph-plus"></i> إضافة دورة</button>` : ''}
+                        <button class="glass-icon-btn w-9 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center hover:bg-primary/10" title="عرض رمز QR" onclick="openProgramQRModal('${programKey}')"><i class="ph ph-qr-code"></i></button>
+                    </div>` : ''}
                     <!-- بطاقة معلومات البرنامج -->
                     <div class="glass-element rounded-xl p-5">
                         <h3 class="font-bold text-base mb-4 text-primary flex items-center gap-2">
@@ -17359,10 +17379,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <!-- صف الاسم + الدائرة + أزرار التعديل/الحذف -->
                     <div class="flex items-center justify-between mb-1">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                            <button onclick="event.stopPropagation(); ${trainee.authUid ? `openAccountInfoModal('trainee','${trainee.id}')` : ''}" 
-                                class="w-2.5 h-2.5 rounded-full shrink-0 ${trainee.authUid ? 'bg-green-500 cursor-pointer hover:scale-125 transition-transform' : 'bg-red-400 cursor-default'} ring-1 ring-white shadow-sm"
-                                title="${trainee.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'لا يوجد حساب دخول'}"
-                                ${trainee.authUid ? '' : 'style="pointer-events:none"'}></button>
+                            <button onclick="event.stopPropagation(); ${trainee.authUid ? `openAccountInfoModal('trainee','${trainee.id}')` : `createTraineeAuthAccount('${trainee.id}')`}" 
+                                class="w-2.5 h-2.5 rounded-full shrink-0 ${trainee.authUid ? 'bg-green-500 hover:scale-125' : 'bg-red-400 hover:scale-125 hover:bg-red-500'} cursor-pointer transition-transform ring-1 ring-white shadow-sm"
+                                title="${trainee.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'اضغط هنا لإنشاء حساب'}"></button>
                             <p class="font-bold text-sm text-gray-800 leading-tight hover:text-primary transition-colors truncate">${trainee.nameAr}</p>
                         </div>
                         <div class="flex items-center gap-1 shrink-0 mr-1">
@@ -17423,10 +17442,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-0.5 flex-wrap">
-                                <button onclick="${trainee.authUid ? `openAccountInfoModal('trainee','${trainee.id}')` : ''}" 
-                                    class="w-3 h-3 rounded-full shrink-0 ${trainee.authUid ? 'bg-green-500 cursor-pointer hover:scale-125 transition-transform' : 'bg-red-400 cursor-default'} ring-1 ring-white shadow-sm"
-                                    title="${trainee.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'لا يوجد حساب دخول'}"
-                                    ${trainee.authUid ? '' : 'style="pointer-events:none"'}></button>
+                                <button onclick="${trainee.authUid ? `openAccountInfoModal('trainee','${trainee.id}')` : `createTraineeAuthAccount('${trainee.id}')`}" 
+                                    class="w-3 h-3 rounded-full shrink-0 ${trainee.authUid ? 'bg-green-500 hover:scale-125' : 'bg-red-400 hover:scale-125 hover:bg-red-500'} cursor-pointer transition-transform ring-1 ring-white shadow-sm"
+                                    title="${trainee.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'اضغط هنا لإنشاء حساب'}"></button>
                                 <h3 class="text-lg font-bold text-gray-800">${trainee.nameAr}</h3>
                                 <!-- تبويب أزرار الإجراءات — كبير: بجانب الاسم، صغير: تحت الاسم -->
                                 <div class="flex items-center gap-1 md:inline-flex hidden md:flex">
@@ -17457,15 +17475,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             </div>
                         </div>
                         <div class="flex gap-2 shrink-0 flex-wrap justify-end">
-                            ${trainee.authUid
-                                ? `<button onclick="openAccountInfoModal('trainee','${trainee.id}')" class="w-full mt-1 glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 flex items-center justify-center gap-1.5 border-emerald-200 bg-emerald-50/40 hover:bg-emerald-100 transition-colors">
-                                    <i class="ph ph-check-circle text-sm text-emerald-600"></i> لديه حساب دخول
-                                   </button>`
-                                : `<button onclick="createTraineeAuthAccount('${trainee.id}')" id="createAuthBtn_${trainee.id}"
-                                    class="w-full mt-1 glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-sky-700 flex items-center justify-center gap-1.5 hover:border-sky-400 hover:bg-sky-50 transition-colors border-sky-200 bg-sky-50/40">
-                                    <i class="ph ph-key text-sm"></i> إنشاء حساب دخول للمتدرب
-                                   </button>`
-                            }
                         </div>
                     </div>
                 </div>
@@ -17751,16 +17760,37 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-envelope text-primary text-xs"></i> البريد الإلكتروني المسجّل</p>
                         <p class="font-semibold text-sm text-gray-800 break-all" dir="ltr">${person.email || '—'}</p>
                     </div>
-                    ${hasWa ? `
-                    <button onclick="window.open('https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}','_blank')" 
-                        class="w-full glass-panel py-2.5 rounded-xl text-sm font-semibold text-emerald-700 flex items-center justify-center gap-2 hover:border-emerald-400 hover:bg-emerald-50 transition-colors border-emerald-200 bg-emerald-50/40">
-                        <i class="ph ph-whatsapp-logo text-lg"></i> مشاركة بيانات الحساب عبر واتساب
-                    </button>` : `
-                    <p class="text-center text-xs text-gray-400 py-2">لا يوجد رقم واتساب مسجل للمشاركة</p>`}
+                    <div class="flex items-center gap-2">
+                        ${hasWa ? `
+                        <button onclick="window.open('https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}','_blank')" 
+                            class="flex-1 glass-panel py-2.5 rounded-xl text-sm font-semibold text-emerald-700 flex items-center justify-center gap-1.5 hover:border-emerald-400 hover:bg-emerald-50 transition-colors border-emerald-200 bg-emerald-50/40">
+                            <i class="ph ph-whatsapp-logo text-lg"></i> واتساب
+                        </button>` : `<span class="flex-1 text-center text-xs text-gray-400 py-2">لا يوجد رقم واتساب</span>`}
+                        <button id="resetPwdBtn_${id}" onclick="sendPasswordResetFromModal('${person.email}','${id}')"
+                            class="flex-1 glass-panel py-2.5 rounded-xl text-sm font-semibold text-sky-700 flex items-center justify-center gap-1.5 hover:border-sky-400 hover:bg-sky-50 transition-colors border-sky-200 bg-sky-50/40">
+                            <i class="ph ph-key text-base"></i> إعادة تهيئة كلمة المرور
+                        </button>
+                    </div>
                 </div>
             `;
             modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
             document.body.appendChild(modal);
+        }
+
+        // ── إرسال رابط إعادة تهيئة كلمة المرور ──
+        async function sendPasswordResetFromModal(email, btnId) {
+            if (!email) { showToast('لا يوجد بريد إلكتروني', 'error'); return; }
+            const btn = document.getElementById(`resetPwdBtn_${btnId}`);
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch animate-spin text-sm"></i>'; }
+            try {
+                const auth = firebase.auth();
+                await auth.sendPasswordResetEmail(email.trim());
+                showToast(`✅ تم إرسال رابط إعادة تهيئة كلمة المرور إلى ${email}`, 'success');
+                if (btn) { btn.innerHTML = '<i class="ph ph-check text-sm"></i> تم الإرسال'; }
+            } catch(err) {
+                showToast('❌ فشل الإرسال: ' + (err.message || err.code), 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-key text-base"></i> إعادة تهيئة كلمة المرور'; }
+            }
         }
 
         // ── مشاركة بيانات حساب المتدرب عبر واتساب ──
@@ -18231,10 +18261,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <!-- صف الاسم + الدائرة + أزرار التعديل/الحذف -->
                     <div class="flex items-center justify-between mb-1">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                            <button onclick="event.stopPropagation(); ${trainer.authUid ? `openAccountInfoModal('trainer','${trainer.id}')` : ''}" 
-                                class="w-2.5 h-2.5 rounded-full shrink-0 ${trainer.authUid ? 'bg-green-500 cursor-pointer hover:scale-125 transition-transform' : 'bg-red-400 cursor-default'} ring-1 ring-white shadow-sm"
-                                title="${trainer.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'لا يوجد حساب دخول'}"
-                                ${trainer.authUid ? '' : 'style="pointer-events:none"'}></button>
+                            <button onclick="event.stopPropagation(); ${trainer.authUid ? `openAccountInfoModal('trainer','${trainer.id}')` : `createTrainerAuthAccount('${trainer.id}')`}" 
+                                class="w-2.5 h-2.5 rounded-full shrink-0 ${trainer.authUid ? 'bg-green-500 hover:scale-125' : 'bg-red-400 hover:scale-125 hover:bg-red-500'} cursor-pointer transition-transform ring-1 ring-white shadow-sm"
+                                title="${trainer.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'اضغط هنا لإنشاء حساب'}"></button>
                             <p class="font-bold text-sm text-gray-800 leading-tight hover:text-primary transition-colors flex-1 min-w-0 truncate">${trainer.nameAr}</p>
                         </div>
                         <div class="flex items-center gap-1 shrink-0 mr-1">
@@ -18312,10 +18341,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-0.5 flex-wrap">
-                                <button onclick="${trainer.authUid ? `openAccountInfoModal('trainer','${trainer.id}')` : ''}" 
-                                    class="w-3 h-3 rounded-full shrink-0 ${trainer.authUid ? 'bg-green-500 cursor-pointer hover:scale-125 transition-transform' : 'bg-red-400 cursor-default'} ring-1 ring-white shadow-sm"
-                                    title="${trainer.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'لا يوجد حساب دخول'}"
-                                    ${trainer.authUid ? '' : 'style="pointer-events:none"'}></button>
+                                <button onclick="${trainer.authUid ? `openAccountInfoModal('trainer','${trainer.id}')` : `createTrainerAuthAccount('${trainer.id}')`}" 
+                                    class="w-3 h-3 rounded-full shrink-0 ${trainer.authUid ? 'bg-green-500 hover:scale-125' : 'bg-red-400 hover:scale-125 hover:bg-red-500'} cursor-pointer transition-transform ring-1 ring-white shadow-sm"
+                                    title="${trainer.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'اضغط هنا لإنشاء حساب'}"></button>
                                 <h3 class="text-lg font-bold text-gray-800">${trainer.nameAr}</h3>
                                 <!-- تبويب أزرار الإجراءات — كبير: بجانب الاسم، صغير: تحت الاسم -->
                                 <div class="items-center gap-1 hidden md:flex">
@@ -18346,15 +18374,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             </div>
                         </div>
                         <div class="flex gap-2 shrink-0 flex-wrap justify-end">
-                            ${trainer.authUid
-                                ? `<button onclick="openAccountInfoModal('trainer','${trainer.id}')" class="w-full mt-1 glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 flex items-center justify-center gap-1.5 border-emerald-200 bg-emerald-50/40 hover:bg-emerald-100 transition-colors">
-                                    <i class="ph ph-check-circle text-sm text-emerald-600"></i> لديه حساب دخول
-                                   </button>`
-                                : `<button onclick="createTrainerAuthAccount('${trainer.id}')" id="createTrainerAuthBtn_${trainer.id}"
-                                    class="w-full mt-1 glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 flex items-center justify-center gap-1.5 hover:border-amber-400 hover:bg-amber-50 transition-colors border-amber-200 bg-amber-50/40">
-                                    <i class="ph ph-key text-sm"></i> إنشاء حساب دخول للمدرب
-                                   </button>`
-                            }
                         </div>
                     </div>
                 </div>
