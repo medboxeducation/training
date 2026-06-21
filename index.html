@@ -11220,7 +11220,23 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
             </div>
 
-            <!-- ب. عرض التفاصيل (Details View) - مخفي افتراضياً -->\n            <div id=\"detailsView\" class=\"hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]\">\n                <!-- هيدر الدورة -->\n                <div class=\"flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40\">\n                    <button onclick=\"backToCoursesList()\" class=\"glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 flex-shrink-0\" title=\"رجوع\">\n                        <i class=\"ph ph-arrow-right text-lg\"></i>\n                    </button>\n                    <div class=\"w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0\" id=\"detailsHeaderIcon\">\n                        <i class=\"ph ph-graduation-cap\"></i>\n                    </div>\n                    <div class=\"min-w-0 flex-1\">\n                        <h2 class=\"text-xl font-bold text-gray-800 truncate\" id=\"detailsTitle\">عنوان الدورة</h2>\n                        <p class=\"text-xs text-gray-400\" id=\"detailsSubtitle\">تفاصيل الدورة التدريبية</p>\n                    </div>\n                    <!-- شريط الأزرار — يُحقن بواسطة showProgramDetails / renderCourseDetailsContent -->\n                    <div id=\"detailsHeaderActions\" class=\"flex items-center gap-1.5 flex-shrink-0 mr-auto\"></div>\n                </div>
+            <!-- ب. عرض التفاصيل (Details View) - مخفي افتراضياً -->
+            <div id="detailsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <!-- هيدر الدورة -->
+                <div class="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                    <button onclick="backToCoursesList()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 flex-shrink-0" title="رجوع">
+                        <i class="ph ph-arrow-right text-lg"></i>
+                    </button>
+                    <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0" id="detailsHeaderIcon">
+                        <i class="ph ph-graduation-cap"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-xl font-bold text-gray-800 truncate" id="detailsTitle">عنوان الدورة</h2>
+                        <p class="text-xs text-gray-400" id="detailsSubtitle">تفاصيل الدورة التدريبية</p>
+                    </div>
+                    <!-- شريط الأزرار — يُحقن بواسطة showProgramDetails / renderCourseDetailsContent -->
+                    <div id="detailsHeaderActions" class="flex items-center gap-1.5 flex-shrink-0 mr-auto"></div>
+                </div>
 
                 <!-- جسم المحتوى - يُحقن بواسطة renderCourseDetailsContent() -->
                 <div id="detailsViewBody" class="flex-1"></div>
