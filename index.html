@@ -17356,8 +17356,24 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 const monthYear = regDate.toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
 
                 card.innerHTML = `
-                    <!-- اسم المتدرب -->
-                    <p class="font-bold text-sm text-gray-800 leading-tight mb-1 hover:text-primary transition-colors">${trainee.nameAr}</p>
+                    <!-- صف الاسم + الدائرة + أزرار التعديل/الحذف -->
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                            <button onclick="event.stopPropagation(); ${trainee.authUid ? `openAccountInfoModal('trainee','${trainee.id}')` : ''}" 
+                                class="w-2.5 h-2.5 rounded-full shrink-0 ${trainee.authUid ? 'bg-green-500 cursor-pointer hover:scale-125 transition-transform' : 'bg-red-400 cursor-default'} ring-1 ring-white shadow-sm"
+                                title="${trainee.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'لا يوجد حساب دخول'}"
+                                ${trainee.authUid ? '' : 'style="pointer-events:none"'}></button>
+                            <p class="font-bold text-sm text-gray-800 leading-tight hover:text-primary transition-colors truncate">${trainee.nameAr}</p>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0 mr-1">
+                            <button onclick="event.stopPropagation(); editRegistryTrainee('${trainee.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
+                                <i class="ph ph-pencil-simple text-xs"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); deleteRegistryTrainee('${trainee.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
+                                <i class="ph ph-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
                     <!-- الرمز + التاريخ -->
                     <div class="flex items-center gap-2 mb-2">
                         <span class="font-mono text-xs text-primary/80 px-1.5 py-0.5 rounded font-bold bg-primary/8">${trainee.code}</span>
@@ -17370,17 +17386,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         ${trainee.whatsapp ? `<a href="https://wa.me/${(trainee.whatsappCode||'+966').replace('+','')}${trainee.whatsapp.replace(/^0/,'')}" target="_blank" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="واتساب"><i class="ph ph-whatsapp-logo text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-whatsapp-logo text-sm text-gray-400"></i></span>`}
                         ${trainee.email ? `<a href="mailto:${trainee.email}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-orange-600 hover:bg-orange-50 hover:border-orange-300" title="إيميل"><i class="ph ph-envelope text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-envelope text-sm text-gray-400"></i></span>`}
                     </div>
-                    <!-- أزرار تعديل وحذف -->
-                    <div class="flex items-center gap-1">
-                        <button onclick="event.stopPropagation(); editRegistryTrainee('${trainee.id}')" class="flex-1 glass-icon-btn py-1 rounded-lg text-[10px] font-semibold text-primary flex items-center justify-center gap-1 hover:bg-primary/10">
-                            <i class="ph ph-pencil-simple text-xs"></i> تعديل
-                        </button>
-                        <button onclick="event.stopPropagation(); deleteRegistryTrainee('${trainee.id}')" class="flex-1 glass-icon-btn py-1 rounded-lg text-[10px] font-semibold text-red-500 flex items-center justify-center gap-1 hover:bg-red-50 hover:border-red-300">
-                            <i class="ph ph-trash text-xs"></i> حذف
-                        </button>
-                    </div>
                 `;
-                card.addEventListener('click', () => showTraineeDetail(trainee.id));
+                card.addEventListener('click', () => {
+                    showTraineeDetail(trainee.id);
+                    if (window.innerWidth < 768) closeSidebar();
+                });
                 list.appendChild(card);
             });
         }
@@ -17411,28 +17421,46 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             panel.innerHTML = `
                 <div class="p-5 border-b border-white/40" style="background: linear-gradient(135deg, rgba(7,144,172,0.06) 0%, rgba(255,255,255,0.3) 100%);">
                     <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <h3 class="text-lg font-bold text-gray-800 mb-0.5">${trainee.nameAr}</h3>
-                            <p class="text-sm text-gray-500 mb-1" dir="ltr">${trainee.nameEn || '—'}</p>
-                            <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold">${trainee.code}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                                <button onclick="${trainee.authUid ? `openAccountInfoModal('trainee','${trainee.id}')` : ''}" 
+                                    class="w-3 h-3 rounded-full shrink-0 ${trainee.authUid ? 'bg-green-500 cursor-pointer hover:scale-125 transition-transform' : 'bg-red-400 cursor-default'} ring-1 ring-white shadow-sm"
+                                    title="${trainee.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'لا يوجد حساب دخول'}"
+                                    ${trainee.authUid ? '' : 'style="pointer-events:none"'}></button>
+                                <h3 class="text-lg font-bold text-gray-800">${trainee.nameAr}</h3>
+                                <!-- تبويب أزرار الإجراءات — كبير: بجانب الاسم، صغير: تحت الاسم -->
+                                <div class="flex items-center gap-1 md:inline-flex hidden md:flex">
+                                    <button onclick="openTraineeQRModal('${trainee.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="عرض رمز QR">
+                                        <i class="ph ph-qr-code text-sm"></i>
+                                    </button>
+                                    <button onclick="editRegistryTrainee('${trainee.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="تعديل">
+                                        <i class="ph ph-pencil-simple text-sm"></i>
+                                    </button>
+                                    <button onclick="deleteRegistryTrainee('${trainee.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors" title="حذف المتدرب">
+                                        <i class="ph ph-trash text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-500 mb-1 mr-5" dir="ltr">${trainee.nameEn || '—'}</p>
+                            <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold mr-5">${trainee.code}</span>
+                            <!-- تبويب الأزرار للشاشات الصغيرة — تحت الاسم -->
+                            <div class="flex items-center gap-1 mt-2 md:hidden">
+                                <button onclick="openTraineeQRModal('${trainee.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="عرض رمز QR">
+                                    <i class="ph ph-qr-code text-sm"></i>
+                                </button>
+                                <button onclick="editRegistryTrainee('${trainee.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="تعديل">
+                                    <i class="ph ph-pencil-simple text-sm"></i>
+                                </button>
+                                <button onclick="deleteRegistryTrainee('${trainee.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors" title="حذف المتدرب">
+                                    <i class="ph ph-trash text-sm"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="flex gap-2 shrink-0 flex-wrap justify-end">
-                            <button onclick="openTraineeQRModal('${trainee.id}')" class="glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 hover:border-primary text-primary transition-colors" title="عرض رمز QR">
-                                <i class="ph ph-qr-code"></i> QR
-                            </button>
-                            <button onclick="editRegistryTrainee('${trainee.id}')" class="glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 hover:border-primary text-primary transition-colors">
-                                <i class="ph ph-pencil-simple"></i> تعديل
-                            </button>
-                            <button onclick="deleteRegistryTrainee('${trainee.id}')" class="glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1 hover:border-red-400 hover:bg-red-50 transition-colors">
-                                <i class="ph ph-trash"></i> حذف
-                            </button>
                             ${trainee.authUid
-                                ? `<div class="w-full mt-1 flex items-center gap-2 glass-panel px-3 py-1.5 rounded-xl bg-emerald-50/60 border-emerald-200">
-                                    <i class="ph ph-check-circle text-emerald-600 text-sm"></i>
-                                    <span class="text-xs font-semibold text-emerald-700 flex-1">لديه حساب دخول</span>
-                                    <span class="text-[10px] font-mono text-gray-500 truncate max-w-[140px]" dir="ltr">${trainee.email || ''}</span>
-                                    ${(trainee.whatsapp || trainee.phone) ? `<button onclick="shareTraineeAccountWhatsApp('${trainee.id}')" class="text-[10px] font-semibold text-emerald-700 hover:underline flex items-center gap-0.5 shrink-0"><i class="ph ph-whatsapp-logo"></i> مشاركة</button>` : ''}
-                                   </div>`
+                                ? `<button onclick="openAccountInfoModal('trainee','${trainee.id}')" class="w-full mt-1 glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 flex items-center justify-center gap-1.5 border-emerald-200 bg-emerald-50/40 hover:bg-emerald-100 transition-colors">
+                                    <i class="ph ph-check-circle text-sm text-emerald-600"></i> لديه حساب دخول
+                                   </button>`
                                 : `<button onclick="createTraineeAuthAccount('${trainee.id}')" id="createAuthBtn_${trainee.id}"
                                     class="w-full mt-1 glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-sky-700 flex items-center justify-center gap-1.5 hover:border-sky-400 hover:bg-sky-50 transition-colors border-sky-200 bg-sky-50/40">
                                     <i class="ph ph-key text-sm"></i> إنشاء حساب دخول للمتدرب
@@ -17682,6 +17710,57 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 };
                 showToast('❌ ' + (errMap[err.code] || `${err.code}: ${err.message}`), 'error');
             }
+        }
+
+        // ── فتح نافذة معلومات الحساب ──
+        function openAccountInfoModal(type, id) {
+            const person = type === 'trainee'
+                ? registryTrainees.find(t => t.id === id)
+                : registryTrainers.find(t => t.id === id);
+            if (!person || !person.authUid) return;
+
+            const hasWa = !!(person.whatsapp || person.phone);
+            const waNumber = person.whatsapp
+                ? (person.whatsappCode || '+966').replace('+', '') + person.whatsapp.replace(/^0/, '')
+                : (person.phone || '').replace(/\D/g, '');
+            const msg = `مرحباً ${person.nameAr}،\n\nتم إنشاء حساب الدخول الخاص بك على منصة MedBox Education.\n\n📧 البريد الإلكتروني: ${person.email}\n🔑 يرجى فتح البريد الوارد لإعادة تعيين كلمة المرور والدخول للمنصة.\n\nفي حال لم يصلك البريد، تحقق من مجلد الرسائل غير المرغوب فيها (Spam).`;
+
+            // إنشاء الـ modal
+            const existing = document.getElementById('accountInfoModal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'accountInfoModal';
+            modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center p-4';
+            modal.style.background = 'rgba(0,0,0,0.45)';
+            modal.innerHTML = `
+                <div class="glass-panel rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" style="backdrop-filter:blur(24px)">
+                    <button onclick="document.getElementById('accountInfoModal').remove()" class="absolute top-3 left-3 w-8 h-8 glass-icon-btn rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100">
+                        <i class="ph ph-x text-sm"></i>
+                    </button>
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                            <i class="ph ph-check-circle text-emerald-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-800 text-sm">${person.nameAr}</p>
+                            <p class="text-[10px] text-gray-400">لديه حساب دخول مفعّل</p>
+                        </div>
+                    </div>
+                    <div class="glass-element rounded-xl p-3 mb-4">
+                        <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-envelope text-primary text-xs"></i> البريد الإلكتروني المسجّل</p>
+                        <p class="font-semibold text-sm text-gray-800 break-all" dir="ltr">${person.email || '—'}</p>
+                    </div>
+                    ${hasWa ? `
+                    <button onclick="window.open('https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}','_blank')" 
+                        class="w-full glass-panel py-2.5 rounded-xl text-sm font-semibold text-emerald-700 flex items-center justify-center gap-2 hover:border-emerald-400 hover:bg-emerald-50 transition-colors border-emerald-200 bg-emerald-50/40">
+                        <i class="ph ph-whatsapp-logo text-lg"></i> مشاركة بيانات الحساب عبر واتساب
+                    </button>` : `
+                    <p class="text-center text-xs text-gray-400 py-2">لا يوجد رقم واتساب مسجل للمشاركة</p>`}
+                </div>
+            `;
+            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
         }
 
         // ── مشاركة بيانات حساب المتدرب عبر واتساب ──
@@ -18149,9 +18228,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 const monthYear = regDate.toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
 
                 card.innerHTML = `
-                    <!-- صف الاسم + أزرار التعديل/الحذف -->
+                    <!-- صف الاسم + الدائرة + أزرار التعديل/الحذف -->
                     <div class="flex items-center justify-between mb-1">
-                        <p class="font-bold text-sm text-gray-800 leading-tight hover:text-primary transition-colors flex-1 min-w-0 truncate">${trainer.nameAr}</p>
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                            <button onclick="event.stopPropagation(); ${trainer.authUid ? `openAccountInfoModal('trainer','${trainer.id}')` : ''}" 
+                                class="w-2.5 h-2.5 rounded-full shrink-0 ${trainer.authUid ? 'bg-green-500 cursor-pointer hover:scale-125 transition-transform' : 'bg-red-400 cursor-default'} ring-1 ring-white shadow-sm"
+                                title="${trainer.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'لا يوجد حساب دخول'}"
+                                ${trainer.authUid ? '' : 'style="pointer-events:none"'}></button>
+                            <p class="font-bold text-sm text-gray-800 leading-tight hover:text-primary transition-colors flex-1 min-w-0 truncate">${trainer.nameAr}</p>
+                        </div>
                         <div class="flex items-center gap-1 shrink-0 mr-1">
                             <button onclick="event.stopPropagation(); editRegistryTrainer('${trainer.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
                                 <i class="ph ph-pencil-simple text-xs"></i>
@@ -18174,7 +18259,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         ${trainer.email ? `<a href="mailto:${trainer.email}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-orange-600 hover:bg-orange-50 hover:border-orange-300" title="إيميل"><i class="ph ph-envelope text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-envelope text-sm text-gray-400"></i></span>`}
                     </div>
                 `;
-                card.addEventListener('click', () => showTrainerDetail(trainer.id));
+                card.addEventListener('click', () => {
+                    showTrainerDetail(trainer.id);
+                    if (window.innerWidth < 768) closeSidebar();
+                });
                 list.appendChild(card);
             });
         }
@@ -18222,28 +18310,46 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             panel.innerHTML = `
                 <div class="p-5 border-b border-white/40" style="background: linear-gradient(135deg, rgba(7,144,172,0.06) 0%, rgba(255,255,255,0.3) 100%);">
                     <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <h3 class="text-lg font-bold text-gray-800 mb-0.5">${trainer.nameAr}</h3>
-                            <p class="text-sm text-gray-500 mb-1" dir="ltr">${trainer.nameEn || '—'}</p>
-                            <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold">${trainer.code}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                                <button onclick="${trainer.authUid ? `openAccountInfoModal('trainer','${trainer.id}')` : ''}" 
+                                    class="w-3 h-3 rounded-full shrink-0 ${trainer.authUid ? 'bg-green-500 cursor-pointer hover:scale-125 transition-transform' : 'bg-red-400 cursor-default'} ring-1 ring-white shadow-sm"
+                                    title="${trainer.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'لا يوجد حساب دخول'}"
+                                    ${trainer.authUid ? '' : 'style="pointer-events:none"'}></button>
+                                <h3 class="text-lg font-bold text-gray-800">${trainer.nameAr}</h3>
+                                <!-- تبويب أزرار الإجراءات — كبير: بجانب الاسم، صغير: تحت الاسم -->
+                                <div class="items-center gap-1 hidden md:flex">
+                                    <button onclick="openTrainerQRModal('${trainer.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="عرض رمز QR">
+                                        <i class="ph ph-qr-code text-sm"></i>
+                                    </button>
+                                    <button onclick="editRegistryTrainer('${trainer.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="تعديل">
+                                        <i class="ph ph-pencil-simple text-sm"></i>
+                                    </button>
+                                    <button onclick="deleteRegistryTrainer('${trainer.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors" title="حذف المدرب">
+                                        <i class="ph ph-trash text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-500 mb-1 mr-5" dir="ltr">${trainer.nameEn || '—'}</p>
+                            <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold mr-5">${trainer.code}</span>
+                            <!-- تبويب الأزرار للشاشات الصغيرة — تحت الاسم -->
+                            <div class="flex items-center gap-1 mt-2 md:hidden">
+                                <button onclick="openTrainerQRModal('${trainer.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="عرض رمز QR">
+                                    <i class="ph ph-qr-code text-sm"></i>
+                                </button>
+                                <button onclick="editRegistryTrainer('${trainer.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="تعديل">
+                                    <i class="ph ph-pencil-simple text-sm"></i>
+                                </button>
+                                <button onclick="deleteRegistryTrainer('${trainer.id}')" class="w-8 h-8 glass-icon-btn rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors" title="حذف المدرب">
+                                    <i class="ph ph-trash text-sm"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="flex gap-2 shrink-0 flex-wrap justify-end">
-                            <button onclick="openTrainerQRModal('${trainer.id}')" class="glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 hover:border-primary text-primary transition-colors" title="عرض رمز QR">
-                                <i class="ph ph-qr-code"></i> QR
-                            </button>
-                            <button onclick="editRegistryTrainer('${trainer.id}')" class="glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 hover:border-primary text-primary transition-colors">
-                                <i class="ph ph-pencil-simple"></i> تعديل
-                            </button>
-                            <button onclick="deleteRegistryTrainer('${trainer.id}')" class="glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1 hover:border-red-400 hover:bg-red-50 transition-colors">
-                                <i class="ph ph-trash"></i> حذف
-                            </button>
                             ${trainer.authUid
-                                ? `<div class="w-full mt-1 flex items-center gap-2 glass-panel px-3 py-1.5 rounded-xl bg-emerald-50/60 border-emerald-200">
-                                    <i class="ph ph-check-circle text-emerald-600 text-sm"></i>
-                                    <span class="text-xs font-semibold text-emerald-700 flex-1">لديه حساب دخول</span>
-                                    <span class="text-[10px] font-mono text-gray-500 truncate max-w-[140px]" dir="ltr">${trainer.email || ''}</span>
-                                    ${(trainer.whatsapp || trainer.phone) ? `<button onclick="shareTrainerAccountWhatsApp('${trainer.id}')" class="text-[10px] font-semibold text-emerald-700 hover:underline flex items-center gap-0.5 shrink-0"><i class="ph ph-whatsapp-logo"></i> مشاركة</button>` : ''}
-                                   </div>`
+                                ? `<button onclick="openAccountInfoModal('trainer','${trainer.id}')" class="w-full mt-1 glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 flex items-center justify-center gap-1.5 border-emerald-200 bg-emerald-50/40 hover:bg-emerald-100 transition-colors">
+                                    <i class="ph ph-check-circle text-sm text-emerald-600"></i> لديه حساب دخول
+                                   </button>`
                                 : `<button onclick="createTrainerAuthAccount('${trainer.id}')" id="createTrainerAuthBtn_${trainer.id}"
                                     class="w-full mt-1 glass-panel px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 flex items-center justify-center gap-1.5 hover:border-amber-400 hover:bg-amber-50 transition-colors border-amber-200 bg-amber-50/40">
                                     <i class="ph ph-key text-sm"></i> إنشاء حساب دخول للمدرب
