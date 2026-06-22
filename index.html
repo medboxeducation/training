@@ -14,6 +14,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <!-- QR Code Generator -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Google API Client Library (for Drive sync) -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
     <!-- QR Code Scanner (jsQR - inline) -->
     <script>
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -11144,6 +11147,157 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
             </div>
 
+            <!-- ز. عرض المزامنة وتصدير البيانات (Sync View) - مخفي افتراضياً -->
+            <div id="syncView" class="hidden min-h-full flex flex-col">
+
+                <!-- هيدر القسم -->
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="glass-icon-tile w-12 h-12 rounded-xl flex items-center justify-center text-primary text-2xl">
+                            <i class="ph ph-cloud-arrow-up"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800">المزامنة وتصدير البيانات</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">Google Drive • تصدير واستيراد بيانات التطبيق</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- بطاقة حساب Google -->
+                <div class="glass-element rounded-2xl p-5 mb-4">
+                    <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2 mb-4">
+                        <i class="ph ph-google-logo text-primary text-lg"></i> حساب Google Drive
+                    </h3>
+                    <!-- حالة: غير متصل -->
+                    <div id="driveSignedOut" class="flex flex-col items-center gap-3 py-4">
+                        <p class="text-sm text-gray-500 text-center">سجّل الدخول بحساب Google للنسخ الاحتياطي التلقائي على Google Drive.</p>
+                        <button onclick="driveSignIn()" id="driveSignInBtn"
+                            class="flex items-center gap-2 bg-white border border-gray-300 hover:border-primary text-gray-700 font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm transition-all">
+                            <i class="ph ph-google-logo text-lg"></i> تسجيل الدخول بـ Google
+                        </button>
+                        <p id="driveClientIdWarning" class="hidden text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
+                            <i class="ph ph-warning inline-block ml-1"></i>
+                            يرجى إدخال Client ID و API Key في إعدادات المزامنة أدناه أولاً.
+                        </p>
+                    </div>
+                    <!-- حالة: متصل -->
+                    <div id="driveSignedIn" class="hidden flex items-center justify-between flex-wrap gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl">
+                                <i class="ph ph-user-circle"></i>
+                            </div>
+                            <div>
+                                <p id="driveUserName" class="text-sm font-semibold text-gray-800">—</p>
+                                <p id="driveUserEmail" class="text-xs text-gray-500">—</p>
+                            </div>
+                        </div>
+                        <button onclick="driveSignOut()"
+                            class="glass-panel text-xs font-semibold px-4 py-2 rounded-lg text-red-600 hover:border-red-400 hover:bg-red-50 transition-colors flex items-center gap-1.5">
+                            <i class="ph ph-sign-out"></i> تسجيل الخروج
+                        </button>
+                    </div>
+                </div>
+
+                <!-- أزرار النسخ الاحتياطي -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <!-- رفع النسخة الاحتياطية -->
+                    <div class="glass-element rounded-2xl p-5 flex flex-col gap-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i class="ph ph-upload-simple text-primary text-xl"></i>
+                            <h3 class="text-sm font-bold text-gray-700">رفع نسخة احتياطية</h3>
+                        </div>
+                        <p class="text-xs text-gray-500">يرفع جميع البيانات إلى Drive كـ 4 ملفات JSON منفصلة.</p>
+                        <div class="text-xs text-gray-400 flex flex-col gap-1 mt-1">
+                            <span class="flex items-center gap-1.5"><i class="ph ph-file-code text-green-500"></i> programs.json — البرامج والدورات والدرجات</span>
+                            <span class="flex items-center gap-1.5"><i class="ph ph-file-code text-blue-500"></i> trainers.json — بيانات المدربين</span>
+                            <span class="flex items-center gap-1.5"><i class="ph ph-file-code text-purple-500"></i> trainees.json — بيانات المتدربين</span>
+                            <span class="flex items-center gap-1.5"><i class="ph ph-file-code text-orange-500"></i> settings.json — إعدادات Firebase والمستخدمين</span>
+                        </div>
+                        <button id="driveUploadBtn" onclick="driveBackupAll()" disabled
+                            class="mt-auto bg-primary text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                            <i class="ph ph-cloud-arrow-up"></i> رفع الآن
+                        </button>
+                    </div>
+
+                    <!-- استعادة نسخة احتياطية -->
+                    <div class="glass-element rounded-2xl p-5 flex flex-col gap-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i class="ph ph-download-simple text-primary text-xl"></i>
+                            <h3 class="text-sm font-bold text-gray-700">استعادة نسخة احتياطية</h3>
+                        </div>
+                        <p class="text-xs text-gray-500">يعرض قائمة بملفات النسخ الاحتياطية المتوفرة على Drive.</p>
+                        <div id="driveRestoreList" class="flex flex-col gap-2 mt-1 max-h-40 overflow-y-auto">
+                            <p class="text-xs text-gray-400 italic">اضغط \"تحديث القائمة\" لجلب النسخ المتوفرة.</p>
+                        </div>
+                        <div class="flex gap-2 mt-auto">
+                            <button id="driveListBtn" onclick="driveListBackups()" disabled
+                                class="flex-1 glass-panel py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:border-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                                <i class="ph ph-arrows-clockwise"></i> تحديث القائمة
+                            </button>
+                            <button id="driveRestoreBtn" onclick="driveRestoreSelected()" disabled
+                                class="flex-1 bg-primary text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                                <i class="ph ph-cloud-arrow-down"></i> استعادة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- إعدادات المزامنة (Client ID & API Key) -->
+                <div class="glass-element rounded-2xl p-5 mb-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                            <i class="ph ph-sliders-horizontal text-primary text-lg"></i> إعدادات Google OAuth
+                        </h3>
+                        <button id="syncSettingsEditBtn" onclick="enableSyncSettingsEdit()"
+                            class="glass-panel text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:border-primary transition-colors">
+                            <i class="ph ph-pencil-simple"></i> تعديل
+                        </button>
+                        <button id="syncSettingsSaveBtn" onclick="saveSyncSettings()"
+                            class="hidden bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-primary/90 transition-colors">
+                            <i class="ph ph-check-circle"></i> حفظ
+                        </button>
+                        <button id="syncSettingsCancelBtn" onclick="cancelSyncSettingsEdit()"
+                            class="hidden glass-panel text-xs font-semibold px-3 py-1.5 rounded-lg text-red-600 flex items-center gap-1.5 hover:border-red-400 transition-colors">
+                            <i class="ph ph-x-circle"></i> إلغاء
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs font-semibold text-gray-600">Client ID (OAuth 2.0)</label>
+                            <input type="text" id="syncClientIdInput" disabled dir="ltr"
+                                class="glass-panel px-3 py-2.5 rounded-lg text-xs font-mono outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                                placeholder="xxxx.apps.googleusercontent.com">
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs font-semibold text-gray-600">API Key</label>
+                            <input type="text" id="syncApiKeyInput" disabled dir="ltr"
+                                class="glass-panel px-3 py-2.5 rounded-lg text-xs font-mono outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                                placeholder="AIza...">
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-3 flex items-start gap-1.5">
+                        <i class="ph ph-info text-primary text-base shrink-0 mt-0.5"></i>
+                        أنشئ المشروع في <strong>Google Cloud Console</strong>، فعّل <strong>Drive API</strong>، واحصل على Client ID من نوع "Web Application" وAPI Key مقيّد بـ HTTP referrers.
+                    </p>
+                </div>
+
+                <!-- سجل المزامنة -->
+                <div class="glass-element rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                            <i class="ph ph-list-bullets text-primary text-lg"></i> سجل المزامنة
+                        </h3>
+                        <button onclick="clearSyncLog()"
+                            class="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors">
+                            <i class="ph ph-trash-simple"></i> مسح السجل
+                        </button>
+                    </div>
+                    <div id="syncLogContainer" class="flex flex-col gap-1.5 max-h-52 overflow-y-auto">
+                        <p class="text-xs text-gray-400 italic text-center py-4">لا توجد سجلات بعد.</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- و. عرض سجل المستخدمين (Users View) - مخفي افتراضياً -->
             <div id="usersView" class="hidden min-h-full flex flex-col">
 
@@ -12680,7 +12834,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'detailsView', 'firebaseSettingsView', 'usersView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView'];
+        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -12833,7 +12987,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     showUsersRegistry();
                     break;
                 case 'sync':
-                    showComingSoon('المزامنة وتصدير البيانات');
+                    showSyncView();
                     break;
             }
         }
@@ -13490,6 +13644,482 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         let firebaseConfigBeforeEdit = null;
 
         // عرض شاشة بيانات Firebase في منطقة العرض الرئيسية
+        // ╔══════════════════════════════════════════════════════════════╗
+        // ║       Google Drive Sync – المزامنة مع Google Drive          ║
+        // ╚══════════════════════════════════════════════════════════════╝
+
+        // ── ثوابت المجلد على Drive ──────────────────────────────────────
+        const DRIVE_FOLDER_NAME = 'MedBox Education Backups';
+        const DRIVE_SCOPES      = 'https://www.googleapis.com/auth/drive.file';
+        const SYNC_FILES = ['programs.json','trainers.json','trainees.json','settings.json'];
+
+        let gapiReady   = false;   // هل gapi.client جاهز؟
+        let tokenClient = null;    // GSI token client
+        let driveToken  = null;    // access token الحالي
+        let selectedRestoreSet = null; // مجموعة الملفات المختارة للاستعادة
+
+        // ── عرض صفحة المزامنة ────────────────────────────────────────────
+        function showSyncView() {
+            if (document.body.classList.contains('trainer-mode')) {
+                showToast('🔒 غير مسموح بالوصول لهذا القسم', 'info');
+                return;
+            }
+            loadSyncSettingsToForm();
+            showView('syncView');
+            closeSidebar();
+            // تحميل GAPI إذا لم يكن جاهزاً
+            if (!gapiReady) initGapi();
+        }
+
+        // ── تحميل GAPI ───────────────────────────────────────────────────
+        function initGapi() {
+            if (typeof gapi === 'undefined') {
+                appendSyncLog('⚠️ مكتبة Google API غير محملة — تحقق من الاتصال بالإنترنت', 'warn');
+                return;
+            }
+            gapi.load('client', async () => {
+                const apiKey = getSyncApiKey();
+                if (!apiKey) { appendSyncLog('⚠️ API Key غير موجود — أدخله في الإعدادات أدناه', 'warn'); return; }
+                try {
+                    await gapi.client.init({
+                        apiKey,
+                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                    });
+                    gapiReady = true;
+                    appendSyncLog('✅ تم تحميل Google API بنجاح', 'success');
+                } catch(e) {
+                    appendSyncLog('❌ فشل تهيئة Google API: ' + e.message, 'error');
+                }
+            });
+        }
+
+        // ── تسجيل الدخول ─────────────────────────────────────────────────
+        function driveSignIn() {
+            const clientId = getSyncClientId();
+            const apiKey   = getSyncApiKey();
+            if (!clientId || !apiKey) {
+                document.getElementById('driveClientIdWarning').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('driveClientIdWarning').classList.add('hidden');
+
+            if (!gapiReady) {
+                appendSyncLog('⏳ Google API لم يتهيأ بعد — انتظر لحظة ثم حاول مجدداً', 'warn');
+                initGapi();
+                return;
+            }
+
+            if (typeof google === 'undefined' || !google.accounts) {
+                appendSyncLog('❌ مكتبة GSI غير محملة', 'error');
+                return;
+            }
+
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: clientId,
+                scope: DRIVE_SCOPES,
+                callback: (response) => {
+                    if (response.error) {
+                        appendSyncLog('❌ فشل تسجيل الدخول: ' + response.error, 'error');
+                        return;
+                    }
+                    driveToken = response.access_token;
+                    gapi.client.setToken({ access_token: driveToken });
+                    // جلب معلومات المستخدم
+                    fetchGoogleUserInfo(driveToken);
+                    setDriveSignedIn(true);
+                    appendSyncLog('✅ تم تسجيل الدخول بـ Google بنجاح', 'success');
+                },
+            });
+            tokenClient.requestAccessToken();
+        }
+
+        async function fetchGoogleUserInfo(token) {
+            try {
+                const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo',
+                    { headers: { Authorization: 'Bearer ' + token } });
+                const u = await r.json();
+                document.getElementById('driveUserName').textContent  = u.name  || '—';
+                document.getElementById('driveUserEmail').textContent = u.email || '—';
+            } catch(_) {}
+        }
+
+        // ── تسجيل الخروج ─────────────────────────────────────────────────
+        function driveSignOut() {
+            if (driveToken) google.accounts.oauth2.revoke(driveToken, () => {});
+            driveToken = null;
+            gapi.client.setToken(null);
+            setDriveSignedIn(false);
+            appendSyncLog('🔓 تم تسجيل الخروج من Google', 'info');
+        }
+
+        function setDriveSignedIn(yes) {
+            document.getElementById('driveSignedOut').classList.toggle('hidden', yes);
+            document.getElementById('driveSignedIn').classList.toggle('hidden', !yes);
+            ['driveUploadBtn','driveListBtn'].forEach(id => {
+                document.getElementById(id).disabled = !yes;
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  تجميع البيانات → 4 ملفات JSON
+        // ════════════════════════════════════════════════════════════════
+
+        function buildProgramsJson() {
+            return JSON.stringify({ programs: programsData }, null, 2);
+        }
+
+        async function buildTrainersJson() {
+            let trainers = registryTrainers;
+            if (!trainers || trainers.length === 0) {
+                try { await loadTrainersFromFirebase(); trainers = registryTrainers; } catch(_) {}
+            }
+            return JSON.stringify({ trainers }, null, 2);
+        }
+
+        async function buildTraineesJson() {
+            let trainees = registryTrainees;
+            if (!trainees || trainees.length === 0) {
+                try { await loadTraineesFromFirebase(); trainees = registryTrainees; } catch(_) {}
+            }
+            return JSON.stringify({ trainees }, null, 2);
+        }
+
+        function buildSettingsJson() {
+            const fbConfig = getSavedFirebaseConfig() || {};
+            const users = appUsersData || [];
+            const syncCfg = {
+                clientId: getSyncClientId(),
+                apiKey:   getSyncApiKey(),
+            };
+            return JSON.stringify({ firebase: fbConfig, users, sync: syncCfg }, null, 2);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  رفع النسخة الاحتياطية (4 ملفات)
+        // ════════════════════════════════════════════════════════════════
+
+        async function driveBackupAll() {
+            if (!driveToken) { showToast('⚠️ سجّل الدخول بـ Google أولاً', 'warn'); return; }
+            const btn = document.getElementById('driveUploadBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-circle-notch animate-spin"></i> جاري الرفع...';
+
+            try {
+                const stamp    = new Date().toISOString().replace(/[:.]/g,'-').slice(0,16);
+                const folderId = await getOrCreateDriveFolder();
+                appendSyncLog(`📁 مجلد Drive: ${DRIVE_FOLDER_NAME}`, 'info');
+
+                const payloads = {
+                    'programs.json' : buildProgramsJson(),
+                    'trainers.json' : await buildTrainersJson(),
+                    'trainees.json' : await buildTraineesJson(),
+                    'settings.json' : buildSettingsJson(),
+                };
+
+                for (const [name, content] of Object.entries(payloads)) {
+                    const fileName = `${stamp}__${name}`;
+                    await driveUploadFile(fileName, content, folderId);
+                    appendSyncLog(`⬆️ تم رفع: ${fileName}`, 'success');
+                }
+
+                showToast('✅ تم رفع النسخة الاحتياطية (4 ملفات) بنجاح', 'success');
+            } catch(err) {
+                appendSyncLog('❌ فشل الرفع: ' + err.message, 'error');
+                showToast('❌ فشل رفع البيانات', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-cloud-arrow-up"></i> رفع الآن';
+            }
+        }
+
+        async function getOrCreateDriveFolder() {
+            // البحث عن مجلد موجود
+            const search = await gapi.client.drive.files.list({
+                q: `mimeType='application/vnd.google-apps.folder' and name='${DRIVE_FOLDER_NAME}' and trashed=false`,
+                fields: 'files(id,name)',
+                spaces: 'drive',
+            });
+            if (search.result.files && search.result.files.length > 0) {
+                return search.result.files[0].id;
+            }
+            // إنشاء مجلد جديد
+            const create = await gapi.client.drive.files.create({
+                resource: { name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' },
+                fields: 'id',
+            });
+            return create.result.id;
+        }
+
+        async function driveUploadFile(fileName, content, folderId) {
+            const boundary = '-------MedBoxBoundary';
+            const delimiter = '\r\n--' + boundary + '\r\n';
+            const closeDelimiter = '\r\n--' + boundary + '--';
+            const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+            const multipartBody =
+                delimiter +
+                'Content-Type: application/json\r\n\r\n' + metadata +
+                delimiter +
+                'Content-Type: application/json\r\n\r\n' + content +
+                closeDelimiter;
+
+            await gapi.client.request({
+                path: 'https://www.googleapis.com/upload/drive/v3/files',
+                method: 'POST',
+                params: { uploadType: 'multipart' },
+                headers: { 'Content-Type': 'multipart/related; boundary="' + boundary + '"' },
+                body: multipartBody,
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  سرد النسخ الاحتياطية وتحديدها
+        // ════════════════════════════════════════════════════════════════
+
+        async function driveListBackups() {
+            if (!driveToken) { showToast('⚠️ سجّل الدخول بـ Google أولاً', 'warn'); return; }
+            const btn = document.getElementById('driveListBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-circle-notch animate-spin"></i>';
+            appendSyncLog('🔍 جلب قائمة النسخ الاحتياطية...', 'info');
+
+            try {
+                const folderId = await getOrCreateDriveFolder();
+                const res = await gapi.client.drive.files.list({
+                    q: `'${folderId}' in parents and trashed=false`,
+                    orderBy: 'createdTime desc',
+                    fields: 'files(id,name,createdTime,size)',
+                    pageSize: 100,
+                });
+
+                const files = res.result.files || [];
+                // تجميع الملفات في مجموعات (كل 4 ملفات بنفس الـ timestamp)
+                const sets = {};
+                files.forEach(f => {
+                    const m = f.name.match(/^(\d{4}-\d{2}-\d{2}T\d{2}-\d{2})__(.+)$/);
+                    if (m) {
+                        const stamp = m[1], fname = m[2];
+                        if (!sets[stamp]) sets[stamp] = {};
+                        sets[stamp][fname] = f;
+                    }
+                });
+
+                const container = document.getElementById('driveRestoreList');
+                container.innerHTML = '';
+                selectedRestoreSet = null;
+                document.getElementById('driveRestoreBtn').disabled = true;
+
+                const stamps = Object.keys(sets).sort().reverse();
+                if (stamps.length === 0) {
+                    container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-2">لا توجد نسخ احتياطية بعد.</p>';
+                    appendSyncLog('ℹ️ لا توجد نسخ احتياطية على Drive', 'info');
+                    return;
+                }
+
+                stamps.forEach(stamp => {
+                    const set = sets[stamp];
+                    const date = stamp.replace('T',' ').replace(/-(\d{2})-(\d{2})$/,' $1:$2');
+                    const count = Object.keys(set).length;
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-primary/5 border border-transparent transition-all text-xs';
+                    div.innerHTML = `
+                        <i class="ph ph-cloud text-gray-400 text-base shrink-0"></i>
+                        <div class="flex-1">
+                            <span class="font-semibold text-gray-700">${date}</span>
+                            <span class="text-gray-400 mr-2">${count} ملف</span>
+                        </div>
+                        <i class="ph ph-check-circle text-primary text-base hidden check-icon"></i>
+                    `;
+                    div.addEventListener('click', () => {
+                        container.querySelectorAll('div').forEach(d => {
+                            d.classList.remove('border-primary','bg-primary/10');
+                            d.querySelector('.check-icon')?.classList.add('hidden');
+                        });
+                        div.classList.add('border-primary','bg-primary/10');
+                        div.querySelector('.check-icon').classList.remove('hidden');
+                        selectedRestoreSet = set;
+                        document.getElementById('driveRestoreBtn').disabled = false;
+                    });
+                    container.appendChild(div);
+                });
+
+                appendSyncLog(`📋 وُجد ${stamps.length} مجموعة نسخ احتياطية`, 'success');
+            } catch(err) {
+                appendSyncLog('❌ فشل جلب القائمة: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i> تحديث القائمة';
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  استعادة النسخة الاحتياطية
+        // ════════════════════════════════════════════════════════════════
+
+        async function driveRestoreSelected() {
+            if (!selectedRestoreSet) return;
+            if (!confirm('⚠️ سيؤدي هذا إلى استبدال البيانات الحالية بالنسخة الاحتياطية المختارة. هل تريد المتابعة؟')) return;
+
+            const btn = document.getElementById('driveRestoreBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-circle-notch animate-spin"></i> جاري الاستعادة...';
+            appendSyncLog('⬇️ بدء الاستعادة...', 'info');
+
+            try {
+                for (const [fname, fmeta] of Object.entries(selectedRestoreSet)) {
+                    const content = await driveDownloadFile(fmeta.id);
+                    const data = JSON.parse(content);
+                    await applyRestoredData(fname, data);
+                    appendSyncLog(`✅ تم استعادة: ${fname}`, 'success');
+                }
+                showToast('✅ تمت الاستعادة بنجاح — يُنصح بإعادة تحميل الصفحة', 'success');
+                appendSyncLog('🎉 اكتملت الاستعادة بنجاح', 'success');
+            } catch(err) {
+                appendSyncLog('❌ فشل الاستعادة: ' + err.message, 'error');
+                showToast('❌ فشل الاستعادة', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-cloud-arrow-down"></i> استعادة';
+            }
+        }
+
+        async function driveDownloadFile(fileId) {
+            const res = await gapi.client.drive.files.get({ fileId, alt: 'media' });
+            // gapi يعيد body كـ string
+            return typeof res.body === 'string' ? res.body : JSON.stringify(res.result);
+        }
+
+        async function applyRestoredData(fname, data) {
+            if (!db) throw new Error('Firebase غير متصل');
+
+            if (fname === 'programs.json' && data.programs) {
+                const batch = db.batch();
+                Object.entries(data.programs).forEach(([id, prog]) => {
+                    const ref = db.collection('programs').doc(id);
+                    const { courses, ...progData } = prog;
+                    batch.set(ref, progData, { merge: true });
+                    if (courses) {
+                        Object.entries(courses).forEach(([cid, course]) => {
+                            batch.set(ref.collection('courses').doc(cid), course, { merge: true });
+                        });
+                    }
+                });
+                await batch.commit();
+                await loadProgramsFromFirestore();
+            }
+
+            if (fname === 'trainers.json' && data.trainers) {
+                for (const t of data.trainers) {
+                    await db.collection('trainers').doc(t.id).set(t, { merge: true });
+                }
+                registryTrainers = [];
+            }
+
+            if (fname === 'trainees.json' && data.trainees) {
+                for (const t of data.trainees) {
+                    await db.collection('trainees').doc(t.id).set(t, { merge: true });
+                }
+                registryTrainees = [];
+            }
+
+            if (fname === 'settings.json') {
+                if (data.firebase) {
+                    localStorage.setItem('medbox_firebaseConfig', JSON.stringify(data.firebase));
+                }
+                if (data.users) {
+                    for (const u of data.users) {
+                        if (u.uid) await db.collection('appUsers').doc(u.uid).set(u, { merge: true });
+                    }
+                    appUsersData = [];
+                }
+                if (data.sync) {
+                    const cfg = { clientId: data.sync.clientId || '', apiKey: data.sync.apiKey || '' };
+                    localStorage.setItem('medbox_syncConfig', JSON.stringify(cfg));
+                }
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  إعدادات المزامنة (Client ID / API Key) ← localStorage
+        // ════════════════════════════════════════════════════════════════
+
+        function getSyncConfig() {
+            try { return JSON.parse(localStorage.getItem('medbox_syncConfig')) || {}; } catch(_) { return {}; }
+        }
+        function getSyncClientId() { return getSyncConfig().clientId || ''; }
+        function getSyncApiKey()   { return getSyncConfig().apiKey   || ''; }
+
+        function loadSyncSettingsToForm() {
+            const cfg = getSyncConfig();
+            document.getElementById('syncClientIdInput').value = cfg.clientId || '';
+            document.getElementById('syncApiKeyInput').value   = cfg.apiKey   || '';
+        }
+
+        function enableSyncSettingsEdit() {
+            ['syncClientIdInput','syncApiKeyInput'].forEach(id => {
+                document.getElementById(id).disabled = false;
+            });
+            document.getElementById('syncSettingsEditBtn').classList.add('hidden');
+            document.getElementById('syncSettingsSaveBtn').classList.remove('hidden');
+            document.getElementById('syncSettingsCancelBtn').classList.remove('hidden');
+        }
+
+        function saveSyncSettings() {
+            const cfg = {
+                clientId: document.getElementById('syncClientIdInput').value.trim(),
+                apiKey:   document.getElementById('syncApiKeyInput').value.trim(),
+            };
+            localStorage.setItem('medbox_syncConfig', JSON.stringify(cfg));
+            ['syncClientIdInput','syncApiKeyInput'].forEach(id => {
+                document.getElementById(id).disabled = true;
+            });
+            document.getElementById('syncSettingsEditBtn').classList.remove('hidden');
+            document.getElementById('syncSettingsSaveBtn').classList.add('hidden');
+            document.getElementById('syncSettingsCancelBtn').classList.add('hidden');
+            // إعادة تهيئة GAPI بـ API Key الجديد
+            gapiReady = false;
+            initGapi();
+            appendSyncLog('💾 تم حفظ إعدادات OAuth', 'success');
+            showToast('✅ تم حفظ إعدادات المزامنة', 'success');
+        }
+
+        function cancelSyncSettingsEdit() {
+            loadSyncSettingsToForm();
+            ['syncClientIdInput','syncApiKeyInput'].forEach(id => {
+                document.getElementById(id).disabled = true;
+            });
+            document.getElementById('syncSettingsEditBtn').classList.remove('hidden');
+            document.getElementById('syncSettingsSaveBtn').classList.add('hidden');
+            document.getElementById('syncSettingsCancelBtn').classList.add('hidden');
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  سجل المزامنة
+        // ════════════════════════════════════════════════════════════════
+
+        function appendSyncLog(msg, type = 'info') {
+            const container = document.getElementById('syncLogContainer');
+            if (!container) return;
+            // إزالة رسالة "لا توجد سجلات"
+            const empty = container.querySelector('p.italic');
+            if (empty) empty.remove();
+
+            const colors = { success:'text-green-700', error:'text-red-600', warn:'text-amber-600', info:'text-gray-600' };
+            const now = new Date().toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+            const row = document.createElement('div');
+            row.className = `flex items-start gap-2 text-xs py-1 border-b border-white/30 ${colors[type] || colors.info}`;
+            row.innerHTML = `<span class="text-gray-400 shrink-0 font-mono">${now}</span><span>${msg}</span>`;
+            container.insertBefore(row, container.firstChild);
+            // الاحتفاظ بآخر 50 سجل فقط
+            while (container.children.length > 50) container.removeChild(container.lastChild);
+        }
+
+        function clearSyncLog() {
+            const container = document.getElementById('syncLogContainer');
+            if (container) container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4">لا توجد سجلات بعد.</p>';
+        }
+
+        // ════════════════════════════════════════════════════════════════
+
         function showFirebaseSettings() {
             if (document.body.classList.contains('trainer-mode')) {
                 showToast('🔒 غير مسموح بالوصول إلى إعدادات Firebase', 'info');
