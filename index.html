@@ -11281,6 +11281,47 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </p>
                 </div>
 
+                <!-- المزامنة التلقائية -->
+                <div class="glass-element rounded-2xl p-5 mb-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                            <i class="ph ph-clock-clockwise text-primary text-lg"></i> المزامنة التلقائية
+                        </h3>
+                        <!-- Toggle Switch -->
+                        <button id="autoSyncToggleBtn" onclick="toggleAutoSync()"
+                            class="relative inline-flex items-center w-11 h-6 rounded-full transition-colors duration-300 focus:outline-none bg-gray-300"
+                            role="switch" aria-checked="false">
+                            <span id="autoSyncToggleKnob"
+                                class="inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-300 translate-x-1"></span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-3">
+                        عند التفعيل، يُرفع نسخ احتياطي تلقائياً إلى Google Drive بالفترة المحددة — يستلزم تسجيل الدخول بـ Google أولاً.
+                    </p>
+                    <!-- فترة المزامنة -->
+                    <div id="autoSyncIntervalRow" class="flex items-center gap-3 opacity-40 pointer-events-none transition-opacity duration-300">
+                        <label class="text-xs font-semibold text-gray-600 shrink-0">الفترة:</label>
+                        <select id="autoSyncIntervalSelect" onchange="saveAutoSyncSettings()"
+                            class="glass-panel flex-1 px-3 py-2 rounded-lg text-xs outline-none">
+                            <option value="3600000">كل ساعة</option>
+                            <option value="10800000">كل 3 ساعات</option>
+                            <option value="21600000" selected>كل 6 ساعات</option>
+                            <option value="86400000">كل يوم</option>
+                        </select>
+                    </div>
+                    <!-- معلومات آخر مزامنة تلقائية -->
+                    <div id="autoSyncStatusRow" class="mt-3 hidden">
+                        <p class="text-xs text-gray-400 flex items-center gap-1.5">
+                            <i class="ph ph-check-circle text-green-500"></i>
+                            آخر مزامنة تلقائية: <span id="autoSyncLastTime" class="font-medium text-gray-600">—</span>
+                        </p>
+                        <p class="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
+                            <i class="ph ph-timer text-primary"></i>
+                            المزامنة القادمة: <span id="autoSyncNextTime" class="font-medium text-gray-600">—</span>
+                        </p>
+                    </div>
+                </div>
+
                 <!-- سجل المزامنة -->
                 <div class="glass-element rounded-2xl p-5">
                     <div class="flex items-center justify-between mb-3">
@@ -11410,6 +11451,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
                 <!-- المحتوى يُحقن بواسطة renderTraineeProfile() أو renderTrainerProfile() -->
                 <div id="traineeProfileBody" class="flex-1"></div>
+            </div>
+
+            <!-- ط. نظام الامتحانات (EMS View) -->
+            <div id="examinationView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                    <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
+                        <i class="ph ph-exam"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 id="examinationViewTitle" class="text-xl font-bold text-gray-800">نظام الامتحانات</h2>
+                        <p id="examinationViewSubtitle" class="text-xs text-gray-400">إدارة الامتحانات والأسئلة</p>
+                    </div>
+                    <div id="examinationViewActions" class="flex items-center gap-1"></div>
+                </div>
+                <div id="examinationViewBody" class="flex-1"></div>
             </div>
 
             <!-- ح. عرض سجل المدربين (Trainers Registry View) - مخفي افتراضياً -->
@@ -12096,7 +12152,17 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     currentUser = { uid, email, role: 'admin', displayName: email.split('@')[0] };
                 } else {
                     const data = userDoc.data();
-                    currentUser = { uid, email, role: data.role || 'trainee', displayName: data.displayName || data.name || email.split('@')[0], ...data };
+                    // توحيد قيمة role (إزالة المسافات وتجاهل الأحرف الكبيرة/الصغيرة)
+                    // لتفادي مشاكل عدم ظهور صلاحيات المدير بسبب قيمة مكتوبة بشكل
+                    // مختلف قليلاً في Firestore مثل " Admin" أو "ADMIN"
+                    const rawRole = (data.role || 'trainee');
+                    const normalizedRole = String(rawRole).trim().toLowerCase();
+                    currentUser = { uid, email, displayName: data.displayName || data.name || email.split('@')[0], ...data, role: normalizedRole };
+                    // تشخيص: إن كانت قيمة role في Firestore غير مطابقة تماماً
+                    // لإحدى القيم admin/trainer/trainee، نطبع تنبيهاً في الـ console
+                    if (!['admin','trainer','trainee'].includes(normalizedRole)) {
+                        console.warn(`⚠️ قيمة role غير معروفة في Firestore لهذا المستخدم: "${rawRole}" — يجب أن تكون بالضبط واحدة من: admin / trainer / trainee (بالإنجليزية وبأحرف صغيرة). تم التعامل معها كـ "${normalizedRole}".`);
+                    }
                 }
 
                 setLoginLoading(false);
@@ -12169,16 +12235,28 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 setLoginLoading(false);
 
                 if (verified) {
-                    // دمج بيانات appUser (الدور، الصلاحيات، الاسم) مع الجلسة الحالية
+                    // دمج بيانات appUser (الاسم والصلاحيات التفصيلية) مع الجلسة
+                    // الحالية — لكن مع الحفاظ على "دور الوصول" الحقيقي
+                    // (admin/trainer/trainee) القادم من مجموعة users في
+                    // Firestore، لأن role في appUsers هو مجرد "صفة وظيفية"
+                    // عربية (مدير/سكرتارية/مشرف...) لا تعني بالضرورة صلاحية
+                    // المدير الكاملة، واستخدامها هنا كان يُسقِط صلاحية
+                    // المدير الحقيقي بالخطأ بعد إتمام تسجيل الدخول
+                    const accessRoleBeforeMerge = currentUser.role;
                     currentUser = {
                         ...currentUser,
                         appUid: matchedUser.uid,
                         username: matchedUser.username,
                         fullName: matchedUser.fullName,
                         displayName: matchedUser.fullName || matchedUser.username,
-                        role: matchedUser.role || currentUser.role,
+                        jobTitle: matchedUser.role || '', // الصفة الوظيفية (عرض فقط)
                         permissions: matchedUser.permissions || {},
+                        // role يبقى كما حُدِّد من مجموعة users (admin/trainer/trainee)
                     };
+                    console.log(`✅ تسجيل الدخول مكتمل — دور الوصول: "${currentUser.role}" (الصفة الوظيفية: "${currentUser.jobTitle || '—'}")`);
+                    if (accessRoleBeforeMerge !== currentUser.role) {
+                        console.warn(`⚠️ تغيّر دور الوصول بشكل غير متوقع بعد المرحلة الثانية من تسجيل الدخول: كان "${accessRoleBeforeMerge}" وأصبح "${currentUser.role}"`);
+                    }
                     enterApp();
                 } else {
                     showLoginStep2Error('اسم المستخدم أو كلمة الدخول غير صحيحة');
@@ -12834,7 +12912,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView'];
+        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -13659,16 +13737,18 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         let selectedRestoreSet = null; // مجموعة الملفات المختارة للاستعادة
 
         // ── عرض صفحة المزامنة ────────────────────────────────────────────
-        function showSyncView() {
+        async function showSyncView() {
             if (document.body.classList.contains('trainer-mode')) {
                 showToast('🔒 غير مسموح بالوصول لهذا القسم', 'info');
                 return;
             }
-            loadSyncSettingsToForm();
             showView('syncView');
             closeSidebar();
             // تحميل GAPI إذا لم يكن جاهزاً
             if (!gapiReady) initGapi();
+            // تحميل الإعدادات من Firebase والواجهة
+            await loadSyncSettingsToForm();
+            await initAutoSyncUI();
         }
 
         // ── تحميل GAPI ───────────────────────────────────────────────────
@@ -13728,6 +13808,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     fetchGoogleUserInfo(driveToken);
                     setDriveSignedIn(true);
                     appendSyncLog('✅ تم تسجيل الدخول بـ Google بنجاح', 'success');
+                    // إعادة تشغيل المزامنة التلقائية إن كانت مفعّلة
+                    const autoSyncCfg = getAutoSyncSettings();
+                    if (autoSyncCfg.enabled) { startAutoSyncTimer(); appendSyncLog('🔄 استُؤنفت المزامنة التلقائية', 'success'); }
                 },
             });
             tokenClient.requestAccessToken();
@@ -13750,6 +13833,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             gapi.client.setToken(null);
             setDriveSignedIn(false);
             appendSyncLog('🔓 تم تسجيل الخروج من Google', 'info');
+            // إيقاف المزامنة التلقائية عند تسجيل الخروج
+            stopAutoSyncTimer();
         }
 
         function setDriveSignedIn(yes) {
@@ -14034,22 +14119,50 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 if (data.sync) {
                     const cfg = { clientId: data.sync.clientId || '', apiKey: data.sync.apiKey || '' };
                     localStorage.setItem('medbox_syncConfig', JSON.stringify(cfg));
+                    _syncConfigCache = cfg;
+                    if (db) {
+                        try { await db.collection('appSettings').doc('syncConfig').set(cfg, { merge: true }); } catch(_) {}
+                    }
                 }
             }
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  إعدادات المزامنة (Client ID / API Key) ← localStorage
+        //  إعدادات المزامنة (Client ID / API Key) ← Firestore + localStorage fallback
         // ════════════════════════════════════════════════════════════════
 
+        // ── ذاكرة مؤقتة لتجنّب الطلبات المتكررة ──
+        let _syncConfigCache = null;
+
+        // قراءة الإعدادات: Firestore أولاً، ثم localStorage كـ fallback
+        async function fetchSyncConfig() {
+            if (db) {
+                try {
+                    const snap = await db.collection('appSettings').doc('syncConfig').get();
+                    if (snap.exists) {
+                        _syncConfigCache = snap.data();
+                        localStorage.setItem('medbox_syncConfig', JSON.stringify(_syncConfigCache));
+                        return _syncConfigCache;
+                    }
+                } catch(_) {}
+            }
+            // fallback: localStorage
+            try { _syncConfigCache = JSON.parse(localStorage.getItem('medbox_syncConfig')) || {}; }
+            catch(_) { _syncConfigCache = {}; }
+            return _syncConfigCache;
+        }
+
+        // نسخة متزامنة (للحالات التي لا تدعم await) — تقرأ من الذاكرة أو localStorage
         function getSyncConfig() {
+            if (_syncConfigCache) return _syncConfigCache;
             try { return JSON.parse(localStorage.getItem('medbox_syncConfig')) || {}; } catch(_) { return {}; }
         }
         function getSyncClientId() { return getSyncConfig().clientId || ''; }
         function getSyncApiKey()   { return getSyncConfig().apiKey   || ''; }
 
-        function loadSyncSettingsToForm() {
-            const cfg = getSyncConfig();
+        // تحميل الإعدادات إلى النموذج (async — تقرأ من Firestore)
+        async function loadSyncSettingsToForm() {
+            const cfg = await fetchSyncConfig();
             document.getElementById('syncClientIdInput').value = cfg.clientId || '';
             document.getElementById('syncApiKeyInput').value   = cfg.apiKey   || '';
         }
@@ -14063,12 +14176,23 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             document.getElementById('syncSettingsCancelBtn').classList.remove('hidden');
         }
 
-        function saveSyncSettings() {
+        async function saveSyncSettings() {
             const cfg = {
                 clientId: document.getElementById('syncClientIdInput').value.trim(),
                 apiKey:   document.getElementById('syncApiKeyInput').value.trim(),
             };
+            // حفظ في localStorage دائماً (fallback سريع)
             localStorage.setItem('medbox_syncConfig', JSON.stringify(cfg));
+            _syncConfigCache = cfg;
+            // حفظ في Firestore إن كان متاحاً
+            if (db) {
+                try {
+                    await db.collection('appSettings').doc('syncConfig').set(cfg, { merge: true });
+                    appendSyncLog('☁️ تم حفظ إعدادات OAuth في Firebase', 'success');
+                } catch(e) {
+                    appendSyncLog('⚠️ تعذّر الحفظ في Firebase: ' + e.message, 'warn');
+                }
+            }
             ['syncClientIdInput','syncApiKeyInput'].forEach(id => {
                 document.getElementById(id).disabled = true;
             });
@@ -14078,7 +14202,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             // إعادة تهيئة GAPI بـ API Key الجديد
             gapiReady = false;
             initGapi();
-            appendSyncLog('💾 تم حفظ إعدادات OAuth', 'success');
             showToast('✅ تم حفظ إعدادات المزامنة', 'success');
         }
 
@@ -14116,6 +14239,165 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function clearSyncLog() {
             const container = document.getElementById('syncLogContainer');
             if (container) container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4">لا توجد سجلات بعد.</p>';
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  المزامنة التلقائية – Auto Sync
+        // ════════════════════════════════════════════════════════════════
+
+        let autoSyncTimer = null;
+
+        // ── ذاكرة مؤقتة للمزامنة التلقائية ──
+        let _autoSyncCache = null;
+
+        // قراءة إعدادات المزامنة التلقائية: Firestore أولاً ثم localStorage
+        async function fetchAutoSyncSettings() {
+            if (db) {
+                try {
+                    const snap = await db.collection('appSettings').doc('autoSync').get();
+                    if (snap.exists) {
+                        _autoSyncCache = snap.data();
+                        localStorage.setItem('medbox_autoSync', JSON.stringify(_autoSyncCache));
+                        return _autoSyncCache;
+                    }
+                } catch(_) {}
+            }
+            try { _autoSyncCache = JSON.parse(localStorage.getItem('medbox_autoSync')) || { enabled: false, interval: 21600000 }; }
+            catch(_) { _autoSyncCache = { enabled: false, interval: 21600000 }; }
+            return _autoSyncCache;
+        }
+
+        // نسخة متزامنة (تقرأ من الذاكرة أو localStorage)
+        function getAutoSyncSettings() {
+            if (_autoSyncCache) return _autoSyncCache;
+            try { return JSON.parse(localStorage.getItem('medbox_autoSync')) || { enabled: false, interval: 21600000 }; }
+            catch(_) { return { enabled: false, interval: 21600000 }; }
+        }
+
+        // حفظ إعدادات المزامنة التلقائية في Firestore + localStorage
+        async function persistAutoSyncSettings(cfg) {
+            _autoSyncCache = cfg;
+            localStorage.setItem('medbox_autoSync', JSON.stringify(cfg));
+            if (db) {
+                try { await db.collection('appSettings').doc('autoSync').set(cfg, { merge: true }); }
+                catch(_) {}
+            }
+        }
+
+        // حفظ إعدادات المزامنة التلقائية (يُستدعى من onchange قائمة الفترة)
+        function saveAutoSyncSettings() {
+            const interval = parseInt(document.getElementById('autoSyncIntervalSelect').value);
+            const cfg = getAutoSyncSettings();
+            cfg.interval = interval;
+            persistAutoSyncSettings(cfg);
+            if (cfg.enabled) {
+                startAutoSyncTimer();
+                updateAutoSyncNextTime();
+            }
+        }
+
+        // تبديل حالة المزامنة التلقائية (تشغيل/إيقاف)
+        async function toggleAutoSync() {
+            const cfg = getAutoSyncSettings();
+            cfg.enabled = !cfg.enabled;
+            // تحديث الفترة من القائمة
+            const sel = document.getElementById('autoSyncIntervalSelect');
+            if (sel) cfg.interval = parseInt(sel.value);
+            if (cfg.enabled) {
+                if (!driveToken) {
+                    showToast('⚠️ سجّل الدخول بـ Google أولاً لتفعيل المزامنة التلقائية', 'warn');
+                    cfg.enabled = false;
+                    await persistAutoSyncSettings(cfg);
+                    applyAutoSyncUI(false);
+                    return;
+                }
+                await persistAutoSyncSettings(cfg);
+                applyAutoSyncUI(true);
+                startAutoSyncTimer();
+                appendSyncLog('🔄 تم تفعيل المزامنة التلقائية', 'success');
+                showToast('✅ المزامنة التلقائية مفعّلة', 'success');
+            } else {
+                await persistAutoSyncSettings(cfg);
+                applyAutoSyncUI(false);
+                stopAutoSyncTimer();
+                appendSyncLog('⏹️ تم إيقاف المزامنة التلقائية', 'info');
+                showToast('🔕 تم إيقاف المزامنة التلقائية', 'info');
+            }
+        }
+
+        // تحديث واجهة Toggle
+        function applyAutoSyncUI(enabled) {
+            const btn   = document.getElementById('autoSyncToggleBtn');
+            const knob  = document.getElementById('autoSyncToggleKnob');
+            const row   = document.getElementById('autoSyncIntervalRow');
+            const status = document.getElementById('autoSyncStatusRow');
+            if (!btn) return;
+            if (enabled) {
+                btn.classList.replace('bg-gray-300', 'bg-primary');
+                knob.classList.replace('translate-x-1', 'translate-x-6');
+                btn.setAttribute('aria-checked', 'true');
+                row.classList.remove('opacity-40', 'pointer-events-none');
+                status.classList.remove('hidden');
+                updateAutoSyncNextTime();
+            } else {
+                btn.classList.replace('bg-primary', 'bg-gray-300');
+                knob.classList.replace('translate-x-6', 'translate-x-1');
+                btn.setAttribute('aria-checked', 'false');
+                row.classList.add('opacity-40', 'pointer-events-none');
+                status.classList.add('hidden');
+            }
+        }
+
+        // تحديث وقت المزامنة القادمة
+        function updateAutoSyncNextTime() {
+            const cfg = getAutoSyncSettings();
+            const nextEl = document.getElementById('autoSyncNextTime');
+            if (!nextEl) return;
+            const nextMs = Date.now() + cfg.interval;
+            nextEl.textContent = new Date(nextMs).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // بدء المؤقت
+        function startAutoSyncTimer() {
+            stopAutoSyncTimer();
+            const cfg = getAutoSyncSettings();
+            autoSyncTimer = setInterval(async () => {
+                if (!driveToken) {
+                    appendSyncLog('⚠️ المزامنة التلقائية: انتهت جلسة Google — يرجى تسجيل الدخول مجدداً', 'warn');
+                    stopAutoSyncTimer();
+                    const c = getAutoSyncSettings(); c.enabled = false;
+                    await persistAutoSyncSettings(c);
+                    applyAutoSyncUI(false);
+                    return;
+                }
+                appendSyncLog('🔄 بدأت المزامنة التلقائية...', 'info');
+                await driveBackupAll();
+                // تسجيل آخر مزامنة
+                const now = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+                const lastEl = document.getElementById('autoSyncLastTime');
+                if (lastEl) lastEl.textContent = now;
+                const cfg2 = getAutoSyncSettings();
+                cfg2.lastSync = Date.now();
+                await persistAutoSyncSettings(cfg2);
+                updateAutoSyncNextTime();
+            }, cfg.interval);
+        }
+
+        // إيقاف المؤقت
+        function stopAutoSyncTimer() {
+            if (autoSyncTimer) { clearInterval(autoSyncTimer); autoSyncTimer = null; }
+        }
+
+        // تهيئة حالة المزامنة التلقائية عند فتح صفحة المزامنة
+        async function initAutoSyncUI() {
+            const cfg = await fetchAutoSyncSettings();
+            const sel = document.getElementById('autoSyncIntervalSelect');
+            if (sel) sel.value = String(cfg.interval || 21600000);
+            applyAutoSyncUI(cfg.enabled);
+            if (cfg.lastSync) {
+                const lastEl = document.getElementById('autoSyncLastTime');
+                if (lastEl) lastEl.textContent = new Date(cfg.lastSync).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -15394,6 +15676,100 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
 
 
+        // بناء HTML بطاقة "الامتحانات المسجلة" لهذه الدورة — تُعرض فوق
+        // جدول الدرجات الشامل مباشرة. تعرض كل الامتحانات (EMS) المرتبطة
+        // بهذه الدورة سواء كانت دورة "مرساة" (courseKey) أو من ضمن دورات
+        // أخرى مشمولة في نفس الامتحان (courseKeys)
+        function buildCourseExamsCardHTML(programKey, course) {
+            const containerId = `courseExamsCard-${course.key}`;
+
+            // تحميل الامتحان من الذاكرة المؤقتة لـ EMS إن وُجد، وإن لم يكن
+            // محمّلاً بعد نطلبه من Firestore بشكل غير متزامن ثم نعيد رسم
+            // البطاقة فقط دون إعادة رسم كل تفاصيل الدورة
+            const exam = (typeof getCachedExam === 'function') ? getCachedExam(programKey, course.key) : null;
+
+            if (!exam && typeof emsExamCache !== 'undefined' && typeof emsLoadExam === 'function') {
+                const cacheKey = `${programKey}__${course.key}`;
+                if (!(cacheKey in emsExamCache)) {
+                    emsLoadExam(programKey, course.key).then(() => {
+                        const el = document.getElementById(containerId);
+                        if (el) el.outerHTML = buildCourseExamsCardHTML(programKey, course);
+                    });
+                }
+            }
+
+            const canManage = (typeof canCreateExam === 'function') ? canCreateExam(course) : false;
+
+            if (!exam) {
+                return `
+                <div class="glass-element rounded-xl p-5" id="${containerId}">
+                    <h3 class="font-bold text-base mb-2 text-primary flex items-center gap-2">
+                        <i class="ph ph-exam"></i> الامتحانات المسجلة
+                    </h3>
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="ph ph-exam text-3xl block mb-2 text-gray-300"></i>
+                        <p class="text-sm">لا يوجد امتحان مسجَّل لهذه الدورة بعد</p>
+                        ${canManage ? `
+                        <button onclick="emsCurrentCourseKey='${course.key}'; emsShowDesigner('${programKey}','${course.key}')"
+                            class="mt-3 glass-icon-btn px-4 py-2 rounded-xl text-xs font-semibold text-primary inline-flex items-center gap-1.5 hover:bg-primary/10 hover:border-primary/40">
+                            <i class="ph ph-plus-circle"></i> إنشاء امتحان
+                        </button>` : ''}
+                    </div>
+                </div>`;
+            }
+
+            const typeInfo = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
+            const qCount    = exam.questions?.length || 0;
+            const totalMark = exam.totalMark || 0;
+            const coveredCourses = exam.courseKeys && exam.courseKeys.length ? exam.courseKeys : [course.key];
+            const program = programsData[programKey];
+            const coveredLabels = coveredCourses.map(k => {
+                const c = (program?.courses || []).find(cc => cc.key === k);
+                return c ? (c.code || c.key) : k;
+            });
+
+            return `
+            <div class="glass-element rounded-xl p-5" id="${containerId}">
+                <h3 class="font-bold text-base mb-3 text-primary flex items-center gap-2">
+                    <i class="ph ph-exam"></i> الامتحانات المسجلة
+                </h3>
+                <div class="glass-panel rounded-xl p-4 flex items-center gap-4 hover:border-primary/40 transition-all">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-primary/10 border border-primary/30">
+                        <i class="ph ${typeInfo.icon} text-primary text-xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-sm text-gray-800">${typeInfo.ar}</p>
+                        <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${qCount} سؤال</span>
+                            <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${totalMark} علامة</span>
+                            ${exam.duration ? `<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${exam.duration} دقيقة</span>` : ''}
+                            ${exam.examDate ? `<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full" dir="ltr">${exam.examDate}${exam.examTime ? ' · ' + exam.examTime : ''}</span>` : ''}
+                        </div>
+                        ${coveredCourses.length > 1 ? `<p class="text-[10px] text-gray-400 mt-1">يشمل دورات: ${coveredLabels.join('، ')}</p>` : ''}
+                    </div>
+                    <div class="flex gap-1 shrink-0">
+                        <button onclick="emsCurrentCourseKey='${course.key}'; emsShowExamViewer('${programKey}','${course.key}', getCachedExam('${programKey}','${course.key}'))"
+                            class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 hover:border-primary/40" title="عرض">
+                            <i class="ph ph-eye text-sm"></i>
+                        </button>
+                        ${canManage ? `
+                        <button onclick="emsCurrentCourseKey='${course.key}'; emsShowDesigner('${programKey}','${course.key}', getCachedExam('${programKey}','${course.key}'))"
+                            class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
+                            <i class="ph ph-pencil-simple text-sm"></i>
+                        </button>
+                        <button onclick="emsConfirmDeleteExam('${programKey}','${course.key}')"
+                            class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
+                            <i class="ph ph-trash text-sm"></i>
+                        </button>` : ''}
+                        <button onclick="emsPrintExam('${programKey}','${course.key}')"
+                            class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100" title="طباعة">
+                            <i class="ph ph-printer text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
         // بناء HTML جدول الدرجات الشامل - المرحلة 3
         function buildGradesTableHTML(programKey, course) {
             const cfg      = course.assessmentConfig || {};
@@ -16004,6 +16380,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 <!-- جدول التقييم — عرض كامل -->
                 ${buildAssessmentSetupHTML(programKey, course)}
 
+                <!-- بطاقة الامتحانات المسجلة — فوق جدول الدرجات الشامل مباشرة -->
+                ${buildCourseExamsCardHTML(programKey, course)}
+
                 <!-- جدول الدرجات الشامل — عرض كامل -->
                 ${buildGradesTableHTML(programKey, course)}
 
@@ -16085,6 +16464,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         ${hasPermission('deleteProgram') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف البرنامج" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash text-sm"></i></button>` : ''}
                         ${hasPermission('addCourse') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="إضافة دورة جديدة" onclick="addCourse('${programKey}')"><i class="ph ph-plus text-sm"></i></button>` : ''}
                         <button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="عرض رمز QR" onclick="openProgramQRModal('${programKey}')"><i class="ph ph-qr-code text-sm"></i></button>
+                        ${canCreateExamForProgram(programKey) ? `<button id="examPrgBtn_${programKey}" class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 hover:border-primary/40" title="${getProgramExamBtnLabel(programKey)}" onclick="handleProgramExamBtnClick('${programKey}')"><i class="ph ${getProgramExamBtnIcon(programKey)} text-sm"></i></button>` : ''}
                     </span>
                 ` : '';
             }
@@ -16101,6 +16481,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         ${hasPermission('deleteProgram') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center justify-center gap-1.5 hover:bg-red-50 hover:border-red-300" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash"></i> حذف</button>` : ''}
                         ${hasPermission('addCourse') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300" onclick="addCourse('${programKey}')"><i class="ph ph-plus"></i> إضافة دورة</button>` : ''}
                         <button class="glass-icon-btn w-9 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center hover:bg-primary/10" title="عرض رمز QR" onclick="openProgramQRModal('${programKey}')"><i class="ph ph-qr-code"></i></button>
+                        ${canCreateExamForProgram(programKey) ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10 hover:border-primary/40" onclick="handleProgramExamBtnClick('${programKey}')"><i class="ph ${getProgramExamBtnIcon(programKey)}"></i> ${getProgramExamBtnLabel(programKey)}</button>` : ''}
                     </div>` : ''}
                     <!-- بطاقة معلومات البرنامج -->
                     <div class="glass-element rounded-xl p-5">
@@ -20321,6 +20702,1128 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         ═══════════════════════════════════════════════════════════════
         */
 
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════
+         EMS — Examination Management System
+         نظام إدارة الامتحانات
+    ════════════════════════════════════════════════════════ -->
+    <script>
+    // ─── حالة EMS ───────────────────────────────────────────
+    let emsCurrentProgramKey = null;
+    let emsCurrentCourseKey  = null;
+    let emsExamCache         = {};   // { "programKey__courseKey": examDoc }
+    let emsEditingExamId     = null; // معرّف الامتحان أثناء التعديل
+    let emsQuestions         = [];   // قائمة الأسئلة الحالية أثناء التصميم
+
+    // أنواع الامتحانات
+    const EXAM_TYPES = [
+        { key: 'quiz',    ar: 'مذاكرة',      icon: 'ph-book-open-text',   color: 'blue'   },
+        { key: 'exam',    ar: 'فحص',          icon: 'ph-exam',             color: 'indigo' },
+        { key: 'eval',    ar: 'تقييم',        icon: 'ph-star',             color: 'amber'  },
+        { key: 'midterm', ar: 'نصف مرحلة',   icon: 'ph-divide',           color: 'orange' },
+        { key: 'final',   ar: 'نهائي',        icon: 'ph-trophy',           color: 'red'    },
+    ];
+
+    // أنواع الأسئلة
+    const QUESTION_TYPES = [
+        { key: 'tf',       ar: 'صح / خطأ',              icon: 'ph-check-circle'     },
+        { key: 'mcq',      ar: 'اختيار من متعدد',        icon: 'ph-list-bullets'     },
+        { key: 'enum',     ar: 'تعداد',                  icon: 'ph-list-numbers'     },
+        { key: 'essay',    ar: 'شرح (مقالي)',             icon: 'ph-article'          },
+        { key: 'match',    ar: 'وصل (Matching)',          icon: 'ph-arrows-left-right'},
+    ];
+
+    // ─── مساعدات ─────────────────────────────────────────────
+    function emsKey(pk, ck) { return `${pk}__${ck}`; }
+
+    // قراءة دور المستخدم الحالي بشكل موحّد (يتجاهل المسافات واختلاف الأحرف
+    // الكبيرة/الصغيرة، فبعض حسابات Firestore قد تُخزَّن بقيمة role مكتوبة
+    // بشكل مختلف قليلاً مثل " Admin" أو "ADMIN")
+    function emsCurrentRole() {
+        if (!currentUser) return '';
+        return String(currentUser.role || '').trim().toLowerCase();
+    }
+
+    // هل المستخدم الحالي مدير؟ (صلاحية كاملة على جميع البرامج والدورات)
+    function emsIsAdmin() {
+        return emsCurrentRole() === 'admin';
+    }
+
+    // هل المستخدم الحالي مدرب؟
+    function emsIsTrainer() {
+        return emsCurrentRole() === 'trainer';
+    }
+
+    // اسم المدرب الحالي كما هو مخزّن في حساب المستخدم
+    function emsCurrentTrainerName() {
+        if (!currentUser) return '';
+        return currentUser.name || currentUser.displayName || '';
+    }
+
+    // هل المدرب الحالي مسجّل كمدرب أساسي لهذه الدورة؟
+    function emsIsMainTrainerOfCourse(course) {
+        if (!course) return false;
+        const name = emsCurrentTrainerName();
+        if (!name) return false;
+        return !!(course.mainTrainer && course.mainTrainer.includes(name));
+    }
+
+    // إنشاء امتحان لدورة واحدة محددة: مدير = صلاحية كاملة دائماً،
+    // مدرب = فقط إن كان مسجلاً كمدرب أساسي لهذه الدورة بالتحديد
+    function canCreateExam(course) {
+        if (!currentUser) return false;
+        if (emsIsAdmin()) return true;
+        if (emsIsTrainer()) return emsIsMainTrainerOfCourse(course);
+        return false;
+    }
+
+    // زر الامتحان على مستوى البرنامج: يظهر للمدير دائماً (كل البرامج)،
+    // ويظهر للمدرب فقط إذا كان مسجلاً كمدرب أساسي في دورة واحدة على الأقل
+    // من دورات هذا البرنامج
+    function canCreateExamForProgram(programKey) {
+        if (!currentUser) return false;
+        if (emsIsAdmin()) return true;
+        if (emsIsTrainer()) {
+            const program = programsData[programKey];
+            if (!program) return false;
+            // المدرب الأساسي في أي دورة من البرنامج
+            return (program.courses || []).some(c => emsIsMainTrainerOfCourse(c));
+        }
+        return false;
+    }
+
+    // قائمة الدورات التي يحق للمستخدم الحالي إنشاء/إدارة امتحان لها داخل
+    // برنامج معيّن: المدير يرى كل الدورات، والمدرب يرى فقط الدورات التي
+    // هو مسجّل فيها كمدرب أساسي (يتم تجاهل الدورات الأخرى تماماً)
+    function emsAllowedCoursesForProgram(programKey) {
+        const program = programsData[programKey];
+        if (!program) return [];
+        const allCourses = program.courses || [];
+        if (emsIsAdmin()) return allCourses;
+        if (emsIsTrainer()) return allCourses.filter(c => emsIsMainTrainerOfCourse(c));
+        return [];
+    }
+
+    function getCachedExam(pk, ck) {
+        return emsExamCache[emsKey(pk, ck)] || null;
+    }
+
+    function getExamBtnIcon(pk, ck) {
+        return getCachedExam(pk, ck) ? 'ph-eye' : 'ph-plus-circle';
+    }
+
+    function getExamBtnLabel(pk, ck) {
+        return getCachedExam(pk, ck) ? 'عرض الامتحان' : 'إنشاء امتحان';
+    }
+
+    // ─── مساعدات على مستوى البرنامج ──────────────────────────
+    function getProgramExamBtnIcon(pk) {
+        // إن كان هناك امتحان لأي دورة مسموحة للمستخدم الحالي في هذا البرنامج
+        const allowedCourses = emsAllowedCoursesForProgram(pk);
+        const hasSome = allowedCourses.some(c => getCachedExam(pk, c.key));
+        return hasSome ? 'ph-exam' : 'ph-plus-circle';
+    }
+
+    function getProgramExamBtnLabel(pk) {
+        const allowedCourses = emsAllowedCoursesForProgram(pk);
+        const hasSome = allowedCourses.some(c => getCachedExam(pk, c.key));
+        return hasSome ? 'الامتحانات' : 'إنشاء امتحان';
+    }
+
+    async function handleProgramExamBtnClick(pk) {
+        emsCurrentProgramKey = pk;
+        emsCurrentCourseKey  = null;
+        const program = programsData[pk];
+        if (!program) return;
+
+        // الدورات المسموح للمستخدم الحالي التعامل مع امتحاناتها فقط
+        // (المدير: كل الدورات — المدرب: فقط الدورات المسجل فيها كمدرب أساسي)
+        const allowedCourses = emsAllowedCoursesForProgram(pk);
+        if (allowedCourses.length === 0) {
+            showToast?.('⛔ لا توجد دورات مسجل فيها كمدرب أساسي ضمن هذا البرنامج', 'error');
+            return;
+        }
+
+        // تحميل امتحانات الدورات المسموحة فقط
+        await Promise.all(allowedCourses.map(c => emsLoadExam(pk, c.key)));
+
+        // إن وُجد امتحان واحد محفوظ مسبقاً يشمل إحدى هذه الدورات، نعرضه مباشرة،
+        // وإلا — وهي الحالة الافتراضية لزر "إنشاء امتحان" — نفتح نافذة
+        // تصميم الامتحان فوراً دون عرض قائمة اختيار الدورة أولاً
+        const existingExam = allowedCourses
+            .map(c => getCachedExam(pk, c.key))
+            .find(e => !!e);
+
+        if (existingExam) {
+            emsCurrentCourseKey = existingExam.courseKey || allowedCourses[0].key;
+            emsShowExamViewer(pk, emsCurrentCourseKey, existingExam);
+        } else {
+            emsShowDesigner(pk, null);
+        }
+    }
+
+    // ─── قائمة امتحانات البرنامج (تُستخدم كزر "رجوع" من المصمم/العارض،
+    // وأيضاً عند وجود أكثر من امتحان واحد ضمن دورات مختلفة بالبرنامج) ───
+    function emsShowProgramExamSelector(pk) {
+        const program = programsData[pk];
+        if (!program) return;
+        showView('examinationView');
+        document.getElementById('examinationViewTitle').textContent = 'امتحانات البرنامج';
+        document.getElementById('examinationViewSubtitle').textContent = program.title || '';
+        document.getElementById('examinationViewActions').innerHTML = `
+            <button onclick="showProgramDetails('${pk}')"
+              class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100" title="رجوع">
+              <i class="ph ph-arrow-right text-sm"></i>
+            </button>`;
+
+        // الدورات المسموحة فقط (المدير: الكل — المدرب: دوراته الأساسية فقط)
+        const courses = emsAllowedCoursesForProgram(pk);
+        if (courses.length === 0) {
+            document.getElementById('examinationViewBody').innerHTML = `
+            <div class="text-center py-16 text-gray-400">
+              <i class="ph ph-graduation-cap text-4xl block mb-3 text-gray-300"></i>
+              <p>لا توجد دورات متاحة لك في هذا البرنامج</p>
+            </div>`;
+            return;
+        }
+
+        document.getElementById('examinationViewBody').innerHTML = `
+        <div class="space-y-4 pb-10">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs text-gray-500">امتحانات الدورات المتاحة لك في هذا البرنامج:</p>
+            <button onclick="emsShowDesigner('${pk}', null)"
+              class="glass-icon-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 hover:border-primary/40">
+              <i class="ph ph-plus-circle"></i> إنشاء امتحان جديد
+            </button>
+          </div>
+          ${courses.map(c => {
+            const exam = getCachedExam(pk, c.key);
+            const typeInfo = exam ? (EXAM_TYPES.find(t=>t.key===exam.examType)||EXAM_TYPES[0]) : null;
+            if (!exam) return ''; // لا نعرض دورة دون امتحان هنا — زر الإنشاء أعلى القائمة
+            return `
+            <div class="glass-panel rounded-xl p-4 flex items-center gap-4 hover:border-primary/40 transition-all">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-primary/10 border border-primary/30">
+                <i class="ph ph-exam text-primary text-xl"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-bold text-sm text-gray-800">${c.code || c.key}</p>
+                <p class="text-xs text-gray-400">${c.mainTrainer || '—'}</p>
+                <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold mt-1 inline-block">${typeInfo?.ar||''} · ${exam.questions?.length||0} سؤال · ${exam.totalMark||0} علامة</span>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button onclick="emsCurrentCourseKey='${c.key}'; emsShowExamViewer('${pk}','${c.key}', getCachedExam('${pk}','${c.key}'))"
+                  class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 hover:border-primary/40" title="عرض">
+                  <i class="ph ph-eye text-sm"></i>
+                </button>
+                <button onclick="emsCurrentCourseKey='${c.key}'; emsShowDesigner('${pk}','${c.key}', getCachedExam('${pk}','${c.key}'))"
+                  class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
+                  <i class="ph ph-pencil-simple text-sm"></i>
+                </button>
+                <button onclick="emsConfirmDeleteExam('${pk}','${c.key}')"
+                  class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
+                  <i class="ph ph-trash text-sm"></i>
+                </button>
+                <button onclick="emsPrintExam('${pk}','${c.key}')"
+                  class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100" title="طباعة">
+                  <i class="ph ph-printer text-sm"></i>
+                </button>
+              </div>
+            </div>`;
+          }).join('') || `
+            <div class="text-center py-12 text-gray-400">
+              <i class="ph ph-exam text-3xl block mb-2 text-gray-300"></i>
+              <p class="text-sm">لا توجد امتحانات محفوظة بعد — استخدم زر "إنشاء امتحان جديد" أعلاه</p>
+            </div>`}
+        </div>`;
+    }
+
+    async function handleExamBtnClick(pk, ck) {
+        emsCurrentProgramKey = pk;
+        emsCurrentCourseKey  = ck;
+        // تحميل بيانات الامتحان إن لم تكن محمّلة
+        if (!emsExamCache[emsKey(pk,ck)]) {
+            await emsLoadExam(pk, ck);
+        }
+        const exam = getCachedExam(pk, ck);
+        if (exam) {
+            emsShowExamViewer(pk, ck, exam);
+        } else {
+            emsShowDesigner(pk, ck);
+        }
+    }
+
+    // ─── تحميل الامتحان من Firestore ─────────────────────────
+    async function emsLoadExam(pk, ck) {
+        if (!db) return;
+        try {
+            // امتحان قد تكون هذه الدورة هي "المرساة" (courseKey) فيه...
+            const snap = await db.collection('examinations')
+                .where('programKey','==', pk)
+                .where('courseKey','==', ck)
+                .limit(1).get();
+            if (!snap.empty) {
+                const doc = snap.docs[0];
+                emsExamCache[emsKey(pk, ck)] = { id: doc.id, ...doc.data() };
+                return;
+            }
+            // ...أو قد تكون من ضمن دورات أخرى مشمولة في الامتحان (courseKeys)
+            const snap2 = await db.collection('examinations')
+                .where('programKey','==', pk)
+                .where('courseKeys','array-contains', ck)
+                .limit(1).get();
+            if (!snap2.empty) {
+                const doc = snap2.docs[0];
+                emsExamCache[emsKey(pk, ck)] = { id: doc.id, ...doc.data() };
+            }
+        } catch(e) { console.warn('EMS load:', e); }
+    }
+
+    // ─── صفحة تصميم الامتحان ─────────────────────────────────
+    // ck قد تكون null عند إنشاء امتحان جديد من زر "إنشاء امتحان" مباشرة —
+    // في هذه الحالة يختار المستخدم الدورة/الدورات من داخل النافذة نفسها
+    function emsShowDesigner(pk, ck, existingExam) {
+        const program = programsData[pk];
+        if (!program) return;
+        const course = ck ? (program.courses || []).find(c => c.key === ck) : null;
+
+        emsEditingExamId = existingExam?.id || null;
+        emsQuestions     = existingExam?.questions ? JSON.parse(JSON.stringify(existingExam.questions)) : [];
+
+        showView('examinationView');
+        document.getElementById('examinationViewTitle').textContent = existingExam ? 'تعديل الامتحان' : 'تصميم امتحان جديد';
+        document.getElementById('examinationViewSubtitle').textContent = course
+            ? `${program.title} · ${course.code || ck}`
+            : (program.title || '');
+        document.getElementById('examinationViewActions').innerHTML = `
+            <button onclick="emsShowProgramExamSelector('${pk}')"
+                class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100"
+                title="رجوع">
+                <i class="ph ph-arrow-right text-sm"></i>
+            </button>`;
+
+        // الدورات المتاحة لاختيارها داخل نافذة التصميم: فقط الدورات المسموح
+        // للمستخدم الحالي التعامل معها (المدير: كل دورات البرنامج —
+        // المدرب: فقط الدورات المسجل فيها كمدرب أساسي؛ يتم تجاهل أي دورة
+        // أخرى غير مسجل فيها تماماً ولا تظهر في القائمة)
+        const allCourses = emsAllowedCoursesForProgram(pk);
+        const selectedCourses = existingExam?.courseKeys || (ck ? [ck] : (allCourses.length === 1 ? [allCourses[0].key] : []));
+
+        const examTypeOpts = EXAM_TYPES.map(t =>
+            `<option value="${t.key}" ${(existingExam?.examType||'quiz')===t.key?'selected':''}>${t.ar}</option>`
+        ).join('');
+
+        document.getElementById('examinationViewBody').innerHTML = `
+        <div class="space-y-5 pb-10">
+
+          <!-- معلومات الامتحان الأساسية -->
+          <div class="glass-element rounded-xl p-5">
+            <h3 class="font-bold text-base mb-4 text-primary flex items-center gap-2">
+              <i class="ph ph-info"></i> إعدادات الامتحان
+            </h3>
+            <div class="grid grid-cols-1 gap-3">
+
+              <!-- اختيار الدورات -->
+              <div>
+                <label class="text-xs text-gray-500 mb-1 block">الدورة / الدورات المشمولة <span class="text-red-500">*</span></label>
+                ${allCourses.length === 0 ? `
+                  <p class="text-xs text-red-500 glass-panel rounded-lg px-3 py-2">لا توجد دورات مسجل فيها كمدرب أساسي — لا يمكن إنشاء امتحان</p>
+                ` : `
+                <div class="flex flex-wrap gap-2" id="emsCourseCheckboxes">
+                  ${allCourses.map(c => `
+                    <label class="glass-panel flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm hover:border-primary/40 transition-colors">
+                      <input type="checkbox" value="${c.key}" class="accent-primary"
+                        ${selectedCourses.includes(c.key)?'checked':''}>
+                      <span>${c.code || c.key}</span>
+                    </label>`).join('')}
+                </div>`}
+              </div>
+
+              <!-- نوع الامتحان + المدة -->
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">نوع الامتحان</label>
+                  <select id="emsExamType" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                    ${examTypeOpts}
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">مدة الامتحان (دقيقة)</label>
+                  <input id="emsExamDuration" type="number" min="5" max="360" value="${existingExam?.duration||60}"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                </div>
+              </div>
+
+              <!-- تاريخ وتوقيت -->
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">تاريخ الامتحان</label>
+                  <input id="emsExamDate" type="date" value="${existingExam?.examDate||''}"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                </div>
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">توقيت الامتحان</label>
+                  <input id="emsExamTime" type="time" value="${existingExam?.examTime||''}"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- قائمة الأسئلة -->
+          <div class="glass-element rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold text-base text-primary flex items-center gap-2">
+                <i class="ph ph-question"></i> الأسئلة
+                <span id="emsQCount" class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">${emsQuestions.length}</span>
+              </h3>
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-400 ml-2">العلامة الكلية: <span id="emsTotalMark" class="font-bold text-primary">${emsQuestions.reduce((s,q)=>s+(+q.mark||0),0)}</span></span>
+              </div>
+            </div>
+
+            <!-- قائمة الأسئلة الحالية -->
+            <div id="emsQuestionsList" class="space-y-3 mb-4">
+              ${emsQuestions.map((q,i)=>emsRenderQuestionCard(q,i)).join('')}
+            </div>
+
+            <!-- إضافة سؤال جديد -->
+            <div class="glass-panel rounded-xl p-4 border-dashed border-2 border-primary/30">
+              <p class="text-xs font-semibold text-gray-500 mb-3">إضافة سؤال جديد</p>
+              <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                ${QUESTION_TYPES.map(qt => `
+                  <button onclick="emsAddQuestion('${qt.key}')"
+                    class="glass-icon-btn py-3 rounded-xl flex flex-col items-center gap-1.5 text-center hover:border-primary hover:bg-primary/10 transition-all">
+                    <i class="ph ${qt.icon} text-xl text-primary"></i>
+                    <span class="text-[10px] font-semibold text-gray-600">${qt.ar}</span>
+                  </button>`).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- زر الحفظ -->
+          <button onclick="emsSaveExam('${pk}','${ck||''}')"
+            class="w-full py-3 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 transition-all"
+            style="background:linear-gradient(135deg,#0790AC,#056276)">
+            <i class="ph ph-floppy-disk"></i> حفظ الامتحان
+          </button>
+
+        </div>`;
+    }
+
+    // ─── بناء بطاقة سؤال في مرحلة التصميم ───────────────────
+    function emsRenderQuestionCard(q, idx) {
+        const typeLabel = (QUESTION_TYPES.find(t=>t.key===q.type)||{}).ar || q.type;
+        return `
+        <div class="glass-panel rounded-xl p-4 border border-primary/20" id="emsQCard_${idx}">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm shrink-0">${idx+1}</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-2 mb-2">
+                <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${typeLabel}</span>
+                <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">علامة: ${q.mark||0}</span>
+                ${q.multipleCorrect?'<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">أكثر من إجابة</span>':''}
+              </div>
+              <p class="text-sm text-gray-800 font-semibold mb-2">${q.text||'(نص السؤال)'}</p>
+              ${emsRenderQuestionAnswersSummary(q)}
+            </div>
+            <div class="flex flex-col gap-1 shrink-0">
+              <button onclick="emsEditQuestion(${idx})" class="w-7 h-7 rounded-lg glass-icon-btn flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل"><i class="ph ph-pencil-simple text-sm"></i></button>
+              <button onclick="emsMoveQuestion(${idx},-1)" class="w-7 h-7 rounded-lg glass-icon-btn flex items-center justify-center text-gray-400 hover:bg-gray-100" title="أعلى" ${idx===0?'disabled style="opacity:.3"':''}><i class="ph ph-arrow-up text-sm"></i></button>
+              <button onclick="emsMoveQuestion(${idx},1)" class="w-7 h-7 rounded-lg glass-icon-btn flex items-center justify-center text-gray-400 hover:bg-gray-100" title="أسفل" ${idx===emsQuestions.length-1?'disabled style="opacity:.3"':''}><i class="ph ph-arrow-down text-sm"></i></button>
+              <button onclick="emsDeleteQuestion(${idx})" class="w-7 h-7 rounded-lg glass-icon-btn flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف"><i class="ph ph-trash text-sm"></i></button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function emsRenderQuestionAnswersSummary(q) {
+        if (q.type === 'tf') {
+            return `<p class="text-xs text-gray-500">الإجابة الصحيحة: <span class="font-bold text-green-600">${q.correctAnswer==='true'?'صح':'خطأ'}</span></p>`;
+        }
+        if (q.type === 'mcq' && q.options) {
+            return `<div class="flex flex-wrap gap-1">${q.options.map((o,i)=>`<span class="text-[10px] px-2 py-0.5 rounded-full ${(q.correctIndexes||[]).includes(i)?'bg-green-100 text-green-700 font-bold':'bg-gray-100 text-gray-500'}">${o}</span>`).join('')}</div>`;
+        }
+        if (q.type === 'match' && q.leftItems) {
+            return `<div class="text-[10px] text-gray-500">${q.leftItems.slice(0,2).map((l,i)=>`${l} ← ${q.rightItems?.[i]||'?'}`).join(' | ')}${q.leftItems.length>2?'...':''}</div>`;
+        }
+        if (q.type === 'enum' && q.items) {
+            return `<p class="text-[10px] text-gray-500">${q.items.slice(0,3).join(' — ')}${q.items.length>3?'...':''}</p>`;
+        }
+        if (q.type === 'essay') {
+            return `<p class="text-[10px] text-gray-400 italic">${q.modelAnswer?q.modelAnswer.substring(0,60)+'...':'(إجابة نموذجية — اختيارية)'}</p>`;
+        }
+        return '';
+    }
+
+    // ─── إضافة سؤال (يفتح modal التصميم) ─────────────────────
+    function emsAddQuestion(type) {
+        emsOpenQuestionModal(type, null);
+    }
+
+    function emsEditQuestion(idx) {
+        const q = emsQuestions[idx];
+        emsOpenQuestionModal(q.type, idx);
+    }
+
+    function emsDeleteQuestion(idx) {
+        emsQuestions.splice(idx, 1);
+        emsRefreshQuestionsList();
+    }
+
+    function emsMoveQuestion(idx, dir) {
+        const target = idx + dir;
+        if (target < 0 || target >= emsQuestions.length) return;
+        [emsQuestions[idx], emsQuestions[target]] = [emsQuestions[target], emsQuestions[idx]];
+        emsRefreshQuestionsList();
+    }
+
+    function emsRefreshQuestionsList() {
+        const list = document.getElementById('emsQuestionsList');
+        if (!list) return;
+        list.innerHTML = emsQuestions.map((q,i)=>emsRenderQuestionCard(q,i)).join('');
+        const qc = document.getElementById('emsQCount');
+        if (qc) qc.textContent = emsQuestions.length;
+        const tm = document.getElementById('emsTotalMark');
+        if (tm) tm.textContent = emsQuestions.reduce((s,q)=>s+(+q.mark||0),0);
+    }
+
+    // ─── Modal تصميم السؤال ───────────────────────────────────
+    function emsOpenQuestionModal(type, editIdx) {
+        const existing = editIdx !== null ? emsQuestions[editIdx] : null;
+        const typeLabel = (QUESTION_TYPES.find(t=>t.key===type)||{}).ar || type;
+
+        let bodyHtml = '';
+
+        if (type === 'tf') {
+            bodyHtml = `
+            <div>
+              <label class="text-xs text-gray-500 mb-1 block">الإجابة الصحيحة</label>
+              <div class="flex gap-3">
+                <label class="glass-panel flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer hover:border-green-400">
+                  <input type="radio" name="tfAnswer" value="true" class="accent-green-600" ${existing?.correctAnswer==='true'||!existing?'checked':''}> صح ✓
+                </label>
+                <label class="glass-panel flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer hover:border-red-400">
+                  <input type="radio" name="tfAnswer" value="false" class="accent-red-500" ${existing?.correctAnswer==='false'?'checked':''}> خطأ ✗
+                </label>
+              </div>
+            </div>`;
+        }
+
+        if (type === 'mcq') {
+            const opts = existing?.options || ['','','',''];
+            const ci   = existing?.correctIndexes || [0];
+            const multi = existing?.multipleCorrect || false;
+            bodyHtml = `
+            <div>
+              <div class="flex items-center gap-3 mb-3">
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" id="mcqMulti" class="accent-primary" ${multi?'checked':''}
+                    onchange="emsMCQToggleMulti(this.checked)">
+                  السماح بأكثر من إجابة صحيحة
+                </label>
+              </div>
+              <div class="space-y-2" id="mcqOptions">
+                ${opts.map((o,i)=>`
+                <div class="flex items-center gap-2">
+                  <input type="${multi?'checkbox':'radio'}" name="mcqCorrect" value="${i}" class="accent-primary shrink-0"
+                    ${ci.includes(i)?'checked':''} id="mcqOpt${i}">
+                  <input type="text" value="${o}" placeholder="الخيار ${i+1}"
+                    class="flex-1 glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                    id="mcqOptText${i}" oninput="emsUpdateMCQLabel(${i}, this.value)">
+                  <button onclick="emsRemoveMCQOption(${i})" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50" title="حذف"><i class="ph ph-minus text-sm"></i></button>
+                </div>`).join('')}
+              </div>
+              <button onclick="emsAddMCQOption()" class="mt-2 text-xs text-primary flex items-center gap-1 hover:underline">
+                <i class="ph ph-plus"></i> إضافة خيار
+              </button>
+            </div>`;
+        }
+
+        if (type === 'enum') {
+            const items = existing?.items || [''];
+            bodyHtml = `
+            <div>
+              <label class="text-xs text-gray-500 mb-2 block">عناصر التعداد (الإجابات المقبولة)</label>
+              <div class="space-y-2" id="enumItems">
+                ${items.map((item,i)=>`
+                <div class="flex items-center gap-2" id="enumRow${i}">
+                  <span class="w-6 text-center text-xs text-gray-400 font-bold">${i+1}</span>
+                  <input type="text" value="${item}" placeholder="العنصر ${i+1}"
+                    class="flex-1 glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" id="enumItem${i}">
+                  <button onclick="emsRemoveEnumItem(${i})" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50"><i class="ph ph-minus text-sm"></i></button>
+                </div>`).join('')}
+              </div>
+              <button onclick="emsAddEnumItem()" class="mt-2 text-xs text-primary flex items-center gap-1 hover:underline">
+                <i class="ph ph-plus"></i> إضافة عنصر
+              </button>
+            </div>`;
+        }
+
+        if (type === 'essay') {
+            bodyHtml = `
+            <div>
+              <label class="text-xs text-gray-500 mb-1 block">إجابة نموذجية (اختياري — للتصحيح)</label>
+              <textarea id="essayModel" rows="4" placeholder="اكتب الإجابة النموذجية هنا..."
+                class="w-full glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none">${existing?.modelAnswer||''}</textarea>
+            </div>`;
+        }
+
+        if (type === 'match') {
+            const left  = existing?.leftItems  || ['',''];
+            const right = existing?.rightItems || ['',''];
+            bodyHtml = `
+            <div>
+              <label class="text-xs text-gray-500 mb-2 block">أزواج الوصل (العمود الأيمن ← العمود الأيسر)</label>
+              <div class="space-y-2" id="matchPairs">
+                ${left.map((l,i)=>`
+                <div class="flex items-center gap-2" id="matchRow${i}">
+                  <input type="text" value="${l}" placeholder="العنصر ${i+1}"
+                    class="flex-1 glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" id="matchL${i}">
+                  <i class="ph ph-arrows-left-right text-gray-400 shrink-0"></i>
+                  <input type="text" value="${right[i]||''}" placeholder="الإجابة المقابلة"
+                    class="flex-1 glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" id="matchR${i}">
+                  <button onclick="emsRemoveMatchPair(${i})" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50"><i class="ph ph-minus text-sm"></i></button>
+                </div>`).join('')}
+              </div>
+              <button onclick="emsAddMatchPair()" class="mt-2 text-xs text-primary flex items-center gap-1 hover:underline">
+                <i class="ph ph-plus"></i> إضافة زوج
+              </button>
+            </div>`;
+        }
+
+        // بناء الـ Modal
+        const modal = document.createElement('div');
+        modal.id = 'emsQModal';
+        modal.className = 'fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4';
+        modal.style.background = 'rgba(0,0,0,0.4)';
+        modal.innerHTML = `
+        <div class="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
+          style="background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.6);box-shadow:0 20px 60px rgba(0,0,0,0.15);">
+          <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-primary/10 text-primary text-lg">
+              <i class="ph ${(QUESTION_TYPES.find(t=>t.key===type)||{}).icon||'ph-question'}"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-800">${editIdx!==null?'تعديل':'إضافة'} سؤال — ${typeLabel}</h3>
+              <p class="text-xs text-gray-400">حدد نص السؤال والإجابة الصحيحة</p>
+            </div>
+            <button onclick="document.getElementById('emsQModal').remove()" class="mr-auto w-8 h-8 rounded-lg glass-icon-btn flex items-center justify-center text-gray-400 hover:bg-gray-100">
+              <i class="ph ph-x"></i>
+            </button>
+          </div>
+
+          <!-- نص السؤال -->
+          <div class="mb-4">
+            <label class="text-xs text-gray-500 mb-1 block">نص السؤال <span class="text-red-400">*</span></label>
+            <textarea id="emsQText" rows="3" placeholder="اكتب نص السؤال هنا..."
+              class="w-full glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none">${existing?.text||''}</textarea>
+          </div>
+
+          <!-- علامة السؤال -->
+          <div class="mb-4">
+            <label class="text-xs text-gray-500 mb-1 block">علامة السؤال</label>
+            <input id="emsQMark" type="number" min="0.5" max="100" step="0.5" value="${existing?.mark||1}"
+              class="w-32 glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+          </div>
+
+          <!-- محتوى خاص بنوع السؤال -->
+          <div class="mb-5" id="emsQTypeBody">
+            ${bodyHtml}
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="emsSaveQuestion('${type}', ${editIdx})"
+              class="flex-1 py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2"
+              style="background:linear-gradient(135deg,#0790AC,#056276)">
+              <i class="ph ph-floppy-disk"></i> حفظ السؤال
+            </button>
+            <button onclick="document.getElementById('emsQModal').remove()"
+              class="px-4 py-2.5 rounded-xl glass-icon-btn text-sm text-gray-600 hover:bg-gray-100">
+              إلغاء
+            </button>
+          </div>
+        </div>`;
+        document.body.appendChild(modal);
+    }
+
+    // دوال مساعدة لـ MCQ
+    function emsMCQToggleMulti(isMulti) {
+        const inputs = document.querySelectorAll('#mcqOptions input[name="mcqCorrect"]');
+        inputs.forEach(inp => {
+            inp.type = isMulti ? 'checkbox' : 'radio';
+        });
+    }
+    function emsUpdateMCQLabel(i, val) {}
+    function emsAddMCQOption() {
+        const container = document.getElementById('mcqOptions');
+        const i = container.children.length;
+        const isMulti = document.getElementById('mcqMulti')?.checked;
+        container.insertAdjacentHTML('beforeend', `
+        <div class="flex items-center gap-2">
+          <input type="${isMulti?'checkbox':'radio'}" name="mcqCorrect" value="${i}" class="accent-primary shrink-0" id="mcqOpt${i}">
+          <input type="text" placeholder="الخيار ${i+1}"
+            class="flex-1 glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" id="mcqOptText${i}">
+          <button onclick="emsRemoveMCQOption(${i})" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50"><i class="ph ph-minus text-sm"></i></button>
+        </div>`);
+    }
+    function emsRemoveMCQOption(i) {
+        const container = document.getElementById('mcqOptions');
+        if (container.children.length <= 2) return;
+        container.children[i]?.remove();
+    }
+
+    // دوال مساعدة للتعداد
+    function emsAddEnumItem() {
+        const container = document.getElementById('enumItems');
+        const i = container.children.length;
+        container.insertAdjacentHTML('beforeend', `
+        <div class="flex items-center gap-2" id="enumRow${i}">
+          <span class="w-6 text-center text-xs text-gray-400 font-bold">${i+1}</span>
+          <input type="text" placeholder="العنصر ${i+1}"
+            class="flex-1 glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" id="enumItem${i}">
+          <button onclick="emsRemoveEnumItem(${i})" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50"><i class="ph ph-minus text-sm"></i></button>
+        </div>`);
+    }
+    function emsRemoveEnumItem(i) {
+        document.getElementById(`enumRow${i}`)?.remove();
+    }
+
+    // دوال مساعدة للوصل
+    function emsAddMatchPair() {
+        const container = document.getElementById('matchPairs');
+        const i = container.children.length;
+        container.insertAdjacentHTML('beforeend', `
+        <div class="flex items-center gap-2" id="matchRow${i}">
+          <input type="text" placeholder="العنصر ${i+1}"
+            class="flex-1 glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" id="matchL${i}">
+          <i class="ph ph-arrows-left-right text-gray-400 shrink-0"></i>
+          <input type="text" placeholder="الإجابة المقابلة"
+            class="flex-1 glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" id="matchR${i}">
+          <button onclick="emsRemoveMatchPair(${i})" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50"><i class="ph ph-minus text-sm"></i></button>
+        </div>`);
+    }
+    function emsRemoveMatchPair(i) {
+        document.getElementById(`matchRow${i}`)?.remove();
+    }
+
+    // ─── حفظ السؤال من الـ Modal ─────────────────────────────
+    function emsSaveQuestion(type, editIdx) {
+        const text = document.getElementById('emsQText')?.value.trim();
+        if (!text) { alert('الرجاء كتابة نص السؤال'); return; }
+        const mark = parseFloat(document.getElementById('emsQMark')?.value) || 1;
+
+        let qData = { type, text, mark };
+
+        if (type === 'tf') {
+            const ans = document.querySelector('input[name="tfAnswer"]:checked')?.value;
+            qData.correctAnswer = ans || 'true';
+        }
+
+        if (type === 'mcq') {
+            const isMulti = document.getElementById('mcqMulti')?.checked;
+            qData.multipleCorrect = isMulti;
+            const optInputs = document.querySelectorAll('#mcqOptions input[type="text"]');
+            qData.options = Array.from(optInputs).map(i=>i.value.trim());
+            const correctEls = document.querySelectorAll('#mcqOptions input[name="mcqCorrect"]:checked');
+            qData.correctIndexes = Array.from(correctEls).map(i=>parseInt(i.value));
+        }
+
+        if (type === 'enum') {
+            const container = document.getElementById('enumItems');
+            const inputs = container.querySelectorAll('input[type="text"]');
+            qData.items = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
+        }
+
+        if (type === 'essay') {
+            qData.modelAnswer = document.getElementById('essayModel')?.value.trim() || '';
+        }
+
+        if (type === 'match') {
+            const container = document.getElementById('matchPairs');
+            const rows = container.children.length;
+            qData.leftItems  = [];
+            qData.rightItems = [];
+            for (let i=0; i<rows; i++) {
+                qData.leftItems.push(document.getElementById(`matchL${i}`)?.value.trim()||'');
+                qData.rightItems.push(document.getElementById(`matchR${i}`)?.value.trim()||'');
+            }
+        }
+
+        if (editIdx !== null && editIdx >= 0) {
+            emsQuestions[editIdx] = qData;
+        } else {
+            emsQuestions.push(qData);
+        }
+
+        document.getElementById('emsQModal')?.remove();
+        emsRefreshQuestionsList();
+    }
+
+    // ─── حفظ الامتحان كاملاً في Firestore ───────────────────
+    async function emsSaveExam(pk, ck) {
+        if (!db) { alert('لم يتم الاتصال بـ Firebase — يرجى ضبط الإعدادات أولاً'); return; }
+        if (emsQuestions.length === 0) { alert('الرجاء إضافة سؤال واحد على الأقل'); return; }
+
+        const examDate = document.getElementById('emsExamDate')?.value;
+        const examTime = document.getElementById('emsExamTime')?.value;
+        const duration = parseInt(document.getElementById('emsExamDuration')?.value) || 60;
+        const examType = document.getElementById('emsExamType')?.value || 'quiz';
+
+        const courseCheckboxes = document.querySelectorAll('#emsCourseCheckboxes input[type="checkbox"]:checked');
+        const courseKeys = Array.from(courseCheckboxes).map(c => c.value);
+        if (courseKeys.length === 0) { alert('الرجاء اختيار دورة واحدة على الأقل'); return; }
+
+        // إن لم يكن هناك مفتاح دورة "مرساة" محدد مسبقاً (حالة الإنشاء المباشر
+        // من زر "إنشاء امتحان")، نعتمد أول دورة من الدورات المختارة
+        if (!ck) ck = courseKeys[0];
+
+        const program = programsData[pk];
+        const course  = (program?.courses||[]).find(c=>c.key===ck);
+        const totalMark = emsQuestions.reduce((s,q)=>s+(+q.mark||0),0);
+
+        const payload = {
+            programKey: pk,
+            courseKey:  ck,
+            courseKeys,
+            programTitle:  program?.title || '',
+            programCode:   program?.code  || '',
+            courseCode:    course?.code   || ck,
+            mainTrainer:   course?.mainTrainer || '',
+            examType,
+            duration,
+            examDate:  examDate || '',
+            examTime:  examTime || '',
+            totalMark,
+            questions: emsQuestions,
+            createdBy: currentUser?.uid || '',
+            updatedAt: new Date().toISOString(),
+        };
+
+        try {
+            let docId;
+            if (emsEditingExamId) {
+                await db.collection('examinations').doc(emsEditingExamId).set(payload, {merge:true});
+                docId = emsEditingExamId;
+            } else {
+                payload.createdAt = new Date().toISOString();
+                const ref = await db.collection('examinations').add(payload);
+                docId = ref.id;
+                emsEditingExamId = docId;
+            }
+            const savedExam = { id: docId, ...payload };
+            // تخزين الامتحان في الذاكرة المؤقتة تحت كل دورة من الدورات
+            // المختارة، حتى تظهر بيانات الامتحان بشكل صحيح أينما عُرضت
+            // إحدى هذه الدورات
+            courseKeys.forEach(k => { emsExamCache[emsKey(pk, k)] = savedExam; });
+
+            emsCurrentCourseKey = ck;
+            emsShowExamViewer(pk, ck, savedExam);
+            // تحديث زر الامتحان في الهيدر (إن وُجد)
+            const hBtn = document.getElementById(`examHeaderBtn_${ck}`);
+            if (hBtn) {
+                hBtn.title = 'عرض الامتحان';
+                hBtn.querySelector('i').className = 'ph ph-eye text-sm';
+                hBtn.onclick = () => handleExamBtnClick(pk, ck);
+            }
+            showToast?.('✅ تم حفظ الامتحان بنجاح', 'success');
+        } catch(e) {
+            alert('خطأ في الحفظ: ' + e.message);
+        }
+    }
+
+    // ─── عرض الامتحان (Viewer) ────────────────────────────────
+    function emsShowExamViewer(pk, ck, exam) {
+        if (!exam) { emsShowDesigner(pk,ck); return; }
+        const program = programsData[pk];
+        const course  = (program?.courses||[]).find(c=>c.key===ck);
+
+        showView('examinationView');
+        document.getElementById('examinationViewTitle').textContent = 'عرض الامتحان';
+        document.getElementById('examinationViewSubtitle').textContent = `${program?.title||''} · ${course?.code||ck}`;
+        document.getElementById('examinationViewActions').innerHTML = `
+            <button onclick="emsShowProgramExamSelector('${pk}')"
+              class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100" title="رجوع">
+              <i class="ph ph-arrow-right text-sm"></i>
+            </button>
+            <button onclick="emsShowDesigner('${pk}','${ck}', getCachedExam('${pk}','${ck}'))"
+              class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
+              <i class="ph ph-pencil-simple text-sm"></i>
+            </button>
+            <button onclick="emsConfirmDeleteExam('${pk}','${ck}')"
+              class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
+              <i class="ph ph-trash text-sm"></i>
+            </button>
+            <button onclick="emsPrintExam('${pk}','${ck}')"
+              class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100" title="طباعة">
+              <i class="ph ph-printer text-sm"></i>
+            </button>`;
+
+        const typeInfo = EXAM_TYPES.find(t=>t.key===exam.examType)||EXAM_TYPES[0];
+        const questions = exam.questions || [];
+        const total = exam.totalMark || questions.reduce((s,q)=>s+(+q.mark||0),0);
+
+        document.getElementById('examinationViewBody').innerHTML = `
+        <div class="space-y-5 pb-10">
+
+          <!-- بطاقة معلومات الامتحان -->
+          <div class="glass-element rounded-xl p-5">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">نوع الامتحان</p>
+                <p class="font-bold text-sm text-gray-800">${typeInfo.ar}</p>
+              </div>
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">مدة الامتحان</p>
+                <p class="font-bold text-sm text-gray-800">${exam.duration || '—'} دقيقة</p>
+              </div>
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">تاريخ الامتحان</p>
+                <p class="font-bold text-sm text-gray-800" dir="ltr">${exam.examDate || '—'}</p>
+              </div>
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">توقيت الامتحان</p>
+                <p class="font-bold text-sm text-gray-800" dir="ltr">${exam.examTime || '—'}</p>
+              </div>
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">العلامة الكلية</p>
+                <p class="font-bold text-lg text-primary">${total}</p>
+              </div>
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">عدد الأسئلة</p>
+                <p class="font-bold text-lg text-primary">${questions.length}</p>
+              </div>
+              <div class="glass-panel p-3.5 rounded-lg col-span-2">
+                <p class="text-[10px] text-gray-400 mb-1">المدرب الأساسي</p>
+                <p class="font-bold text-sm text-gray-800">${exam.mainTrainer || '—'}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- قائمة الأسئلة -->
+          <div class="glass-element rounded-xl p-5">
+            <h3 class="font-bold text-base mb-4 text-primary flex items-center gap-2">
+              <i class="ph ph-list-bullets"></i> الأسئلة
+            </h3>
+            <div class="space-y-4">
+              ${questions.map((q,i) => emsRenderViewerQuestion(q,i)).join('')}
+            </div>
+          </div>
+
+        </div>`;
+    }
+
+    function emsRenderViewerQuestion(q, idx) {
+        const typeLabel = (QUESTION_TYPES.find(t=>t.key===q.type)||{}).ar || q.type;
+        let answerHtml = '';
+
+        if (q.type === 'tf') {
+            answerHtml = `
+            <div class="mt-3 flex gap-3">
+              <label class="glass-panel flex items-center gap-2 px-4 py-2 rounded-lg text-sm ${q.correctAnswer==='true'?'border-green-300 bg-green-50 text-green-700 font-bold':'text-gray-500'}">
+                <i class="ph ${q.correctAnswer==='true'?'ph-check-circle text-green-500':'ph-circle text-gray-300'}"></i> صح
+              </label>
+              <label class="glass-panel flex items-center gap-2 px-4 py-2 rounded-lg text-sm ${q.correctAnswer==='false'?'border-red-300 bg-red-50 text-red-700 font-bold':'text-gray-500'}">
+                <i class="ph ${q.correctAnswer==='false'?'ph-x-circle text-red-500':'ph-circle text-gray-300'}"></i> خطأ
+              </label>
+            </div>`;
+        }
+
+        if (q.type === 'mcq' && q.options) {
+            answerHtml = `
+            <div class="mt-3 space-y-2">
+              ${q.options.map((o,i)=>`
+              <div class="glass-panel flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${(q.correctIndexes||[]).includes(i)?'border-green-300 bg-green-50':''}">
+                <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${(q.correctIndexes||[]).includes(i)?'bg-green-500 text-white':'bg-gray-200 text-gray-500'}">${String.fromCharCode(65+i)}</span>
+                <span class="${(q.correctIndexes||[]).includes(i)?'font-semibold text-green-700':''}">${o}</span>
+                ${(q.correctIndexes||[]).includes(i)?'<i class="ph ph-check-circle text-green-500 mr-auto"></i>':''}
+              </div>`).join('')}
+            </div>`;
+        }
+
+        if (q.type === 'enum' && q.items) {
+            answerHtml = `
+            <ol class="mt-3 space-y-1.5 mr-4">
+              ${q.items.map((item,i)=>`<li class="text-sm text-gray-700 flex items-start gap-2"><span class="text-primary font-bold shrink-0">${i+1}.</span>${item}</li>`).join('')}
+            </ol>`;
+        }
+
+        if (q.type === 'essay') {
+            answerHtml = q.modelAnswer ? `
+            <div class="mt-3 glass-panel rounded-xl p-3 border-dashed border-green-300 bg-green-50/50">
+              <p class="text-[10px] text-green-600 font-semibold mb-1"><i class="ph ph-lightbulb"></i> الإجابة النموذجية</p>
+              <p class="text-sm text-gray-700">${q.modelAnswer}</p>
+            </div>` : '<div class="mt-2 glass-panel rounded-xl p-3 h-16 border-dashed"></div>';
+        }
+
+        if (q.type === 'match' && q.leftItems) {
+            answerHtml = `
+            <div class="mt-3 space-y-2">
+              ${q.leftItems.map((l,i)=>`
+              <div class="flex items-center gap-3 glass-panel px-3 py-2 rounded-lg">
+                <span class="flex-1 text-sm text-gray-800">${l}</span>
+                <i class="ph ph-arrows-left-right text-gray-400"></i>
+                <span class="flex-1 text-sm font-semibold text-primary">${q.rightItems?.[i]||''}</span>
+              </div>`).join('')}
+            </div>`;
+        }
+
+        return `
+        <div class="glass-panel rounded-xl p-4">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm shrink-0">${idx+1}</div>
+            <div class="flex-1">
+              <div class="flex flex-wrap items-center gap-2 mb-1">
+                <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${typeLabel}</span>
+                <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${q.mark} علامة</span>
+              </div>
+              <p class="text-sm font-semibold text-gray-800">${q.text}</p>
+              ${answerHtml}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // ─── حذف الامتحان ────────────────────────────────────────
+    function emsConfirmDeleteExam(pk, ck) {
+        if (!confirm('هل أنت متأكد من حذف هذا الامتحان؟')) return;
+        const exam = getCachedExam(pk,ck);
+        if (!exam?.id || !db) return;
+        db.collection('examinations').doc(exam.id).delete().then(()=>{
+            // إزالة الامتحان من الذاكرة المؤقتة تحت كل الدورات التي كان يشملها
+            const coveredKeys = exam.courseKeys && exam.courseKeys.length ? exam.courseKeys : [ck];
+            coveredKeys.forEach(k => { delete emsExamCache[emsKey(pk, k)]; });
+            emsEditingExamId = null;
+            // العودة لتفاصيل الدورة
+            const program = programsData[pk];
+            const course  = (program?.courses||[]).find(c=>c.key===ck);
+            if (program && course) emsShowProgramExamSelector(pk);
+            else showProgramDetails(pk);
+        }).catch(e=>alert('خطأ في الحذف: '+e.message));
+    }
+
+    // ─── طباعة الامتحان ───────────────────────────────────────
+    function emsPrintExam(pk, ck) {
+        const exam = getCachedExam(pk,ck);
+        if (!exam) return;
+        const program = programsData[pk];
+        const course  = (program?.courses||[]).find(c=>c.key===ck);
+        const typeInfo = EXAM_TYPES.find(t=>t.key===exam.examType)||EXAM_TYPES[0];
+        const questions = exam.questions || [];
+        const total = exam.totalMark || questions.reduce((s,q)=>s+(+q.mark||0),0);
+
+        const questionsHtml = questions.map((q,i) => {
+            const typeLabel = (QUESTION_TYPES.find(t=>t.key===q.type)||{}).ar || q.type;
+            let bodyHtml = '';
+            if (q.type === 'tf') {
+                bodyHtml = `<div style="display:flex;gap:16px;margin-top:8px"><span style="padding:4px 12px;border:1px solid #ccc;border-radius:6px;">☐ صح</span><span style="padding:4px 12px;border:1px solid #ccc;border-radius:6px;">☐ خطأ</span></div>`;
+            } else if (q.type === 'mcq' && q.options) {
+                bodyHtml = `<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${q.options.map((o,j)=>`<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:22px;border:1px solid #999;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px">${String.fromCharCode(65+j)}</span>${o}</div>`).join('')}</div>`;
+            } else if (q.type === 'enum') {
+                bodyHtml = `<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${(q.items||[]).map((_,j)=>`<div style="display:flex;align-items:center;gap:8px"><span>${j+1}.</span><span style="flex:1;border-bottom:1px solid #ddd;min-height:20px;display:block"></span></div>`).join('')}</div>`;
+            } else if (q.type === 'essay') {
+                bodyHtml = `<div style="margin-top:8px;min-height:60px;border:1px dashed #ccc;border-radius:6px;padding:6px"></div>`;
+            } else if (q.type === 'match' && q.leftItems) {
+                bodyHtml = `<div style="margin-top:8px;display:flex;gap:12px"><div style="flex:1"><strong>العمود (أ)</strong>${q.leftItems.map((l,j)=>`<div style="margin-top:4px;padding:4px 8px;border:1px solid #ddd;border-radius:4px">${j+1}. ${l}</div>`).join('')}</div><div style="flex:1"><strong>العمود (ب)</strong>${(q.rightItems||[]).sort(()=>Math.random()-.5).map(r=>`<div style="margin-top:4px;padding:4px 8px;border:1px solid #ddd;border-radius:4px">${r}</div>`).join('')}</div></div>`;
+            }
+            return `<div style="margin-bottom:20px;page-break-inside:avoid">
+              <div style="display:flex;align-items:flex-start;gap:10px">
+                <span style="background:#0790AC;color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex-shrink:0">${i+1}</span>
+                <div style="flex:1">
+                  <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+                    <span style="font-size:10px;background:#e0f4f7;color:#0790AC;padding:2px 8px;border-radius:12px">${typeLabel}</span>
+                    <span style="font-size:10px;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:12px">${q.mark} علامة</span>
+                  </div>
+                  <p style="font-weight:600;font-size:13px;margin:0">${q.text}</p>
+                  ${bodyHtml}
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+
+        const win = window.open('','_blank');
+        win.document.write(`<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>نموذج امتحان — ${program?.title||''}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',Tahoma,Arial,sans-serif; }
+  body { padding: 24px; font-size: 13px; color: #1f2937; }
+  .header { border: 2px solid #0790AC; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+  .header-top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #e5e7eb; padding-bottom:12px; margin-bottom:12px; }
+  .logo-area { font-size:18px; font-weight:800; color:#0790AC; }
+  .logo-area span { display:block; font-size:11px; font-weight:400; color:#6b7280; margin-top:2px; }
+  .header-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .info-cell { }
+  .info-cell .label { font-size:10px; color:#9ca3af; margin-bottom:2px; }
+  .info-cell .value { font-weight:600; font-size:12px; }
+  .student-box { border: 1px solid #e5e7eb; border-radius:6px; padding:10px 16px; margin-bottom:24px; display:flex; gap:24px; }
+  .student-box .field { flex:1; border-bottom:1px solid #9ca3af; padding-bottom:4px; min-height:28px; }
+  .student-box .field .label { font-size:10px; color:#6b7280; }
+  h3.section { font-size:14px; font-weight:700; color:#0790AC; margin-bottom:16px; border-bottom:2px solid #e0f4f7; padding-bottom:6px; }
+  @media print { body { padding:12px; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-top">
+    <div class="logo-area">MedBox.Education <span>نظام إدارة الامتحانات</span></div>
+    <div style="text-align:left;font-size:11px;color:#6b7280">
+      <div>التاريخ: ${exam.examDate||'—'}</div>
+      <div>التوقيت: ${exam.examTime||'—'}</div>
+    </div>
+  </div>
+  <div class="header-grid">
+    <div class="info-cell"><div class="label">البرنامج التدريبي</div><div class="value">${program?.title||'—'}</div></div>
+    <div class="info-cell"><div class="label">رمز الدورة</div><div class="value">${course?.code||ck}</div></div>
+    <div class="info-cell"><div class="label">نوع الامتحان</div><div class="value">${typeInfo.ar}</div></div>
+    <div class="info-cell"><div class="label">مدة الامتحان</div><div class="value">${exam.duration||'—'} دقيقة</div></div>
+    <div class="info-cell"><div class="label">العلامة الكلية</div><div class="value" style="color:#0790AC;font-size:16px">${total}</div></div>
+    <div class="info-cell"><div class="label">المدرب / المدرس الأساسي</div><div class="value">${exam.mainTrainer||course?.mainTrainer||'—'}</div></div>
+  </div>
+</div>
+
+<div class="student-box">
+  <div class="field"><div class="label">اسم المتدرب / الطالب</div></div>
+  <div class="field" style="max-width:120px"><div class="label">التوقيع</div></div>
+  <div class="field" style="max-width:80px"><div class="label">العلامة</div></div>
+</div>
+
+<h3 class="section"><i>✎</i> أسئلة الامتحان</h3>
+${questionsHtml}
+
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`);
+        win.document.close();
+    }
+
+    // ─── تحميل الامتحانات عند عرض الدورة (للتحقق من وجودها) ─
+    const _origRenderCourseDetails = renderCourseDetailsContent;
+    // نستدعي emsPreloadExam بعد رسم الدورة
+    const _emsOrigRenderCourse = renderCourseDetailsContent;
+    // patch renderCourseDetailsContent لتحميل الامتحان تلقائياً
+    window._emsRenderPatch = async function(pk, ck) {
+        if (!emsExamCache[emsKey(pk,ck)]) {
+            await emsLoadExam(pk, ck);
+        }
+        // تحديث زر الامتحان إن وُجد
+        const btn = document.getElementById(`examHeaderBtn_${ck}`);
+        if (btn && getCachedExam(pk,ck)) {
+            btn.title = 'عرض الامتحان';
+            btn.querySelector('i').className = 'ph ph-eye text-sm';
+        }
+    };
+    // تشغيل التحميل المسبق بعد رسم الدورة
+    const _emsOrigShowCourse = window.showCourseDetails;
+    if (typeof showCourseDetails === 'function') {
+        const _origShowCourse = showCourseDetails;
+        window.showCourseDetails = async function(pk, ck) {
+            _origShowCourse(pk, ck);
+            await window._emsRenderPatch(pk, ck);
+        };
+    }
     </script>
 </body>
 </html>
