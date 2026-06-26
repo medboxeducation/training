@@ -11,6 +11,7 @@
     <!-- Firebase SDK (v10 modular via CDN compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <!-- QR Code Generator -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -10272,6 +10273,69 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         input[type=checkbox].accent-red-500 { accent-color: #ef4444; }
         input[type=checkbox].accent-amber-500 { accent-color: #f59e0b; }
 
+        /* ── Voice recording styles ── */
+        @keyframes voicePulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50%       { transform: scale(1.15); opacity: 0.7; }
+        }
+        @keyframes voiceWave {
+            0%, 100% { height: 4px; }
+            50%       { height: 18px; }
+        }
+        .voice-recording-active { animation: voicePulse 1.2s ease-in-out infinite; }
+        .voice-wave-bar {
+            width: 3px;
+            background: #ef4444;
+            border-radius: 99px;
+            display: inline-block;
+            animation: voiceWave 0.7s ease-in-out infinite;
+        }
+        .voice-wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .voice-wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .voice-wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        .voice-wave-bar:nth-child(5) { animation-delay: 0.4s; }
+        /* Voice message player bubble */
+        .voice-player-bubble {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 180px;
+        }
+        .voice-play-btn {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.2s;
+            flex-shrink: 0;
+        }
+        .voice-play-btn:hover { opacity: 0.8; }
+        .voice-progress-wrap {
+            flex: 1;
+            height: 4px;
+            border-radius: 99px;
+            background: rgba(255,255,255,0.35);
+            cursor: pointer;
+            position: relative;
+        }
+        .voice-progress-fill {
+            height: 100%;
+            border-radius: 99px;
+            background: rgba(255,255,255,0.9);
+            width: 0%;
+            transition: width 0.1s linear;
+            pointer-events: none;
+        }
+        .voice-duration-label {
+            font-size: 10px;
+            opacity: 0.8;
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: 32px;
+            text-align: left;
+        }
+
         .search-input {
             width: 0;
             opacity: 0;
@@ -11743,7 +11807,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         <div class="flex items-center justify-between gap-3 px-4 py-2.5">
                             <!-- أزرار الاتصال + الإيميل بجانبها -->
                             <div class="flex items-center gap-1.5">
-                                <button onclick="showComingSoon('الرسالة الصوتية')"
+                                <button onclick="startVoiceRecording()"
                                     class="glass-icon-btn px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-emerald-600 flex items-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300 transition-colors"
                                     title="رسالة صوتية">
                                     <i class="ph ph-microphone text-sm"></i>
@@ -11800,6 +11864,33 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                          فوتر الإرسال — ثابت في الأسفل
                     ══════════════════════════════════════════ -->
                     <div class="shrink-0 pt-3">
+
+                        <!-- ── شريط التسجيل الصوتي (يظهر عند التسجيل) ── -->
+                        <div id="voiceRecordBar"
+                             class="hidden items-center gap-3 mb-2 px-3 py-2 rounded-2xl border border-red-200"
+                             style="background:rgba(255,235,235,0.85); backdrop-filter:blur(8px);">
+                            <!-- أيقونة النبض -->
+                            <div class="w-7 h-7 rounded-full bg-red-500 flex items-center justify-center shrink-0 voice-recording-active">
+                                <i class="ph ph-microphone text-white text-sm"></i>
+                            </div>
+                            <!-- موجات الصوت -->
+                            <div class="flex items-end gap-[3px] h-5" style="min-width:40px;">
+                                <span class="voice-wave-bar" style="animation-delay:0s;"></span>
+                                <span class="voice-wave-bar" style="animation-delay:0.1s;"></span>
+                                <span class="voice-wave-bar" style="animation-delay:0.2s;"></span>
+                                <span class="voice-wave-bar" style="animation-delay:0.3s;"></span>
+                                <span class="voice-wave-bar" style="animation-delay:0.4s;"></span>
+                            </div>
+                            <!-- مدة التسجيل -->
+                            <span id="voiceRecordTimer" class="text-xs text-red-600 font-bold tabular-nums flex-1">0:00</span>
+                            <!-- زر إلغاء -->
+                            <button onclick="cancelVoiceRecording()"
+                                class="text-xs text-gray-500 hover:text-red-600 font-semibold px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                                title="إلغاء التسجيل">
+                                <i class="ph ph-x text-sm"></i>
+                            </button>
+                        </div>
+
                         <div class="flex items-center gap-2">
 
                             <!-- زر + (قائمة منسدلة للمرفقات) -->
@@ -11842,7 +11933,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                     oninput="updateChatSendBtn(this.value)">
                             </div>
 
-                            <!-- مايك (يمين الحقل) — يتحول لزر إرسال عند الكتابة -->
+                            <!-- مايك (يمين الحقل) — يتحول لزر إرسال عند الكتابة أو لإيقاف التسجيل -->
                             <button id="chatMicBtn"
                                 onclick="handleChatMicOrSend()"
                                 class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 shadow-md"
@@ -13696,7 +13787,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </div>
                     ${conv.lastMsg ? `<p class="text-[10px] text-gray-400 truncate mb-2">${escapeHtml(conv.lastMsg)}</p>` : ''}
                     <div class="flex items-center gap-1 border-t border-white/30 pt-2 mt-1">
-                        <button onclick="event.stopPropagation(); showComingSoon('رسالة صوتية')"
+                        <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(startVoiceRecording, 300);"
                             class="flex-1 glass-icon-btn py-1 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200" title="رسالة صوتية">
                             <i class="ph ph-microphone text-sm"></i>
                         </button>
@@ -14008,9 +14099,27 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }
             const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
             area.innerHTML = msgs.map(msg => {
-                const isMine = msg.senderUid === myUid;
-                const ts = msg.ts?.toMillis ? msg.ts.toMillis() : (msg.ts || Date.now());
+                const isMine  = msg.senderUid === myUid;
+                const ts      = msg.ts?.toMillis ? msg.ts.toMillis() : (msg.ts || Date.now());
                 const timeStr = new Date(ts).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' });
+                const isVoice = msg.type === 'voice' && msg.audioUrl;
+
+                if (isVoice) {
+                    const playerHTML = _buildVoicePlayerHTML(msg, isMine);
+                    return isMine
+                        ? `<div class="flex justify-end mb-1.5">
+                              <div class="max-w-[85%] bg-primary text-white rounded-2xl rounded-tr-sm px-3 py-2.5 shadow-sm">
+                                  ${playerHTML}
+                                  <p class="text-[10px] opacity-70 mt-1.5 text-left">${timeStr} ✓✓</p>
+                              </div>
+                           </div>`
+                        : `<div class="flex justify-start mb-1.5">
+                              <div class="max-w-[85%] glass-element rounded-2xl rounded-tl-sm px-3 py-2.5 shadow-sm">
+                                  ${playerHTML}
+                                  <p class="text-[10px] text-gray-400 mt-1.5">${timeStr}</p>
+                              </div>
+                           </div>`;
+                }
                 return isMine
                     ? `<div class="flex justify-end mb-1.5">
                           <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm">
@@ -14139,28 +14248,327 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
 
         // ── تحديث زر المايك/الإرسال حسب وجود نص ──
+        // ── تحديث زر المايك/الإرسال حسب النص والحالة ──
         function updateChatSendBtn(val) {
             const btn  = document.getElementById('chatMicBtn');
             const icon = document.getElementById('chatMicIcon');
             if (!btn || !icon) return;
+            if (_voiceIsRecording) return; // لا تغيّر الأيقونة أثناء التسجيل
             if (val && val.trim().length > 0) {
                 btn.title = 'إرسال';
+                btn.style.background = 'var(--primary, #0790AC)';
                 icon.className = 'ph ph-paper-plane-tilt text-white text-base';
             } else {
                 btn.title = 'تسجيل رسالة صوتية';
+                btn.style.background = 'var(--primary, #0790AC)';
                 icon.className = 'ph ph-microphone text-white text-base';
             }
         }
 
+        // ════════════════════════════════════════════
+        //  نظام التسجيل الصوتي
+        // ════════════════════════════════════════════
+        let _mediaRecorder    = null;
+        let _voiceChunks      = [];
+        let _voiceIsRecording = false;
+        let _voiceTimerID     = null;
+        let _voiceSeconds     = 0;
+
         // ── زر المايك/الإرسال الموحد ──
         function handleChatMicOrSend() {
             const inp = document.getElementById('chatMessageInput');
+            if (_voiceIsRecording) {
+                // إيقاف التسجيل وإرساله
+                stopAndSendVoice();
+                return;
+            }
             if (inp && inp.value.trim().length > 0) {
                 sendChatMessage();
                 updateChatSendBtn('');
             } else {
-                showComingSoon('الرسالة الصوتية');
+                startVoiceRecording();
             }
+        }
+
+        // ── بدء التسجيل الصوتي ──
+        async function startVoiceRecording() {
+            if (!activeChatConvId || !currentUser) {
+                showToast('يجب فتح محادثة أولاً', 'error'); return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                _voiceChunks = [];
+                _voiceIsRecording = true;
+                _voiceSeconds = 0;
+
+                // تحديد التنسيق المدعوم
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                    ? 'audio/webm;codecs=opus'
+                    : MediaRecorder.isTypeSupported('audio/webm')
+                    ? 'audio/webm'
+                    : 'audio/ogg;codecs=opus';
+
+                _mediaRecorder = new MediaRecorder(stream, { mimeType });
+                _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) _voiceChunks.push(e.data); };
+                _mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(t => t.stop());
+                    await _uploadAndSendVoice(mimeType);
+                };
+                _mediaRecorder.start(200); // جمع البيانات كل 200ms
+
+                // تحديث واجهة المستخدم
+                _showVoiceRecordingUI();
+
+            } catch (err) {
+                _voiceIsRecording = false;
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    showToast('يرجى السماح بالوصول للميكروفون من إعدادات المتصفح', 'error');
+                } else {
+                    showToast('تعذّر الوصول إلى الميكروفون', 'error');
+                    console.error('Voice recording error:', err);
+                }
+            }
+        }
+
+        // ── إيقاف التسجيل وإرساله ──
+        function stopAndSendVoice() {
+            if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
+                _mediaRecorder.stop();
+            }
+            _voiceIsRecording = false;
+            _hideVoiceRecordingUI();
+        }
+
+        // ── إلغاء التسجيل بدون إرسال ──
+        function cancelVoiceRecording() {
+            if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
+                _mediaRecorder.onstop = null; // منع الإرسال
+                _mediaRecorder.stop();
+                _mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+            }
+            _voiceIsRecording = false;
+            _voiceChunks = [];
+            _hideVoiceRecordingUI();
+            showToast('تم إلغاء التسجيل', 'info');
+        }
+
+        // ── رفع الملف وإرسال الرسالة الصوتية ──
+        async function _uploadAndSendVoice(mimeType) {
+            if (_voiceChunks.length === 0) return;
+            const ext  = mimeType.includes('ogg') ? 'ogg' : 'webm';
+            const blob = new Blob(_voiceChunks, { type: mimeType });
+            const durationSec = _voiceSeconds;
+            _voiceChunks = [];
+
+            // إذا لم يكن Firebase Storage متاحاً — نرفع كـ base64 في Firestore مباشرةً (للملفات الصغيرة)
+            const useBase64Fallback = !firebase.apps.length || typeof firebase.storage !== 'function';
+
+            const localTs = Date.now();
+            const timeStr = new Date(localTs).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' });
+            const myUid   = currentUser.uid;
+
+            // عرض مؤشر الرفع
+            const area = document.getElementById('chatMessagesArea');
+            let uploadIndicatorEl = null;
+            if (area) {
+                if (area.querySelector('.ph-chats')) area.innerHTML = '';
+                uploadIndicatorEl = document.createElement('div');
+                uploadIndicatorEl.className = 'flex justify-end mb-1.5';
+                uploadIndicatorEl.dataset.localTs = localTs;
+                uploadIndicatorEl.innerHTML = `
+                    <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm opacity-70">
+                        <div class="flex items-center gap-2">
+                            <i class="ph ph-spinner animate-spin text-white text-sm"></i>
+                            <span class="text-xs">جاري رفع الرسالة الصوتية...</span>
+                        </div>
+                        <p class="text-[10px] opacity-70 mt-1 text-left">${timeStr}</p>
+                    </div>`;
+                area.appendChild(uploadIndicatorEl);
+                area.scrollTop = area.scrollHeight;
+            }
+
+            try {
+                let audioUrl = '';
+                let storagePath = '';
+
+                if (!useBase64Fallback && typeof firebase.storage === 'function') {
+                    // ── Firebase Storage ──
+                    const storage  = firebase.storage();
+                    const fileName = `voice_${myUid}_${localTs}.${ext}`;
+                    storagePath    = `chats/${activeChatConvId}/voice/${fileName}`;
+                    const ref      = storage.ref(storagePath);
+                    await ref.put(blob, { contentType: mimeType });
+                    audioUrl = await ref.getDownloadURL();
+                } else {
+                    // ── Fallback: base64 في Firestore ──
+                    audioUrl = await new Promise((res, rej) => {
+                        const reader = new FileReader();
+                        reader.onload  = () => res(reader.result);
+                        reader.onerror = () => rej(new Error('FileReader error'));
+                        reader.readAsDataURL(blob);
+                    });
+                }
+
+                // حفظ الرسالة في Firestore
+                const convRef = db.collection('chats').doc(activeChatConvId);
+                await convRef.collection('messages').add({
+                    senderUid : myUid,
+                    text      : '',
+                    type      : 'voice',
+                    audioUrl,
+                    storagePath,
+                    duration  : durationSec,
+                    ts        : firebase.firestore.FieldValue.serverTimestamp(),
+                    localTs
+                });
+
+                const conv = chatConversations.find(c => c.id === activeChatConvId);
+                const otherUid = conv?.otherUid || '';
+                const updateObj = {
+                    lastMsg       : '🎤 رسالة صوتية',
+                    lastTimestamp : firebase.firestore.FieldValue.serverTimestamp()
+                };
+                if (otherUid) updateObj[`unread.${otherUid}`] = firebase.firestore.FieldValue.increment(1);
+                await convRef.update(updateObj);
+
+                // إزالة مؤشر الرفع (سيُستبدل بالرسالة الحقيقية من onSnapshot)
+                if (uploadIndicatorEl) uploadIndicatorEl.remove();
+
+            } catch (err) {
+                console.error('Voice upload error:', err);
+                showToast('فشل رفع الرسالة الصوتية', 'error');
+                if (uploadIndicatorEl) uploadIndicatorEl.remove();
+            }
+        }
+
+        // ── إظهار واجهة التسجيل ──
+        function _showVoiceRecordingUI() {
+            const bar  = document.getElementById('voiceRecordBar');
+            const btn  = document.getElementById('chatMicBtn');
+            const icon = document.getElementById('chatMicIcon');
+            const inp  = document.getElementById('chatMessageInput');
+            if (bar)  { bar.classList.remove('hidden'); bar.classList.add('flex'); }
+            if (inp)  inp.disabled = true;
+            if (btn)  { btn.style.background = '#ef4444'; btn.title = 'إيقاف وإرسال'; }
+            if (icon) icon.className = 'ph ph-stop-circle text-white text-base';
+            // مؤقت التسجيل
+            _voiceSeconds = 0;
+            _updateVoiceTimer();
+            _voiceTimerID = setInterval(() => { _voiceSeconds++; _updateVoiceTimer(); }, 1000);
+        }
+
+        // ── إخفاء واجهة التسجيل ──
+        function _hideVoiceRecordingUI() {
+            const bar  = document.getElementById('voiceRecordBar');
+            const btn  = document.getElementById('chatMicBtn');
+            const icon = document.getElementById('chatMicIcon');
+            const inp  = document.getElementById('chatMessageInput');
+            if (bar)  { bar.classList.add('hidden'); bar.classList.remove('flex'); }
+            if (inp)  inp.disabled = false;
+            if (btn)  { btn.style.background = 'var(--primary, #0790AC)'; btn.title = 'تسجيل رسالة صوتية'; }
+            if (icon) icon.className = 'ph ph-microphone text-white text-base';
+            if (_voiceTimerID) { clearInterval(_voiceTimerID); _voiceTimerID = null; }
+        }
+
+        // ── تحديث المؤقت ──
+        function _updateVoiceTimer() {
+            const el = document.getElementById('voiceRecordTimer');
+            if (!el) return;
+            const m = Math.floor(_voiceSeconds / 60);
+            const s = _voiceSeconds % 60;
+            el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+            // حد أقصى 5 دقائق
+            if (_voiceSeconds >= 300) stopAndSendVoice();
+        }
+
+        // ── تنسيق وقت الرسالة الصوتية للعرض ──
+        function _fmtVoiceDuration(sec) {
+            if (!sec) return '0:00';
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return `${m}:${s.toString().padStart(2,'0')}`;
+        }
+
+        // ── مشغّل الرسالة الصوتية ──
+        function _buildVoicePlayerHTML(msg, isMine) {
+            const dur   = _fmtVoiceDuration(msg.duration || 0);
+            const color = isMine ? 'rgba(255,255,255,0.9)' : 'var(--primary, #0790AC)';
+            const bgBar = isMine ? 'rgba(255,255,255,0.3)' : 'rgba(7,144,172,0.2)';
+            const uid   = `vp_${msg.id || Date.now()}`;
+            return `
+                <div class="voice-player-bubble" id="${uid}_wrap">
+                    <button class="voice-play-btn" id="${uid}_btn"
+                        style="background:${color};"
+                        onclick="_toggleVoicePlay('${uid}','${escapeHtml(msg.audioUrl || '')}')">
+                        <i id="${uid}_icon"
+                           class="ph ph-play text-sm"
+                           style="color:${isMine ? 'var(--primary,#0790AC)' : '#fff'};"></i>
+                    </button>
+                    <div class="flex flex-col flex-1 gap-1">
+                        <div class="voice-progress-wrap" id="${uid}_prog" style="background:${bgBar};"
+                             onclick="_seekVoice(event,'${uid}')">
+                            <div class="voice-progress-fill" id="${uid}_fill"
+                                 style="background:${color};"></div>
+                        </div>
+                        <span class="voice-duration-label" id="${uid}_dur">${dur}</span>
+                    </div>
+                    <i class="ph ph-microphone-stage text-sm" style="color:${color}; opacity:0.7;"></i>
+                </div>`;
+        }
+
+        // الـ Audio objects نخزّنها هنا لتجنّب تعدد التشغيل
+        const _voiceAudios = {};
+
+        function _toggleVoicePlay(uid, url) {
+            if (!url) return;
+            const icon = document.getElementById(`${uid}_icon`);
+            const fill = document.getElementById(`${uid}_fill`);
+            const durEl= document.getElementById(`${uid}_dur`);
+            const msg  = { audioUrl: url, duration: null };
+
+            // إيقاف أي مقطع آخر قيد التشغيل
+            Object.keys(_voiceAudios).forEach(k => {
+                if (k !== uid && !_voiceAudios[k].paused) {
+                    _voiceAudios[k].pause();
+                    const oi = document.getElementById(`${k}_icon`);
+                    if (oi) oi.className = oi.className.replace('ph-pause','ph-play');
+                }
+            });
+
+            if (!_voiceAudios[uid]) {
+                _voiceAudios[uid] = new Audio(url);
+                _voiceAudios[uid].ontimeupdate = () => {
+                    const a = _voiceAudios[uid];
+                    if (!a.duration || isNaN(a.duration)) return;
+                    const pct = (a.currentTime / a.duration) * 100;
+                    if (fill) fill.style.width = pct + '%';
+                    const rem = Math.round(a.duration - a.currentTime);
+                    if (durEl) durEl.textContent = _fmtVoiceDuration(rem);
+                };
+                _voiceAudios[uid].onended = () => {
+                    if (icon) icon.className = icon.className.replace('ph-pause','ph-play');
+                    if (fill) fill.style.width = '0%';
+                };
+            }
+
+            const audio = _voiceAudios[uid];
+            if (audio.paused) {
+                audio.play().catch(() => showToast('تعذّر تشغيل الصوت', 'error'));
+                if (icon) icon.className = icon.className.replace('ph-play','ph-pause');
+            } else {
+                audio.pause();
+                if (icon) icon.className = icon.className.replace('ph-pause','ph-play');
+            }
+        }
+
+        function _seekVoice(event, uid) {
+            const audio = _voiceAudios[uid];
+            if (!audio || !audio.duration || isNaN(audio.duration)) return;
+            const prog  = document.getElementById(`${uid}_prog`);
+            if (!prog) return;
+            const rect  = prog.getBoundingClientRect();
+            const pct   = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+            audio.currentTime = pct * audio.duration;
         }
 
         // ── تحديث حالة الشخص في الهيدر ──
