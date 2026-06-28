@@ -12780,9 +12780,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // فتح التطبيق بعد تسجيل الدخول الناجح
         function enterApp() {
             closeLoginModal();
-            // تصدير المتغيرات الأساسية على window ليتمكن كود WebRTC منها
-            window.currentUser = currentUser;
-            window.db = db;
             setTimeout(() => {
                 activateAuthMode();
                 // تسجيل الحضور (أونلاين)
@@ -21662,6 +21659,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             pendingCourseTrainerFieldContext = null;
         }
 
+        // ──────────────────────────────────────────────────────────
+        // جسر WebRTC — يعرض متغيرات الـ scope الداخلي على window
+        // يُستدعى من كود WebRTC الخارجي
+        // ──────────────────────────────────────────────────────────
+        window._rtcGetCurrentUser    = () => currentUser;
+        window._rtcGetDb             = () => db;
+        window._rtcGetActiveChatConvId = () => activeChatConvId;
+        window._rtcGetChatConversations = () => chatConversations;
+
     </script>
 
     <!-- ===== مودال ماسح QR Code ===== -->
@@ -26311,6 +26317,11 @@ const RTC_CONFIG = {
 
 // ─── بدء اتصال (كـ Caller) ───────────────────────────────────
 window.startWebRTCCall = async function(type) {
+    const currentUser    = window._rtcGetCurrentUser    ? window._rtcGetCurrentUser()    : null;
+    const db             = window._rtcGetDb             ? window._rtcGetDb()             : null;
+    const activeChatConvId = window._rtcGetActiveChatConvId ? window._rtcGetActiveChatConvId() : null;
+    const chatConversations = window._rtcGetChatConversations ? window._rtcGetChatConversations() : [];
+
     if (!currentUser || !db) {
         showToast('يجب تسجيل الدخول أولاً', 'error'); return;
     }
@@ -26414,6 +26425,8 @@ window.startWebRTCCall = async function(type) {
 
 // ─── استقبال اتصال وارد ────────────────────────────────────────
 async function _listenForIncomingCalls() {
+    const currentUser = window._rtcGetCurrentUser ? window._rtcGetCurrentUser() : null;
+    const db = window._rtcGetDb ? window._rtcGetDb() : null;
     if (!db || !currentUser) return;
     const myUid = currentUser.uid;
 
@@ -26452,7 +26465,8 @@ function _showIncomingCallUI(callData) {
     setTimeout(() => {
         if (_incomingCallId === callData.id) {
             _hideIncomingCallUI();
-            db.collection('calls').doc(callData.id).update({ status: 'missed' }).catch(()=>{});
+            const _db = window._rtcGetDb ? window._rtcGetDb() : null;
+            if (_db) _db.collection('calls').doc(callData.id).update({ status: 'missed' }).catch(()=>{});
         }
     }, 45000);
 }
@@ -26487,7 +26501,8 @@ window.answerWebRTCCall = async function() {
 
     _showCallUI(callData.callerName || '—', 'جارٍ الاتصال…', callData.type);
 
-    _callDocRef = db.collection('calls').doc(callData.id);
+    const _db = window._rtcGetDb ? window._rtcGetDb() : null;
+    _callDocRef = _db.collection('calls').doc(callData.id);
     _rtcPeer    = new RTCPeerConnection(RTC_CONFIG);
     _localStream.getTracks().forEach(t => _rtcPeer.addTrack(t, _localStream));
 
@@ -26535,8 +26550,9 @@ window.answerWebRTCCall = async function() {
 window.rejectWebRTCCall = async function() {
     const id = _incomingCallId;
     _hideIncomingCallUI();
-    if (id && db) {
-        await db.collection('calls').doc(id).update({ status: 'rejected' }).catch(()=>{});
+    const _db = window._rtcGetDb ? window._rtcGetDb() : null;
+    if (id && _db) {
+        await _db.collection('calls').doc(id).update({ status: 'rejected' }).catch(()=>{});
     }
 };
 
@@ -26759,6 +26775,7 @@ window.toggleWebRTCSpeaker = function() {
 
 // ─── إرسال إشعار للطرف الآخر عبر Firestore ──────────────────
 async function _sendCallNotification(targetUid, callId, callerName, type) {
+    const db = window._rtcGetDb ? window._rtcGetDb() : null;
     if (!db) return;
     try {
         await db.collection('notifications').add({
@@ -26781,7 +26798,9 @@ window._callsIncomingListenerStarted = false;
 
 // نبدأ الاستماع عند توفر currentUser (يُضبط في enterApp)
 const _callsCheckInterval = setInterval(() => {
-    if (currentUser && db && !window._callsIncomingListenerStarted) {
+    const _cu = window._rtcGetCurrentUser ? window._rtcGetCurrentUser() : null;
+    const _db = window._rtcGetDb ? window._rtcGetDb() : null;
+    if (_cu && _db && !window._callsIncomingListenerStarted) {
         window._callsIncomingListenerStarted = true;
         clearInterval(_callsCheckInterval);
         _listenForIncomingCalls();
