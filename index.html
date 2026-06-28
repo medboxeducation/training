@@ -11813,13 +11813,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                     <i class="ph ph-microphone text-sm"></i>
                                     <span>صوتية</span>
                                 </button>
-                                <button onclick="showComingSoon('الاتصال الصوتي')"
+                                <button onclick="startWebRTCCall('voice')"
                                     class="glass-icon-btn px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-blue-600 flex items-center gap-1.5 hover:bg-blue-50 hover:border-blue-300 transition-colors"
                                     title="اتصال صوتي">
                                     <i class="ph ph-phone text-sm"></i>
                                     <span>اتصال</span>
                                 </button>
-                                <button onclick="showComingSoon('اتصال الفيديو')"
+                                <button onclick="startWebRTCCall('video')"
                                     class="glass-icon-btn px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-violet-600 flex items-center gap-1.5 hover:bg-violet-50 hover:border-violet-300 transition-colors"
                                     title="اتصال فيديو">
                                     <i class="ph ph-video-camera text-sm"></i>
@@ -26154,5 +26154,644 @@ ${questionsHtml}
         };
     }
     </script>
+
+<!-- ======================================================================
+     ميزة الاتصال الصوتي والمرئي — WebRTC + Firebase Signaling (مجاني 100%)
+     ====================================================================== -->
+
+<!-- ① نافذة المتصل (الشاشة الرئيسية للاتصال) -->
+<div id="webrtcCallModal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center" style="background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);">
+    <div class="relative w-full h-full flex flex-col items-center justify-between py-10 px-4" style="max-width:520px; margin:auto;">
+
+        <!-- فيديو الطرف الآخر (خلفية) -->
+        <video id="webrtcRemoteVideo" autoplay playsinline
+               class="absolute inset-0 w-full h-full object-cover rounded-3xl"
+               style="display:none; z-index:0;"></video>
+
+        <!-- overlay للصوت فقط -->
+        <div id="webrtcAudioBg" class="absolute inset-0 rounded-3xl hidden"
+             style="background:linear-gradient(135deg,#0f172a 0%,#0790AC 100%); z-index:0;"></div>
+
+        <!-- فيديو المستخدم (صغير — الركن) -->
+        <video id="webrtcLocalVideo" autoplay playsinline muted
+               class="absolute bottom-24 left-4 w-28 h-40 object-cover rounded-2xl border-2 border-white/50 shadow-xl hidden"
+               style="z-index:10;"></video>
+
+        <!-- معلومات المُتصَل به (أعلى) -->
+        <div class="relative z-10 flex flex-col items-center gap-3 text-white text-center">
+            <div class="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border-2 border-white/40 shadow-xl">
+                <i class="ph ph-user text-4xl text-white"></i>
+            </div>
+            <h3 id="webrtcCalleeName" class="text-xl font-bold drop-shadow">—</h3>
+            <div id="webrtcCallStatus" class="text-sm text-white/80 font-medium flex items-center gap-2">
+                <span id="webrtcCallStatusDot" class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse inline-block"></span>
+                <span id="webrtcCallStatusText">جارٍ الاتصال…</span>
+            </div>
+            <div id="webrtcCallTimer" class="text-lg font-mono font-bold text-white hidden">00:00</div>
+        </div>
+
+        <!-- أزرار التحكم (أسفل) -->
+        <div class="relative z-10 flex items-center gap-5">
+            <!-- كتم الصوت -->
+            <button id="webrtcMuteBtn" onclick="toggleWebRTCMute()"
+                class="w-14 h-14 rounded-full bg-white/20 backdrop-blur border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition-all shadow-lg"
+                title="كتم الصوت">
+                <i id="webrtcMuteIcon" class="ph ph-microphone text-xl"></i>
+            </button>
+
+            <!-- إيقاف الفيديو -->
+            <button id="webrtcVideoToggleBtn" onclick="toggleWebRTCVideo()"
+                class="w-14 h-14 rounded-full bg-white/20 backdrop-blur border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition-all shadow-lg hidden"
+                title="إيقاف الكاميرا">
+                <i id="webrtcVideoIcon" class="ph ph-video-camera text-xl"></i>
+            </button>
+
+            <!-- إنهاء الاتصال -->
+            <button onclick="endWebRTCCall()"
+                class="w-16 h-16 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 transition-transform"
+                style="background:linear-gradient(135deg,#ef4444,#b91c1c);"
+                title="إنهاء الاتصال">
+                <i class="ph ph-phone-slash text-2xl"></i>
+            </button>
+
+            <!-- تبديل الكاميرا (موبايل) -->
+            <button id="webrtcFlipBtn" onclick="flipWebRTCCamera()"
+                class="w-14 h-14 rounded-full bg-white/20 backdrop-blur border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition-all shadow-lg hidden"
+                title="تبديل الكاميرا">
+                <i class="ph ph-camera-rotate text-xl"></i>
+            </button>
+
+            <!-- مكبر الصوت -->
+            <button id="webrtcSpeakerBtn" onclick="toggleWebRTCSpeaker()"
+                class="w-14 h-14 rounded-full bg-white/20 backdrop-blur border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition-all shadow-lg"
+                title="مكبر الصوت">
+                <i id="webrtcSpeakerIcon" class="ph ph-speaker-high text-xl"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ② نافذة الاتصال الوارد -->
+<div id="webrtcIncomingModal" class="hidden fixed bottom-6 right-6 z-[9998] w-80"
+     style="animation: slideInRight 0.3s ease;">
+    <div class="glass-panel rounded-3xl p-5 shadow-2xl border border-white/60"
+         style="background:linear-gradient(135deg,rgba(255,255,255,0.9),rgba(7,144,172,0.08)); backdrop-filter:blur(20px);">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <i id="webrtcIncomingIcon" class="ph ph-phone-call text-2xl text-primary animate-bounce"></i>
+            </div>
+            <div class="flex-1 min-w-0 text-right">
+                <p class="font-bold text-gray-800 text-sm truncate" id="webrtcIncomingCallerName">—</p>
+                <p class="text-xs text-gray-500" id="webrtcIncomingCallType">اتصال صوتي وارد…</p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="answerWebRTCCall()"
+                class="flex-1 py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-lg hover:scale-105 transition-transform"
+                style="background:linear-gradient(135deg,#22c55e,#16a34a);">
+                <i class="ph ph-phone text-base"></i>
+                <span>رد</span>
+            </button>
+            <button onclick="rejectWebRTCCall()"
+                class="flex-1 py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-lg hover:scale-105 transition-transform"
+                style="background:linear-gradient(135deg,#ef4444,#b91c1c);">
+                <i class="ph ph-phone-slash text-base"></i>
+                <span>رفض</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes slideInRight {
+    from { transform: translateX(120%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
+#webrtcCallModal .ph-phone-call { color: #22c55e; }
+</style>
+
+<script>
+/* ============================================================
+   WebRTC Call System — MedBox Education
+   الإشارة عبر Firebase Firestore (مجاني)
+   STUN مجاني من Google/Cloudflare/Twilio
+   ============================================================ */
+
+(function() {
+
+// ─── متغيرات الحالة ───────────────────────────────────────────
+let _rtcPeer        = null;   // RTCPeerConnection
+let _localStream    = null;   // MediaStream المحلي
+let _callDocRef     = null;   // Firestore doc ref للاتصال الحالي
+let _callListenerUnsub = null; // إلغاء الاستماع لـ Firestore
+let _callTimerInterval = null;
+let _callSeconds    = 0;
+let _isCaller       = false;
+let _activeCallId   = null;
+let _activeCallType = 'voice'; // 'voice' | 'video'
+let _incomingCallId = null;
+let _incomingCallData = null;
+let _isMuted        = false;
+let _isVideoOff     = false;
+let _currentFacingMode = 'user'; // for camera flip
+
+// ─── إعداد STUN (مجاني 100٪) ────────────────────────────────
+const RTC_CONFIG = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478'  },
+        { urls: 'stun:global.stun.twilio.com:3478' }
+    ]
+};
+
+// ─── بدء اتصال (كـ Caller) ───────────────────────────────────
+window.startWebRTCCall = async function(type) {
+    if (!window.currentUser || !window.db) {
+        showToast('يجب تسجيل الدخول أولاً', 'error'); return;
+    }
+    if (!window.activeChatConvId) {
+        showToast('افتح محادثة أولاً', 'error'); return;
+    }
+    if (_rtcPeer) {
+        showToast('يوجد اتصال نشط بالفعل', 'warning'); return;
+    }
+
+    // تحديد الطرف الآخر من المحادثة الحالية
+    const conv = (window.chatConversations || []).find(c => c.id === window.activeChatConvId);
+    if (!conv) { showToast('لا يمكن تحديد المُتصَل به', 'error'); return; }
+
+    _activeCallType = type;
+    _isCaller = true;
+
+    // طلب الميكروفون (+ كاميرا إن كانت فيديو)
+    try {
+        _localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: type === 'video' ? { facingMode: _currentFacingMode } : false
+        });
+    } catch(e) {
+        showToast('تعذّر الوصول إلى ' + (type==='video'?'الكاميرا والميكروفون':'الميكروفون'), 'error');
+        console.error('getUserMedia error:', e); return;
+    }
+
+    // إظهار شاشة الاتصال
+    _showCallUI(conv.nameAr || conv.nameEn || '—', 'جارٍ الاتصال…', type);
+
+    // إنشاء RTCPeerConnection
+    _rtcPeer = new RTCPeerConnection(RTC_CONFIG);
+    _localStream.getTracks().forEach(t => _rtcPeer.addTrack(t, _localStream));
+
+    // استقبال الميديا من الطرف الآخر
+    _rtcPeer.ontrack = e => _onRemoteTrack(e);
+
+    // ICE Candidates → Firestore
+    _rtcPeer.onicecandidate = async e => {
+        if (e.candidate && _callDocRef) {
+            await _callDocRef.collection('callerCandidates').add(e.candidate.toJSON());
+        }
+    };
+
+    _rtcPeer.onconnectionstatechange = () => _onConnectionStateChange();
+    _rtcPeer.oniceconnectionstatechange = () => _onIceStateChange();
+
+    // إنشاء وثيقة الاتصال في Firestore
+    const callId = window.activeChatConvId + '_' + Date.now();
+    _activeCallId = callId;
+    _callDocRef = db.collection('calls').doc(callId);
+
+    const myUid    = currentUser.uid;
+    const otherUid = conv.otherUid;
+    const myName   = currentUser.displayName || currentUser.nameAr || currentUser.email || myUid;
+
+    // إنشاء Offer
+    const offer = await _rtcPeer.createOffer({ offerToReceiveAudio:true, offerToReceiveVideo: type==='video' });
+    await _rtcPeer.setLocalDescription(offer);
+
+    await _callDocRef.set({
+        callId,
+        callerId:    myUid,
+        callerName:  myName,
+        calleeId:    otherUid,
+        convId:      window.activeChatConvId,
+        type,
+        status:      'calling',
+        offer:       { type: offer.type, sdp: offer.sdp },
+        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // الاستماع للـ Answer والـ ICE من الطرف الآخر
+    _callListenerUnsub = _callDocRef.onSnapshot(async snap => {
+        const data = snap.data();
+        if (!data) return;
+
+        if (data.answer && _rtcPeer && !_rtcPeer.currentRemoteDescription) {
+            const answerDesc = new RTCSessionDescription(data.answer);
+            await _rtcPeer.setRemoteDescription(answerDesc).catch(e => console.error('setRemote answer err:', e));
+        }
+        if (data.status === 'rejected' || data.status === 'ended') {
+            _handleCallEnded(data.status);
+        }
+    });
+
+    // استقبال ICE Candidates من الـ Callee
+    _callDocRef.collection('calleeCandidates').onSnapshot(snap => {
+        snap.docChanges().forEach(async change => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+            }
+        });
+    });
+
+    // إرسال إشعار notification للطرف الآخر
+    await _sendCallNotification(otherUid, callId, myName, type);
+};
+
+// ─── استقبال اتصال وارد ────────────────────────────────────────
+async function _listenForIncomingCalls() {
+    if (!db || !currentUser) return;
+    const myUid = currentUser.uid;
+
+    db.collection('calls')
+        .where('calleeId', '==', myUid)
+        .where('status', '==', 'calling')
+        .onSnapshot(snap => {
+            snap.docChanges().forEach(change => {
+                if (change.type === 'added') {
+                    const data = { id: change.doc.id, ...change.doc.data() };
+                    // تجاهل الاتصالات القديمة (أقدم من 60 ثانية)
+                    const createdAt = data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now();
+                    if (Date.now() - createdAt > 60000) return;
+                    if (!_rtcPeer) _showIncomingCallUI(data);
+                }
+            });
+        });
+}
+
+// ─── إظهار واجهة اتصال وارد ─────────────────────────────────
+function _showIncomingCallUI(callData) {
+    _incomingCallId   = callData.id;
+    _incomingCallData = callData;
+
+    const modal = document.getElementById('webrtcIncomingModal');
+    const nameEl = document.getElementById('webrtcIncomingCallerName');
+    const typeEl = document.getElementById('webrtcIncomingCallType');
+    const icon   = document.getElementById('webrtcIncomingIcon');
+
+    if (nameEl) nameEl.textContent = callData.callerName || '—';
+    if (typeEl) typeEl.textContent = callData.type === 'video' ? 'اتصال مرئي وارد…' : 'اتصال صوتي وارد…';
+    if (icon)   icon.className = callData.type === 'video' ? 'ph ph-video-camera text-2xl text-primary animate-bounce' : 'ph ph-phone-call text-2xl text-primary animate-bounce';
+    if (modal)  modal.classList.remove('hidden');
+
+    // إغلاق تلقائي بعد 45 ثانية إذا لم يُرد
+    setTimeout(() => {
+        if (_incomingCallId === callData.id) {
+            _hideIncomingCallUI();
+            db.collection('calls').doc(callData.id).update({ status: 'missed' }).catch(()=>{});
+        }
+    }, 45000);
+}
+
+function _hideIncomingCallUI() {
+    const modal = document.getElementById('webrtcIncomingModal');
+    if (modal) modal.classList.add('hidden');
+    _incomingCallId   = null;
+    _incomingCallData = null;
+}
+
+// ─── الرد على اتصال وارد ───────────────────────────────────────
+window.answerWebRTCCall = async function() {
+    if (!_incomingCallData) return;
+    const callData = _incomingCallData;
+    _hideIncomingCallUI();
+
+    _activeCallType = callData.type;
+    _isCaller       = false;
+    _activeCallId   = callData.id;
+
+    // طلب الميكروفون (+ كاميرا)
+    try {
+        _localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: callData.type === 'video' ? { facingMode: _currentFacingMode } : false
+        });
+    } catch(e) {
+        showToast('تعذّر الوصول إلى ' + (callData.type==='video'?'الكاميرا والميكروفون':'الميكروفون'), 'error');
+        return;
+    }
+
+    _showCallUI(callData.callerName || '—', 'جارٍ الاتصال…', callData.type);
+
+    _callDocRef = db.collection('calls').doc(callData.id);
+    _rtcPeer    = new RTCPeerConnection(RTC_CONFIG);
+    _localStream.getTracks().forEach(t => _rtcPeer.addTrack(t, _localStream));
+
+    _rtcPeer.ontrack = e => _onRemoteTrack(e);
+    _rtcPeer.onconnectionstatechange = () => _onConnectionStateChange();
+    _rtcPeer.oniceconnectionstatechange = () => _onIceStateChange();
+
+    _rtcPeer.onicecandidate = async e => {
+        if (e.candidate && _callDocRef) {
+            await _callDocRef.collection('calleeCandidates').add(e.candidate.toJSON());
+        }
+    };
+
+    // تعيين Offer وإنشاء Answer
+    const offerDesc = new RTCSessionDescription(callData.offer);
+    await _rtcPeer.setRemoteDescription(offerDesc);
+    const answer = await _rtcPeer.createAnswer();
+    await _rtcPeer.setLocalDescription(answer);
+
+    await _callDocRef.update({
+        answer: { type: answer.type, sdp: answer.sdp },
+        status: 'connected'
+    });
+
+    // استقبال ICE Candidates من الـ Caller
+    _callDocRef.collection('callerCandidates').onSnapshot(snap => {
+        snap.docChanges().forEach(async change => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+            }
+        });
+    });
+
+    // مراقبة تغييرات الحالة
+    _callListenerUnsub = _callDocRef.onSnapshot(snap => {
+        const data = snap.data();
+        if (data && (data.status === 'rejected' || data.status === 'ended')) {
+            _handleCallEnded(data.status);
+        }
+    });
+};
+
+// ─── رفض اتصال وارد ──────────────────────────────────────────
+window.rejectWebRTCCall = async function() {
+    const id = _incomingCallId;
+    _hideIncomingCallUI();
+    if (id && db) {
+        await db.collection('calls').doc(id).update({ status: 'rejected' }).catch(()=>{});
+    }
+};
+
+// ─── إنهاء الاتصال (من المستخدم) ───────────────────────────
+window.endWebRTCCall = async function() {
+    if (_callDocRef) {
+        await _callDocRef.update({ status: 'ended' }).catch(()=>{});
+    }
+    _cleanupCall();
+};
+
+// ─── تنظيف الاتصال ────────────────────────────────────────────
+function _cleanupCall() {
+    // إيقاف المؤقت
+    if (_callTimerInterval) { clearInterval(_callTimerInterval); _callTimerInterval = null; }
+    _callSeconds = 0;
+
+    // إيقاف المسارات
+    if (_localStream) { _localStream.getTracks().forEach(t => t.stop()); _localStream = null; }
+
+    // إغلاق RTCPeerConnection
+    if (_rtcPeer) { _rtcPeer.close(); _rtcPeer = null; }
+
+    // إلغاء Firestore listener
+    if (_callListenerUnsub) { _callListenerUnsub(); _callListenerUnsub = null; }
+
+    _callDocRef    = null;
+    _activeCallId  = null;
+    _isCaller      = false;
+    _isMuted       = false;
+    _isVideoOff    = false;
+
+    // إخفاء واجهة الاتصال
+    _hideCallUI();
+}
+
+// ─── معالجة إنهاء الاتصال من الطرف الآخر ────────────────────
+function _handleCallEnded(status) {
+    if (status === 'rejected') showToast('تم رفض الاتصال', 'info');
+    else if (status === 'ended') showToast('انتهى الاتصال', 'info');
+    _cleanupCall();
+}
+
+// ─── استقبال الميديا من الطرف الآخر ─────────────────────────
+function _onRemoteTrack(e) {
+    const remoteVideo = document.getElementById('webrtcRemoteVideo');
+    if (!remoteVideo) return;
+    if (remoteVideo.srcObject !== e.streams[0]) {
+        remoteVideo.srcObject = e.streams[0];
+    }
+}
+
+// ─── تتبع حالة الاتصال ────────────────────────────────────────
+function _onConnectionStateChange() {
+    if (!_rtcPeer) return;
+    const state = _rtcPeer.connectionState;
+    const statusText = document.getElementById('webrtcCallStatusText');
+    const statusDot  = document.getElementById('webrtcCallStatusDot');
+    const timerEl    = document.getElementById('webrtcCallTimer');
+
+    if (state === 'connected') {
+        if (statusText) statusText.textContent = 'متصل';
+        if (statusDot)  { statusDot.className = 'w-2 h-2 rounded-full bg-green-400 inline-block'; }
+
+        // إظهار الفيديو إذا كان النوع video
+        if (_activeCallType === 'video') {
+            const rv = document.getElementById('webrtcRemoteVideo');
+            const lv = document.getElementById('webrtcLocalVideo');
+            const bg = document.getElementById('webrtcAudioBg');
+            if (rv) rv.style.display = 'block';
+            if (lv) { lv.srcObject = _localStream; lv.classList.remove('hidden'); }
+            if (bg) bg.classList.add('hidden');
+        }
+
+        // بدء المؤقت
+        _callSeconds = 0;
+        if (timerEl) timerEl.classList.remove('hidden');
+        _callTimerInterval = setInterval(() => {
+            _callSeconds++;
+            const m = String(Math.floor(_callSeconds/60)).padStart(2,'0');
+            const s = String(_callSeconds%60).padStart(2,'0');
+            if (timerEl) timerEl.textContent = m + ':' + s;
+        }, 1000);
+
+    } else if (state === 'disconnected' || state === 'failed') {
+        if (statusText) statusText.textContent = 'انقطع الاتصال';
+        if (statusDot)  statusDot.className = 'w-2 h-2 rounded-full bg-red-400 inline-block';
+        setTimeout(() => { if (_rtcPeer && (_rtcPeer.connectionState === 'disconnected' || _rtcPeer.connectionState === 'failed')) endWebRTCCall(); }, 3000);
+    }
+}
+
+function _onIceStateChange() {
+    if (!_rtcPeer) return;
+    const state = _rtcPeer.iceConnectionState;
+    const statusText = document.getElementById('webrtcCallStatusText');
+    if (state === 'checking' && statusText) statusText.textContent = 'جارٍ الاتصال…';
+    if (state === 'connected' || state === 'completed') {
+        if (statusText) statusText.textContent = 'متصل';
+    }
+}
+
+// ─── واجهة الاتصال ────────────────────────────────────────────
+function _showCallUI(name, statusMsg, type) {
+    const modal   = document.getElementById('webrtcCallModal');
+    const nameEl  = document.getElementById('webrtcCalleeName');
+    const statEl  = document.getElementById('webrtcCallStatusText');
+    const muteBtn = document.getElementById('webrtcMuteBtn');
+    const vidBtn  = document.getElementById('webrtcVideoToggleBtn');
+    const flipBtn = document.getElementById('webrtcFlipBtn');
+    const audioBg = document.getElementById('webrtcAudioBg');
+    const remVid  = document.getElementById('webrtcRemoteVideo');
+    const locVid  = document.getElementById('webrtcLocalVideo');
+    const timerEl = document.getElementById('webrtcCallTimer');
+
+    if (nameEl)  nameEl.textContent  = name;
+    if (statEl)  statEl.textContent  = statusMsg;
+    if (timerEl) timerEl.classList.add('hidden');
+
+    // إعادة تعيين الأيقونات
+    _isMuted   = false;
+    _isVideoOff = false;
+    document.getElementById('webrtcMuteIcon').className  = 'ph ph-microphone text-xl';
+    if (vidBtn) {
+        document.getElementById('webrtcVideoIcon').className = 'ph ph-video-camera text-xl';
+    }
+
+    // إظهار/إخفاء أزرار الفيديو حسب النوع
+    if (type === 'video') {
+        if (vidBtn)  vidBtn.classList.remove('hidden');
+        if (flipBtn) flipBtn.classList.remove('hidden');
+        if (audioBg) audioBg.classList.add('hidden');
+        if (remVid)  remVid.style.display = 'none';
+        if (locVid)  locVid.classList.add('hidden');
+    } else {
+        if (vidBtn)  vidBtn.classList.add('hidden');
+        if (flipBtn) flipBtn.classList.add('hidden');
+        if (audioBg) audioBg.classList.remove('hidden');
+        if (remVid)  remVid.style.display = 'none';
+        if (locVid)  locVid.classList.add('hidden');
+    }
+
+    // عرض الفيديو المحلي للمتصل مسبقاً
+    if (type === 'video' && _localStream && locVid) {
+        locVid.srcObject = _localStream;
+        locVid.classList.remove('hidden');
+    }
+
+    if (modal) modal.classList.remove('hidden');
+}
+
+function _hideCallUI() {
+    const modal  = document.getElementById('webrtcCallModal');
+    const remVid = document.getElementById('webrtcRemoteVideo');
+    const locVid = document.getElementById('webrtcLocalVideo');
+    const timerEl= document.getElementById('webrtcCallTimer');
+
+    if (modal)  modal.classList.add('hidden');
+    if (remVid) { remVid.srcObject = null; remVid.style.display = 'none'; }
+    if (locVid) { locVid.srcObject = null; locVid.classList.add('hidden'); }
+    if (timerEl) { timerEl.classList.add('hidden'); timerEl.textContent = '00:00'; }
+}
+
+// ─── تبديل كتم الصوت ─────────────────────────────────────────
+window.toggleWebRTCMute = function() {
+    if (!_localStream) return;
+    _isMuted = !_isMuted;
+    _localStream.getAudioTracks().forEach(t => { t.enabled = !_isMuted; });
+    const icon = document.getElementById('webrtcMuteIcon');
+    const btn  = document.getElementById('webrtcMuteBtn');
+    if (icon) icon.className = _isMuted ? 'ph ph-microphone-slash text-xl' : 'ph ph-microphone text-xl';
+    if (btn)  btn.style.background = _isMuted ? 'rgba(239,68,68,0.4)' : '';
+};
+
+// ─── تبديل الكاميرا ───────────────────────────────────────────
+window.toggleWebRTCVideo = function() {
+    if (!_localStream) return;
+    _isVideoOff = !_isVideoOff;
+    _localStream.getVideoTracks().forEach(t => { t.enabled = !_isVideoOff; });
+    const icon = document.getElementById('webrtcVideoIcon');
+    const btn  = document.getElementById('webrtcVideoToggleBtn');
+    if (icon) icon.className = _isVideoOff ? 'ph ph-video-camera-slash text-xl' : 'ph ph-video-camera text-xl';
+    if (btn)  btn.style.background = _isVideoOff ? 'rgba(239,68,68,0.4)' : '';
+};
+
+// ─── تبديل الكاميرا الأمامية/الخلفية ─────────────────────────
+window.flipWebRTCCamera = async function() {
+    if (!_localStream || !_rtcPeer) return;
+    _currentFacingMode = _currentFacingMode === 'user' ? 'environment' : 'user';
+    try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: { facingMode: _currentFacingMode }
+        });
+        const newVideoTrack = newStream.getVideoTracks()[0];
+        const sender = _rtcPeer.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) await sender.replaceTrack(newVideoTrack);
+        const locVid = document.getElementById('webrtcLocalVideo');
+        if (locVid) locVid.srcObject = newStream;
+        _localStream.getVideoTracks().forEach(t => t.stop());
+        _localStream = newStream;
+    } catch(e) {
+        console.warn('Camera flip error:', e);
+    }
+};
+
+// ─── مكبر الصوت (للموبايل) ───────────────────────────────────
+let _speakerOn = true;
+window.toggleWebRTCSpeaker = function() {
+    _speakerOn = !_speakerOn;
+    const icon = document.getElementById('webrtcSpeakerIcon');
+    const btn  = document.getElementById('webrtcSpeakerBtn');
+    if (icon) icon.className = _speakerOn ? 'ph ph-speaker-high text-xl' : 'ph ph-speaker-slash text-xl';
+    if (btn)  btn.style.background = _speakerOn ? '' : 'rgba(239,68,68,0.4)';
+    // في البيئات التي تدعمه (Android WebView)
+    const remVid = document.getElementById('webrtcRemoteVideo');
+    if (remVid) {
+        try { remVid.setSinkId(_speakerOn ? '' : 'default'); } catch(e) {}
+    }
+};
+
+// ─── إرسال إشعار للطرف الآخر عبر Firestore ──────────────────
+async function _sendCallNotification(targetUid, callId, callerName, type) {
+    if (!db) return;
+    try {
+        await db.collection('notifications').add({
+            toUid:       targetUid,
+            type:        'incoming_call',
+            callId,
+            callerName,
+            callType:    type,
+            convId:      window.activeChatConvId,
+            createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
+            read:        false
+        });
+    } catch(e) {
+        console.warn('Could not send call notification:', e);
+    }
+}
+
+// ─── بدء الاستماع للاتصالات الواردة عند تسجيل الدخول ─────────
+// نربطها بحدث onAuthStateChanged الموجود
+const _origOnAuthChanged = window._onAuthChangedCallback;
+window._callsIncomingListenerStarted = false;
+
+// نبدأ الاستماع عند اكتمال تحميل الصفحة وتوفر currentUser
+const _callsCheckInterval = setInterval(() => {
+    if (window.currentUser && window.db && !window._callsIncomingListenerStarted) {
+        window._callsIncomingListenerStarted = true;
+        clearInterval(_callsCheckInterval);
+        _listenForIncomingCalls();
+    }
+}, 1000);
+
+// تنظيف عند إغلاق الصفحة
+window.addEventListener('beforeunload', () => {
+    if (_rtcPeer) endWebRTCCall();
+});
+
+})(); // IIFE
+</script>
 </body>
 </html>
