@@ -11018,8 +11018,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             </button>
                         </div>
                     </div>
-                    <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" title="إغلاق القائمة" onclick="toggleSidebar()">
-                        <i class="ph ph-x text-lg"></i>
+                    <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 hover:border-primary/30" title="إخفاء القائمة" onclick="closeSidebar()">
+                        <i class="ph ph-caret-right text-lg"></i>
                     </button>
                 </div>
             </div>
@@ -11089,12 +11089,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 background: rgba(7, 144, 172, 0.15) !important;
                 border-right: 3px solid #0790AC;
             }
+
+
         </style>
 
-        <!-- زر إظهار القائمة المخفية (يظهر عند إغلاق القائمة) -->
-        <button id="showSidebarBtn" class="hidden absolute right-4 top-24 glass-panel p-3 rounded-full text-primary z-50 shadow-lg cursor-pointer hover:scale-105 transition-transform admin-only" onclick="toggleSidebar()">
-            <i class="ph ph-list text-2xl"></i>
-        </button>
+        <!-- زر إظهار القائمة يُنشأ بواسطة JS -->
 
         <!-- 1. لوحة العرض الرئيسية (Main Display Area) -->
         <main class="glass-panel flex-1 rounded-2xl p-6 relative overflow-y-auto" id="mainContentArea">
@@ -13261,6 +13260,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3500);
         }
+        window.showToast = showToast; // تصدير للـ scripts الأخرى
 
         // ======== إعدادات Firebase الافتراضية المضمّنة داخل الكود ========
         // هذه هي بيانات الاتصال الأساسية لمشروع Firebase الخاص بالتطبيق، وهي مُضمّنة
@@ -13676,28 +13676,51 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const myUid = currentUser.uid;
             // كل محادثة تحتوي على حقل participants (مصفوفة من uid-ين)
             // نستعلم عن المحادثات التي يكون فيها المستخدم الحالي أحد الطرفين
+            // بدون orderBy لتجنّب الحاجة إلى Composite Index في Firestore
+            // الترتيب يتم على جهاز المستخدم في دالة sortChatConversations
             _chatConvsListener = db.collection('chats')
                 .where('participants', 'array-contains', myUid)
-                .orderBy('lastTimestamp', 'desc')
                 .onSnapshot(snap => {
                     chatConversations = snap.docs.map(doc => {
                         const d = doc.data();
                         const otherUid = (d.participants || []).find(u => u !== myUid) || '';
+                        // استخراج الطابع الزمني بأي صيغة كانت
+                        let lastTs = 0;
+                        if (d.lastTimestamp) {
+                            if (typeof d.lastTimestamp.toMillis === 'function') lastTs = d.lastTimestamp.toMillis();
+                            else if (typeof d.lastTimestamp === 'number') lastTs = d.lastTimestamp;
+                            else if (d.lastTimestamp.seconds) lastTs = d.lastTimestamp.seconds * 1000;
+                        }
                         return {
                             id:            doc.id,
                             otherUid,
-                            nameAr:        d.names?.[otherUid]?.ar  || d.nameAr || '—',
-                            nameEn:        d.names?.[otherUid]?.en  || d.nameEn || '',
-                            code:          d.names?.[otherUid]?.code || d.code  || '',
+                            nameAr:        d.names?.[otherUid]?.ar   || d.nameAr  || '—',
+                            nameEn:        d.names?.[otherUid]?.en   || d.nameEn  || '',
+                            code:          d.names?.[otherUid]?.code || d.code    || '',
                             lastMsg:       d.lastMsg   || '',
-                            lastTimestamp: d.lastTimestamp?.toMillis?.() || d.lastTimestamp || 0,
+                            lastTimestamp: lastTs,
                             unread:        d.unread?.[myUid] || 0,
                         };
                     });
                     // مراقبة حضور كل طرف آخر
                     chatConversations.forEach(c => { if (c.otherUid) watchPresence(c.otherUid); });
                     buildChatConversationsList();
-                }, err => { console.warn('chats listener error', err); });
+                }, err => {
+                    console.error('chats listener error:', err);
+                    // إظهار رسالة واضحة للمستخدم بدل الصمت
+                    const container = document.getElementById('chatConversationsList');
+                    if (container) {
+                        container.innerHTML = `
+                            <div class="text-center py-8 text-red-400 text-xs px-3">
+                                <i class="ph ph-warning-circle text-3xl block mb-2"></i>
+                                <p class="font-bold mb-1">تعذّر تحميل المحادثات</p>
+                                <p class="text-[10px] text-gray-400">${err?.message || 'خطأ في الاتصال بقاعدة البيانات'}</p>
+                                <button onclick="_startConversationsListener()"
+                                    class="mt-3 px-3 py-1.5 rounded-xl text-[10px] font-bold text-white"
+                                    style="background:var(--primary)">إعادة المحاولة</button>
+                            </div>`;
+                    }
+                });
         }
 
 
@@ -13803,7 +13826,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </div>
                 `;
 
-                card.addEventListener('click', () => openChatWindow(conv.id));
+                card.addEventListener('click', () => {
+                    openChatWindow(conv.id);
+                    // إخفاء القائمة الجانبية تلقائياً في الشاشات الصغيرة (موبايل/تابلت)
+                    if (window.innerWidth < 1024) {
+                        closeSidebar();
+                    }
+                });
                 container.appendChild(card);
             });
         }
@@ -14648,6 +14677,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function escapeHtml(str) {
             return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
+        window.escapeHtml = escapeHtml;
+        window._startConversationsListener = _startConversationsListener;
 
         // ── إغلاق قائمة الفرز ونتائج البحث عند الضغط خارجها ──
         document.addEventListener('click', function(e) {
@@ -19486,14 +19517,101 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         // 2. Sidebar Logic
         const sidebar = document.getElementById('sidebar');
-        const showSidebarBtn = document.getElementById('showSidebarBtn');
         let isSidebarOpen = false;
 
+        // ── إنشاء زر إظهار القائمة مباشرةً في body (خارج أي container) ──
+        // ── زر إظهار القائمة العائم ──
+        const _floatBtn = document.createElement('button');
+        _floatBtn.id = 'showSidebarBtn';
+        _floatBtn.title = 'إظهار القائمة';
+        _floatBtn.onclick = toggleSidebar;
+        // سهم SVG يشير لليسار (نحو القائمة)
+        _floatBtn.innerHTML = `
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                 stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>`;
+        Object.assign(_floatBtn.style, {
+            display:        'none',
+            position:       'fixed',
+            zIndex:         '9999',
+            alignItems:     'center',
+            justifyContent: 'center',
+            width:          '42px',
+            height:         '42px',
+            background:     'linear-gradient(135deg,#ffffff,rgba(7,144,172,0.08))',
+            backdropFilter: 'blur(14px)',
+            border:         '1.5px solid rgba(7,144,172,0.28)',
+            borderRadius:   '50%',
+            boxShadow:      '0 4px 18px rgba(7,144,172,0.22)',
+            cursor:         'pointer',
+            transition:     'all 0.2s ease',
+        });
+
+        // ── تحديد الموضع حسب حجم الشاشة ──
+        function _positionFloatBtn() {
+            const isPortraitMobile = window.innerWidth <= 480 && window.innerHeight > window.innerWidth;
+            if (isPortraitMobile) {
+                // موبايل عمودي: أسفل الشاشة في المنتصف
+                _floatBtn.style.bottom    = '24px';
+                _floatBtn.style.top       = 'auto';
+                _floatBtn.style.right     = 'auto';
+                _floatBtn.style.left      = '50%';
+                _floatBtn.style.transform = 'translateX(-50%)';
+                _floatBtn.style.width     = '52px';
+                _floatBtn.style.height    = '52px';
+                _floatBtn.style.borderRadius = '50%';
+                // السهم يشير لأعلى (القائمة تفتح من اليمين/الجانب)
+                _floatBtn.innerHTML = `
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                         stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>`;
+            } else {
+                // شاشات كبيرة / لابتوب / تابلت / موبايل أفقي: يمين الشاشة في المنتصف
+                _floatBtn.style.bottom    = 'auto';
+                _floatBtn.style.top       = '50%';
+                _floatBtn.style.right     = '14px';
+                _floatBtn.style.left      = 'auto';
+                _floatBtn.style.transform = 'translateY(-50%)';
+                _floatBtn.style.width     = '42px';
+                _floatBtn.style.height    = '42px';
+                _floatBtn.style.borderRadius = '50%';
+                // السهم يشير لليسار (نحو القائمة)
+                _floatBtn.innerHTML = `
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                         stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>`;
+            }
+        }
+
+        _positionFloatBtn();
+        window.addEventListener('resize', () => { if (!isSidebarOpen) _positionFloatBtn(); });
+        window.addEventListener('orientationchange', () => { setTimeout(_positionFloatBtn, 200); });
+
+        _floatBtn.addEventListener('mouseenter', () => {
+            _floatBtn.style.transform = _floatBtn.style.transform.includes('translateX')
+                ? 'translateX(-50%) scale(1.12)'
+                : 'translateY(-50%) scale(1.12)';
+            _floatBtn.style.boxShadow = '0 6px 26px rgba(7,144,172,0.34)';
+        });
+        _floatBtn.addEventListener('mouseleave', () => {
+            _floatBtn.style.transform = _floatBtn.style.transform.includes('translateX')
+                ? 'translateX(-50%)'
+                : 'translateY(-50%)';
+            _floatBtn.style.boxShadow = '0 4px 18px rgba(7,144,172,0.22)';
+        });
+
+        document.body.appendChild(_floatBtn);
+        const showSidebarBtn = _floatBtn;
+
         function openSidebar() {
-            showSidebarBtn.classList.add('hidden');
+            showSidebarBtn.style.display = 'none';
             sidebar.style.transform = 'translateX(0)';
-            sidebar.style.width = '20rem'; // w-80
+            sidebar.style.width = '20rem';
             sidebar.style.opacity = '1';
+            sidebar.style.pointerEvents = '';
             isSidebarOpen = true;
         }
 
@@ -19502,7 +19620,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             sidebar.style.width = '0';
             sidebar.style.margin = '0';
             sidebar.style.opacity = '0';
-            setTimeout(() => showSidebarBtn.classList.remove('hidden'), 300);
+            sidebar.style.pointerEvents = 'none';
+            setTimeout(() => {
+                showSidebarBtn.style.display = 'flex';
+            }, 300);
             isSidebarOpen = false;
         }
 
@@ -26323,18 +26444,18 @@ window.startWebRTCCall = async function(type) {
     const chatConversations = window._rtcGetChatConversations ? window._rtcGetChatConversations() : [];
 
     if (!currentUser || !db) {
-        showToast('يجب تسجيل الدخول أولاً', 'error'); return;
+        window.showToast('يجب تسجيل الدخول أولاً', 'error'); return;
     }
     if (!activeChatConvId) {
-        showToast('افتح محادثة أولاً', 'error'); return;
+        window.showToast('افتح محادثة أولاً', 'error'); return;
     }
     if (_rtcPeer) {
-        showToast('يوجد اتصال نشط بالفعل', 'warning'); return;
+        window.showToast('يوجد اتصال نشط بالفعل', 'warning'); return;
     }
 
     // تحديد الطرف الآخر من المحادثة الحالية
     const conv = chatConversations.find(c => c.id === activeChatConvId);
-    if (!conv) { showToast('لا يمكن تحديد المُتصَل به', 'error'); return; }
+    if (!conv) { window.showToast('لا يمكن تحديد المُتصَل به', 'error'); return; }
 
     _activeCallType = type;
     _isCaller = true;
@@ -26346,7 +26467,7 @@ window.startWebRTCCall = async function(type) {
             video: type === 'video' ? { facingMode: _currentFacingMode } : false
         });
     } catch(e) {
-        showToast('تعذّر الوصول إلى ' + (type==='video'?'الكاميرا والميكروفون':'الميكروفون'), 'error');
+        window.showToast('تعذّر الوصول إلى ' + (type==='video'?'الكاميرا والميكروفون':'الميكروفون'), 'error');
         console.error('getUserMedia error:', e); return;
     }
 
@@ -26495,7 +26616,7 @@ window.answerWebRTCCall = async function() {
             video: callData.type === 'video' ? { facingMode: _currentFacingMode } : false
         });
     } catch(e) {
-        showToast('تعذّر الوصول إلى ' + (callData.type==='video'?'الكاميرا والميكروفون':'الميكروفون'), 'error');
+        window.showToast('تعذّر الوصول إلى ' + (callData.type==='video'?'الكاميرا والميكروفون':'الميكروفون'), 'error');
         return;
     }
 
@@ -26591,8 +26712,8 @@ function _cleanupCall() {
 
 // ─── معالجة إنهاء الاتصال من الطرف الآخر ────────────────────
 function _handleCallEnded(status) {
-    if (status === 'rejected') showToast('تم رفض الاتصال', 'info');
-    else if (status === 'ended') showToast('انتهى الاتصال', 'info');
+    if (status === 'rejected') window.showToast('تم رفض الاتصال', 'info');
+    else if (status === 'ended') window.showToast('انتهى الاتصال', 'info');
     _cleanupCall();
 }
 
@@ -26811,8 +26932,6 @@ const _callsCheckInterval = setInterval(() => {
 window.addEventListener('beforeunload', () => {
     if (_rtcPeer) endWebRTCCall();
 });
-
-})(); // end WebRTC init check
 </script>
 </body>
 </html>
