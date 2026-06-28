@@ -12783,6 +12783,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 activateAuthMode();
                 // تسجيل الحضور (أونلاين)
                 if (currentUser && currentUser.uid) setUserOnline(currentUser.uid);
+                _startPresenceHeartbeat();
                 // إغلاق التطبيق = تسجيل الغياب
                 window.addEventListener('beforeunload', () => {
                     if (currentUser && currentUser.uid) {
@@ -12899,6 +12900,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (!confirm('هل تريد تسجيل الخروج؟')) return;
             // تسجيل الغياب قبل الخروج
             if (currentUser && currentUser.uid) setUserOffline(currentUser.uid);
+            // إيقاف نبضة الحضور
+            if (_presenceHeartbeatInterval) { clearInterval(_presenceHeartbeatInterval); _presenceHeartbeatInterval = null; }
             // إلغاء كل الـ listeners
             if (_chatConvsListener) { _chatConvsListener(); _chatConvsListener = null; }
             if (_chatMsgsListener)  { _chatMsgsListener();  _chatMsgsListener  = null; }
@@ -13622,10 +13625,29 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             _presenceListeners[uid] = db.collection('presence').doc(uid)
                 .onSnapshot(snap => {
                     const data = snap.data() || {};
-                    chatOnlineStatus[uid] = data.online === true;
+                    // المستخدم يُعدّ متصلاً فقط إذا كانت قيمة online = true
+                    // AND آخر نبضة (lastSeen) قبل أقل من 5 دقائق
+                    // هذا يحل مشكلة بقاء المستخدم "أخضر" عند إغلاق المتصفح بدون logout
+                    const isOnlineFlag = data.online === true;
+                    const lastSeen = data.lastSeen?.toMillis ? data.lastSeen.toMillis() : 0;
+                    const freshEnough = lastSeen > 0 && (Date.now() - lastSeen) < 5 * 60 * 1000; // 5 دقائق
+                    chatOnlineStatus[uid] = isOnlineFlag && freshEnough;
                     _refreshOnlineDots();
                 }, err => console.warn('presence listener error', uid, err));
         }
+
+        // ── تحديث نبضة الحضور كل دقيقتين للمستخدم الحالي (Heartbeat) ──
+        function _startPresenceHeartbeat() {
+            if (!currentUser?.uid) return;
+            const uid = currentUser.uid;
+            // نبضة فورية عند البدء
+            setUserOnline(uid);
+            // ثم كل دقيقتين
+            _presenceHeartbeatInterval = setInterval(() => {
+                if (currentUser?.uid) setUserOnline(currentUser.uid);
+            }, 2 * 60 * 1000);
+        }
+        let _presenceHeartbeatInterval = null;
 
         function _refreshOnlineDots() {
             buildChatConversationsList();
@@ -19568,12 +19590,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         <polyline points="18 15 12 9 6 15"></polyline>
                     </svg>`;
             } else {
-                // شاشات كبيرة / لابتوب / تابلت / موبايل أفقي: يمين الشاشة في المنتصف
+                // شاشات كبيرة / لابتوب / تابلت / موبايل أفقي:
+                // أعلى يمين الشاشة تحت التولبار مباشرة
                 _floatBtn.style.bottom    = 'auto';
-                _floatBtn.style.top       = '50%';
+                _floatBtn.style.top       = '70px';
                 _floatBtn.style.right     = '14px';
                 _floatBtn.style.left      = 'auto';
-                _floatBtn.style.transform = 'translateY(-50%)';
+                _floatBtn.style.transform = 'none';
                 _floatBtn.style.width     = '42px';
                 _floatBtn.style.height    = '42px';
                 _floatBtn.style.borderRadius = '50%';
@@ -26516,17 +26539,6 @@ window.startWebRTCCall = async function(type) {
         createdAt:   firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // ─── ICE Candidates buffer: نخزّن candidates الـ Callee حتى يصبح الـ RemoteDescription جاهزاً ───
-    let _remoteDescReady = false;
-    const _pendingCalleeCandidates = [];
-
-    async function _flushCalleeCandidates() {
-        for (const c of _pendingCalleeCandidates) {
-            if (_rtcPeer) await _rtcPeer.addIceCandidate(c).catch(e => console.warn('addIce flush err:', e));
-        }
-        _pendingCalleeCandidates.length = 0;
-    }
-
     // الاستماع للـ Answer والـ ICE من الطرف الآخر
     _callListenerUnsub = _callDocRef.onSnapshot(async snap => {
         const data = snap.data();
@@ -26535,30 +26547,24 @@ window.startWebRTCCall = async function(type) {
         if (data.answer && _rtcPeer && !_rtcPeer.currentRemoteDescription) {
             const answerDesc = new RTCSessionDescription(data.answer);
             await _rtcPeer.setRemoteDescription(answerDesc).catch(e => console.error('setRemote answer err:', e));
-            _remoteDescReady = true;
-            await _flushCalleeCandidates(); // تطبيق أي candidates وصلت قبل الـ answer
         }
         if (data.status === 'rejected' || data.status === 'ended') {
             _handleCallEnded(data.status);
         }
     });
 
-    // استقبال ICE Candidates من الـ Callee — مع buffering حتى يصبح RemoteDescription جاهزاً
+    // استقبال ICE Candidates من الـ Callee
     _callDocRef.collection('calleeCandidates').onSnapshot(snap => {
         snap.docChanges().forEach(async change => {
             if (change.type === 'added') {
                 const candidate = new RTCIceCandidate(change.doc.data());
-                if (_remoteDescReady && _rtcPeer) {
-                    await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
-                } else {
-                    _pendingCalleeCandidates.push(candidate); // تخزين مؤقت
-                }
+                await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
             }
         });
     });
 
     // إرسال إشعار notification للطرف الآخر
-    await _sendCallNotification(otherUid, callId, myName, type, activeChatConvId);
+    await _sendCallNotification(otherUid, callId, myName, type);
 };
 
 // ─── استقبال اتصال وارد ────────────────────────────────────────
@@ -26654,34 +26660,9 @@ window.answerWebRTCCall = async function() {
         }
     };
 
-    // ─── ICE Candidates buffer: نبدأ الاستماع قبل setRemoteDescription لنضمن عدم ضياع أي candidate ───
-    let _callerCandidatesBuffer = [];
-    let _calleeRemoteDescReady = false;
-
-    _callDocRef.collection('callerCandidates').onSnapshot(snap => {
-        snap.docChanges().forEach(async change => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                if (_calleeRemoteDescReady && _rtcPeer) {
-                    await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
-                } else {
-                    _callerCandidatesBuffer.push(candidate);
-                }
-            }
-        });
-    });
-
     // تعيين Offer وإنشاء Answer
     const offerDesc = new RTCSessionDescription(callData.offer);
     await _rtcPeer.setRemoteDescription(offerDesc);
-    _calleeRemoteDescReady = true;
-
-    // تطبيق أي candidates وصلت قبل setRemoteDescription
-    for (const c of _callerCandidatesBuffer) {
-        if (_rtcPeer) await _rtcPeer.addIceCandidate(c).catch(e => console.warn('addIce flush err:', e));
-    }
-    _callerCandidatesBuffer = [];
-
     const answer = await _rtcPeer.createAnswer();
     await _rtcPeer.setLocalDescription(answer);
 
@@ -26690,7 +26671,17 @@ window.answerWebRTCCall = async function() {
         status: 'connected'
     });
 
-    // مراقبة تغييرات الحالة (بعد الـ update لتجنب اصطياد حدث 'connected' الذي أطلقناه نحن)
+    // استقبال ICE Candidates من الـ Caller
+    _callDocRef.collection('callerCandidates').onSnapshot(snap => {
+        snap.docChanges().forEach(async change => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+            }
+        });
+    });
+
+    // مراقبة تغييرات الحالة
     _callListenerUnsub = _callDocRef.onSnapshot(snap => {
         const data = snap.data();
         if (data && (data.status === 'rejected' || data.status === 'ended')) {
@@ -26927,7 +26918,7 @@ window.toggleWebRTCSpeaker = function() {
 };
 
 // ─── إرسال إشعار للطرف الآخر عبر Firestore ──────────────────
-async function _sendCallNotification(targetUid, callId, callerName, type, convId) {
+async function _sendCallNotification(targetUid, callId, callerName, type) {
     const db = window._rtcGetDb ? window._rtcGetDb() : null;
     if (!db) return;
     try {
@@ -26937,7 +26928,7 @@ async function _sendCallNotification(targetUid, callId, callerName, type, convId
             callId,
             callerName,
             callType:    type,
-            convId:      convId || '',
+            convId:      activeChatConvId,
             createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
             read:        false
         });
