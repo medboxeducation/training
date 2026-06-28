@@ -12780,6 +12780,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // فتح التطبيق بعد تسجيل الدخول الناجح
         function enterApp() {
             closeLoginModal();
+            // تصدير المتغيرات الأساسية على window ليتمكن كود WebRTC منها
+            window.currentUser = currentUser;
+            window.db = db;
             setTimeout(() => {
                 activateAuthMode();
                 // تسجيل الحضور (أونلاين)
@@ -13734,6 +13737,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         // ── بناء قائمة المحادثات الجانبية ──
         function buildChatConversationsList() {
+            window.chatConversations = chatConversations; // sync for WebRTC
             const container = document.getElementById('chatConversationsList');
             if (!container) return;
             container.innerHTML = '';
@@ -14014,6 +14018,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function openChatWindow(convId) {
             if (!currentUser) return;
             activeChatConvId = convId;
+            window.activeChatConvId = convId;
+            window.chatConversations = chatConversations;
 
             const chatViewEl = document.getElementById('chatView');
             if (chatViewEl && chatViewEl.classList.contains('hidden')) showView('chatView');
@@ -26277,8 +26283,6 @@ ${questionsHtml}
    STUN مجاني من Google/Cloudflare/Twilio
    ============================================================ */
 
-(function() {
-
 // ─── متغيرات الحالة ───────────────────────────────────────────
 let _rtcPeer        = null;   // RTCPeerConnection
 let _localStream    = null;   // MediaStream المحلي
@@ -26307,10 +26311,10 @@ const RTC_CONFIG = {
 
 // ─── بدء اتصال (كـ Caller) ───────────────────────────────────
 window.startWebRTCCall = async function(type) {
-    if (!window.currentUser || !window.db) {
+    if (!currentUser || !db) {
         showToast('يجب تسجيل الدخول أولاً', 'error'); return;
     }
-    if (!window.activeChatConvId) {
+    if (!activeChatConvId) {
         showToast('افتح محادثة أولاً', 'error'); return;
     }
     if (_rtcPeer) {
@@ -26318,7 +26322,7 @@ window.startWebRTCCall = async function(type) {
     }
 
     // تحديد الطرف الآخر من المحادثة الحالية
-    const conv = (window.chatConversations || []).find(c => c.id === window.activeChatConvId);
+    const conv = chatConversations.find(c => c.id === activeChatConvId);
     if (!conv) { showToast('لا يمكن تحديد المُتصَل به', 'error'); return; }
 
     _activeCallType = type;
@@ -26356,7 +26360,7 @@ window.startWebRTCCall = async function(type) {
     _rtcPeer.oniceconnectionstatechange = () => _onIceStateChange();
 
     // إنشاء وثيقة الاتصال في Firestore
-    const callId = window.activeChatConvId + '_' + Date.now();
+    const callId = activeChatConvId + '_' + Date.now();
     _activeCallId = callId;
     _callDocRef = db.collection('calls').doc(callId);
 
@@ -26373,7 +26377,7 @@ window.startWebRTCCall = async function(type) {
         callerId:    myUid,
         callerName:  myName,
         calleeId:    otherUid,
-        convId:      window.activeChatConvId,
+        convId:      activeChatConvId,
         type,
         status:      'calling',
         offer:       { type: offer.type, sdp: offer.sdp },
@@ -26763,7 +26767,7 @@ async function _sendCallNotification(targetUid, callId, callerName, type) {
             callId,
             callerName,
             callType:    type,
-            convId:      window.activeChatConvId,
+            convId:      activeChatConvId,
             createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
             read:        false
         });
@@ -26773,13 +26777,11 @@ async function _sendCallNotification(targetUid, callId, callerName, type) {
 }
 
 // ─── بدء الاستماع للاتصالات الواردة عند تسجيل الدخول ─────────
-// نربطها بحدث onAuthStateChanged الموجود
-const _origOnAuthChanged = window._onAuthChangedCallback;
 window._callsIncomingListenerStarted = false;
 
-// نبدأ الاستماع عند اكتمال تحميل الصفحة وتوفر currentUser
+// نبدأ الاستماع عند توفر currentUser (يُضبط في enterApp)
 const _callsCheckInterval = setInterval(() => {
-    if (window.currentUser && window.db && !window._callsIncomingListenerStarted) {
+    if (currentUser && db && !window._callsIncomingListenerStarted) {
         window._callsIncomingListenerStarted = true;
         clearInterval(_callsCheckInterval);
         _listenForIncomingCalls();
@@ -26791,7 +26793,7 @@ window.addEventListener('beforeunload', () => {
     if (_rtcPeer) endWebRTCCall();
 });
 
-})(); // IIFE
+})(); // end WebRTC init check
 </script>
 </body>
 </html>
