@@ -26516,10 +26516,18 @@ window.startWebRTCCall = async function(type) {
         createdAt:   firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // الاستماع للـ Answer والـ ICE من الطرف الآخر
-    let _callerRemoteDescSet = false;
+    // ─── ICE Candidates buffer: نخزّن candidates الـ Callee حتى يصبح الـ RemoteDescription جاهزاً ───
+    let _remoteDescReady = false;
     const _pendingCalleeCandidates = [];
 
+    async function _flushCalleeCandidates() {
+        for (const c of _pendingCalleeCandidates) {
+            if (_rtcPeer) await _rtcPeer.addIceCandidate(c).catch(e => console.warn('addIce flush err:', e));
+        }
+        _pendingCalleeCandidates.length = 0;
+    }
+
+    // الاستماع للـ Answer والـ ICE من الطرف الآخر
     _callListenerUnsub = _callDocRef.onSnapshot(async snap => {
         const data = snap.data();
         if (!data) return;
@@ -26527,27 +26535,23 @@ window.startWebRTCCall = async function(type) {
         if (data.answer && _rtcPeer && !_rtcPeer.currentRemoteDescription) {
             const answerDesc = new RTCSessionDescription(data.answer);
             await _rtcPeer.setRemoteDescription(answerDesc).catch(e => console.error('setRemote answer err:', e));
-            _callerRemoteDescSet = true;
-            // تطبيق أي candidates وصلت قبل الـ answer
-            for (const c of _pendingCalleeCandidates) {
-                await _rtcPeer.addIceCandidate(c).catch(e => console.warn('addIce pending err:', e));
-            }
-            _pendingCalleeCandidates.length = 0;
+            _remoteDescReady = true;
+            await _flushCalleeCandidates(); // تطبيق أي candidates وصلت قبل الـ answer
         }
         if (data.status === 'rejected' || data.status === 'ended') {
             _handleCallEnded(data.status);
         }
     });
 
-    // استقبال ICE Candidates من الـ Callee
+    // استقبال ICE Candidates من الـ Callee — مع buffering حتى يصبح RemoteDescription جاهزاً
     _callDocRef.collection('calleeCandidates').onSnapshot(snap => {
         snap.docChanges().forEach(async change => {
             if (change.type === 'added') {
                 const candidate = new RTCIceCandidate(change.doc.data());
-                if (_callerRemoteDescSet && _rtcPeer) {
+                if (_remoteDescReady && _rtcPeer) {
                     await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
                 } else {
-                    _pendingCalleeCandidates.push(candidate);
+                    _pendingCalleeCandidates.push(candidate); // تخزين مؤقت
                 }
             }
         });
@@ -26650,19 +26654,18 @@ window.answerWebRTCCall = async function() {
         }
     };
 
-    // بدء استقبال ICE Candidates من الـ Caller قبل setRemoteDescription
-    // حتى لا تضيع أي candidates وصلت مبكراً
-    const pendingCallerCandidates = [];
-    let remoteDescSet = false;
+    // ─── ICE Candidates buffer: نبدأ الاستماع قبل setRemoteDescription لنضمن عدم ضياع أي candidate ───
+    let _callerCandidatesBuffer = [];
+    let _calleeRemoteDescReady = false;
 
     _callDocRef.collection('callerCandidates').onSnapshot(snap => {
         snap.docChanges().forEach(async change => {
             if (change.type === 'added') {
                 const candidate = new RTCIceCandidate(change.doc.data());
-                if (remoteDescSet && _rtcPeer) {
+                if (_calleeRemoteDescReady && _rtcPeer) {
                     await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
                 } else {
-                    pendingCallerCandidates.push(candidate);
+                    _callerCandidatesBuffer.push(candidate);
                 }
             }
         });
@@ -26671,12 +26674,13 @@ window.answerWebRTCCall = async function() {
     // تعيين Offer وإنشاء Answer
     const offerDesc = new RTCSessionDescription(callData.offer);
     await _rtcPeer.setRemoteDescription(offerDesc);
-    remoteDescSet = true;
+    _calleeRemoteDescReady = true;
 
     // تطبيق أي candidates وصلت قبل setRemoteDescription
-    for (const c of pendingCallerCandidates) {
-        await _rtcPeer.addIceCandidate(c).catch(e => console.warn('addIce pending err:', e));
+    for (const c of _callerCandidatesBuffer) {
+        if (_rtcPeer) await _rtcPeer.addIceCandidate(c).catch(e => console.warn('addIce flush err:', e));
     }
+    _callerCandidatesBuffer = [];
 
     const answer = await _rtcPeer.createAnswer();
     await _rtcPeer.setLocalDescription(answer);
@@ -26686,7 +26690,7 @@ window.answerWebRTCCall = async function() {
         status: 'connected'
     });
 
-    // مراقبة تغييرات الحالة
+    // مراقبة تغييرات الحالة (بعد الـ update لتجنب اصطياد حدث 'connected' الذي أطلقناه نحن)
     _callListenerUnsub = _callDocRef.onSnapshot(snap => {
         const data = snap.data();
         if (data && (data.status === 'rejected' || data.status === 'ended')) {
