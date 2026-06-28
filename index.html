@@ -26517,6 +26517,9 @@ window.startWebRTCCall = async function(type) {
     });
 
     // الاستماع للـ Answer والـ ICE من الطرف الآخر
+    let _callerRemoteDescSet = false;
+    const _pendingCalleeCandidates = [];
+
     _callListenerUnsub = _callDocRef.onSnapshot(async snap => {
         const data = snap.data();
         if (!data) return;
@@ -26524,6 +26527,12 @@ window.startWebRTCCall = async function(type) {
         if (data.answer && _rtcPeer && !_rtcPeer.currentRemoteDescription) {
             const answerDesc = new RTCSessionDescription(data.answer);
             await _rtcPeer.setRemoteDescription(answerDesc).catch(e => console.error('setRemote answer err:', e));
+            _callerRemoteDescSet = true;
+            // تطبيق أي candidates وصلت قبل الـ answer
+            for (const c of _pendingCalleeCandidates) {
+                await _rtcPeer.addIceCandidate(c).catch(e => console.warn('addIce pending err:', e));
+            }
+            _pendingCalleeCandidates.length = 0;
         }
         if (data.status === 'rejected' || data.status === 'ended') {
             _handleCallEnded(data.status);
@@ -26535,13 +26544,17 @@ window.startWebRTCCall = async function(type) {
         snap.docChanges().forEach(async change => {
             if (change.type === 'added') {
                 const candidate = new RTCIceCandidate(change.doc.data());
-                await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+                if (_callerRemoteDescSet && _rtcPeer) {
+                    await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+                } else {
+                    _pendingCalleeCandidates.push(candidate);
+                }
             }
         });
     });
 
     // إرسال إشعار notification للطرف الآخر
-    await _sendCallNotification(otherUid, callId, myName, type);
+    await _sendCallNotification(otherUid, callId, myName, type, activeChatConvId);
 };
 
 // ─── استقبال اتصال وارد ────────────────────────────────────────
@@ -26637,25 +26650,40 @@ window.answerWebRTCCall = async function() {
         }
     };
 
+    // بدء استقبال ICE Candidates من الـ Caller قبل setRemoteDescription
+    // حتى لا تضيع أي candidates وصلت مبكراً
+    const pendingCallerCandidates = [];
+    let remoteDescSet = false;
+
+    _callDocRef.collection('callerCandidates').onSnapshot(snap => {
+        snap.docChanges().forEach(async change => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                if (remoteDescSet && _rtcPeer) {
+                    await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+                } else {
+                    pendingCallerCandidates.push(candidate);
+                }
+            }
+        });
+    });
+
     // تعيين Offer وإنشاء Answer
     const offerDesc = new RTCSessionDescription(callData.offer);
     await _rtcPeer.setRemoteDescription(offerDesc);
+    remoteDescSet = true;
+
+    // تطبيق أي candidates وصلت قبل setRemoteDescription
+    for (const c of pendingCallerCandidates) {
+        await _rtcPeer.addIceCandidate(c).catch(e => console.warn('addIce pending err:', e));
+    }
+
     const answer = await _rtcPeer.createAnswer();
     await _rtcPeer.setLocalDescription(answer);
 
     await _callDocRef.update({
         answer: { type: answer.type, sdp: answer.sdp },
         status: 'connected'
-    });
-
-    // استقبال ICE Candidates من الـ Caller
-    _callDocRef.collection('callerCandidates').onSnapshot(snap => {
-        snap.docChanges().forEach(async change => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
-            }
-        });
     });
 
     // مراقبة تغييرات الحالة
@@ -26895,7 +26923,7 @@ window.toggleWebRTCSpeaker = function() {
 };
 
 // ─── إرسال إشعار للطرف الآخر عبر Firestore ──────────────────
-async function _sendCallNotification(targetUid, callId, callerName, type) {
+async function _sendCallNotification(targetUid, callId, callerName, type, convId) {
     const db = window._rtcGetDb ? window._rtcGetDb() : null;
     if (!db) return;
     try {
@@ -26905,7 +26933,7 @@ async function _sendCallNotification(targetUid, callId, callerName, type) {
             callId,
             callerName,
             callType:    type,
-            convId:      activeChatConvId,
+            convId:      convId || '',
             createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
             read:        false
         });
