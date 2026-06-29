@@ -26595,6 +26595,15 @@ async function _listenForIncomingCalls() {
                     const createdAt = data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now();
                     if (Date.now() - createdAt > 60000) return;
                     if (!_rtcPeer) _showIncomingCallUI(data);
+                } else if (change.type === 'removed') {
+                    // الوثيقة لم تعد تطابق شرط status=='calling' (تغيّرت إلى ended/rejected/missed)
+                    // وهذا يصل هنا كـ 'removed' من نتائج الاستعلام، وليس حذفاً فعلياً للوثيقة.
+                    // إن كانت هذه نفس المكالمة التي تَرِن حالياً، أخفِ نافذة الرنين تلقائياً
+                    // (تمت تغطية حالة "نحن من رددنا" بالفعل لأن _incomingCallId يُصفَّر فوراً في answerWebRTCCall).
+                    if (_incomingCallId === change.doc.id) {
+                        _hideIncomingCallUI();
+                        if (window.showToast) window.showToast('ألغى المتصل الاتصال', 'info');
+                    }
                 }
             });
         });
@@ -26756,6 +26765,7 @@ function _cleanupCall() {
     _isCaller      = false;
     _isMuted       = false;
     _isVideoOff    = false;
+    _callConnectedFired = false;
 
     // إخفاء واجهة الاتصال
     _hideCallUI();
@@ -26778,37 +26788,53 @@ function _onRemoteTrack(e) {
 }
 
 // ─── تتبع حالة الاتصال ────────────────────────────────────────
+// بعض المتصفحات (Safari على iOS، بعض متصفحات الجوال) تُبقي connectionState
+// معلّقة على 'connecting' حتى لو نجح الاتصال فعلياً على مستوى ICE، فلا تُحدَّث
+// الواجهة (إظهار الفيديو + بدء العدّاد). لذلك نعتمد الآن على أول إشارة "نجاح"
+// تصل من أي من الحالتين (connectionState أو iceConnectionState) معاً، عبر
+// دالة موحّدة تُنفَّذ مرة واحدة فقط لكل مكالمة.
+let _callConnectedFired = false;
+
+function _markCallConnected() {
+    if (_callConnectedFired) return; // تجنّب تكرار بدء المؤقّت إذا أطلقتها الحالتان معاً
+    _callConnectedFired = true;
+
+    const statusText = document.getElementById('webrtcCallStatusText');
+    const statusDot  = document.getElementById('webrtcCallStatusDot');
+    const timerEl    = document.getElementById('webrtcCallTimer');
+
+    if (statusText) statusText.textContent = 'متصل';
+    if (statusDot)  statusDot.className = 'w-2 h-2 rounded-full bg-green-400 inline-block';
+
+    // إظهار الفيديو إذا كان النوع video
+    if (_activeCallType === 'video') {
+        const rv = document.getElementById('webrtcRemoteVideo');
+        const lv = document.getElementById('webrtcLocalVideo');
+        const bg = document.getElementById('webrtcAudioBg');
+        if (rv) rv.style.display = 'block';
+        if (lv) { lv.srcObject = _localStream; lv.classList.remove('hidden'); }
+        if (bg) bg.classList.add('hidden');
+    }
+
+    // بدء المؤقت
+    _callSeconds = 0;
+    if (timerEl) timerEl.classList.remove('hidden');
+    _callTimerInterval = setInterval(() => {
+        _callSeconds++;
+        const m = String(Math.floor(_callSeconds/60)).padStart(2,'0');
+        const s = String(_callSeconds%60).padStart(2,'0');
+        if (timerEl) timerEl.textContent = m + ':' + s;
+    }, 1000);
+}
+
 function _onConnectionStateChange() {
     if (!_rtcPeer) return;
     const state = _rtcPeer.connectionState;
     const statusText = document.getElementById('webrtcCallStatusText');
     const statusDot  = document.getElementById('webrtcCallStatusDot');
-    const timerEl    = document.getElementById('webrtcCallTimer');
 
     if (state === 'connected') {
-        if (statusText) statusText.textContent = 'متصل';
-        if (statusDot)  { statusDot.className = 'w-2 h-2 rounded-full bg-green-400 inline-block'; }
-
-        // إظهار الفيديو إذا كان النوع video
-        if (_activeCallType === 'video') {
-            const rv = document.getElementById('webrtcRemoteVideo');
-            const lv = document.getElementById('webrtcLocalVideo');
-            const bg = document.getElementById('webrtcAudioBg');
-            if (rv) rv.style.display = 'block';
-            if (lv) { lv.srcObject = _localStream; lv.classList.remove('hidden'); }
-            if (bg) bg.classList.add('hidden');
-        }
-
-        // بدء المؤقت
-        _callSeconds = 0;
-        if (timerEl) timerEl.classList.remove('hidden');
-        _callTimerInterval = setInterval(() => {
-            _callSeconds++;
-            const m = String(Math.floor(_callSeconds/60)).padStart(2,'0');
-            const s = String(_callSeconds%60).padStart(2,'0');
-            if (timerEl) timerEl.textContent = m + ':' + s;
-        }, 1000);
-
+        _markCallConnected();
     } else if (state === 'disconnected' || state === 'failed') {
         if (statusText) statusText.textContent = 'انقطع الاتصال';
         if (statusDot)  statusDot.className = 'w-2 h-2 rounded-full bg-red-400 inline-block';
@@ -26820,9 +26846,9 @@ function _onIceStateChange() {
     if (!_rtcPeer) return;
     const state = _rtcPeer.iceConnectionState;
     const statusText = document.getElementById('webrtcCallStatusText');
-    if (state === 'checking' && statusText) statusText.textContent = 'جارٍ الاتصال…';
+    if (state === 'checking' && statusText && !_callConnectedFired) statusText.textContent = 'جارٍ الاتصال…';
     if (state === 'connected' || state === 'completed') {
-        if (statusText) statusText.textContent = 'متصل';
+        _markCallConnected();
     }
 }
 
