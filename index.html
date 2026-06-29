@@ -26497,74 +26497,84 @@ window.startWebRTCCall = async function(type) {
     // إظهار شاشة الاتصال
     _showCallUI(conv.nameAr || conv.nameEn || '—', 'جارٍ الاتصال…', type);
 
-    // إنشاء RTCPeerConnection
-    _rtcPeer = new RTCPeerConnection(RTC_CONFIG);
-    _localStream.getTracks().forEach(t => _rtcPeer.addTrack(t, _localStream));
+    // كل خطوات التفاوض (Firestore + WebRTC) محاطة بمعالجة أخطاء — راجع
+    // answerWebRTCCall للسبب: فشل صامت هنا يُبقي _rtcPeer معلّقاً ويعطّل
+    // استقبال/بدء أي اتصال لاحق حتى إعادة تحميل الصفحة.
+    try {
+        // إنشاء RTCPeerConnection
+        _rtcPeer = new RTCPeerConnection(RTC_CONFIG);
+        _localStream.getTracks().forEach(t => _rtcPeer.addTrack(t, _localStream));
 
-    // استقبال الميديا من الطرف الآخر
-    _rtcPeer.ontrack = e => _onRemoteTrack(e);
+        // استقبال الميديا من الطرف الآخر
+        _rtcPeer.ontrack = e => _onRemoteTrack(e);
 
-    // ICE Candidates → Firestore
-    _rtcPeer.onicecandidate = async e => {
-        if (e.candidate && _callDocRef) {
-            await _callDocRef.collection('callerCandidates').add(e.candidate.toJSON());
-        }
-    };
+        // ICE Candidates → Firestore
+        _rtcPeer.onicecandidate = async e => {
+            if (e.candidate && _callDocRef) {
+                await _callDocRef.collection('callerCandidates').add(e.candidate.toJSON());
+            }
+        };
 
-    _rtcPeer.onconnectionstatechange = () => _onConnectionStateChange();
-    _rtcPeer.oniceconnectionstatechange = () => _onIceStateChange();
+        _rtcPeer.onconnectionstatechange = () => _onConnectionStateChange();
+        _rtcPeer.oniceconnectionstatechange = () => _onIceStateChange();
 
-    // إنشاء وثيقة الاتصال في Firestore
-    const callId = activeChatConvId + '_' + Date.now();
-    _activeCallId = callId;
-    _callDocRef = db.collection('calls').doc(callId);
+        // إنشاء وثيقة الاتصال في Firestore
+        const callId = activeChatConvId + '_' + Date.now();
+        _activeCallId = callId;
+        _callDocRef = db.collection('calls').doc(callId);
 
-    const myUid    = currentUser.uid;
-    const otherUid = conv.otherUid;
-    const myName   = currentUser.displayName || currentUser.nameAr || currentUser.email || myUid;
+        const myUid    = currentUser.uid;
+        const otherUid = conv.otherUid;
+        const myName   = currentUser.displayName || currentUser.nameAr || currentUser.email || myUid;
 
-    // إنشاء Offer
-    const offer = await _rtcPeer.createOffer({ offerToReceiveAudio:true, offerToReceiveVideo: type==='video' });
-    await _rtcPeer.setLocalDescription(offer);
+        // إنشاء Offer
+        const offer = await _rtcPeer.createOffer({ offerToReceiveAudio:true, offerToReceiveVideo: type==='video' });
+        await _rtcPeer.setLocalDescription(offer);
 
-    await _callDocRef.set({
-        callId,
-        callerId:    myUid,
-        callerName:  myName,
-        calleeId:    otherUid,
-        convId:      activeChatConvId,
-        type,
-        status:      'calling',
-        offer:       { type: offer.type, sdp: offer.sdp },
-        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
-    });
+        await _callDocRef.set({
+            callId,
+            callerId:    myUid,
+            callerName:  myName,
+            calleeId:    otherUid,
+            convId:      activeChatConvId,
+            type,
+            status:      'calling',
+            offer:       { type: offer.type, sdp: offer.sdp },
+            createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+        });
 
-    // الاستماع للـ Answer والـ ICE من الطرف الآخر
-    _callListenerUnsub = _callDocRef.onSnapshot(async snap => {
-        const data = snap.data();
-        if (!data) return;
+        // الاستماع للـ Answer والـ ICE من الطرف الآخر
+        _callListenerUnsub = _callDocRef.onSnapshot(async snap => {
+            const data = snap.data();
+            if (!data) return;
 
-        if (data.answer && _rtcPeer && !_rtcPeer.currentRemoteDescription) {
-            const answerDesc = new RTCSessionDescription(data.answer);
-            await _rtcPeer.setRemoteDescription(answerDesc).catch(e => console.error('setRemote answer err:', e));
-        }
-        if (data.status === 'rejected' || data.status === 'ended') {
-            _handleCallEnded(data.status);
-        }
-    });
-
-    // استقبال ICE Candidates من الـ Callee
-    _callDocRef.collection('calleeCandidates').onSnapshot(snap => {
-        snap.docChanges().forEach(async change => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+            if (data.answer && _rtcPeer && !_rtcPeer.currentRemoteDescription) {
+                const answerDesc = new RTCSessionDescription(data.answer);
+                await _rtcPeer.setRemoteDescription(answerDesc).catch(e => console.error('setRemote answer err:', e));
+            }
+            if (data.status === 'rejected' || data.status === 'ended') {
+                _handleCallEnded(data.status);
             }
         });
-    });
 
-    // إرسال إشعار notification للطرف الآخر
-    await _sendCallNotification(otherUid, callId, myName, type);
+        // استقبال ICE Candidates من الـ Callee
+        _callDocRef.collection('calleeCandidates').onSnapshot(snap => {
+            snap.docChanges().forEach(async change => {
+                if (change.type === 'added') {
+                    const candidate = new RTCIceCandidate(change.doc.data());
+                    await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+                }
+            });
+        });
+
+        // إرسال إشعار notification للطرف الآخر
+        await _sendCallNotification(otherUid, callId, myName, type);
+    } catch (e) {
+        console.error('startWebRTCCall signaling error:', e);
+        window.showToast('فشل بدء الاتصال — ' + (e?.message || 'خطأ غير معروف'), 'error');
+        if (_callDocRef) { _callDocRef.update({ status: 'ended' }).catch(()=>{}); }
+        _cleanupCall();
+    }
 };
 
 // ─── استقبال اتصال وارد ────────────────────────────────────────
@@ -26628,6 +26638,12 @@ window.answerWebRTCCall = async function() {
     const callData = _incomingCallData;
     _hideIncomingCallUI();
 
+    const _db = window._rtcGetDb ? window._rtcGetDb() : null;
+    if (!_db) {
+        window.showToast('Firebase غير متصل — تعذّر الرد على الاتصال', 'error');
+        return;
+    }
+
     _activeCallType = callData.type;
     _isCaller       = false;
     _activeCallId   = callData.id;
@@ -26640,54 +26656,66 @@ window.answerWebRTCCall = async function() {
         });
     } catch(e) {
         window.showToast('تعذّر الوصول إلى ' + (callData.type==='video'?'الكاميرا والميكروفون':'الميكروفون'), 'error');
+        console.error('answerWebRTCCall getUserMedia error:', e);
         return;
     }
 
     _showCallUI(callData.callerName || '—', 'جارٍ الاتصال…', callData.type);
 
-    const _db = window._rtcGetDb ? window._rtcGetDb() : null;
-    _callDocRef = _db.collection('calls').doc(callData.id);
-    _rtcPeer    = new RTCPeerConnection(RTC_CONFIG);
-    _localStream.getTracks().forEach(t => _rtcPeer.addTrack(t, _localStream));
+    // كل خطوات التفاوض (Firestore + WebRTC) محاطة بمعالجة أخطاء:
+    // أي فشل هنا (صلاحيات Firestore، انقطاع شبكة، ...) كان يحدث صمتاً
+    // ويترك _rtcPeer معلّقاً، فيُغلق هذا منطق استقبال أي اتصال قادم لاحقاً
+    // (الشرط if (!_rtcPeer) في _listenForIncomingCalls) — وهو السبب الجذري
+    // لتعطّل زر «رد» بشكل دائم بعد أول محاولة فاشلة.
+    try {
+        _callDocRef = _db.collection('calls').doc(callData.id);
+        _rtcPeer    = new RTCPeerConnection(RTC_CONFIG);
+        _localStream.getTracks().forEach(t => _rtcPeer.addTrack(t, _localStream));
 
-    _rtcPeer.ontrack = e => _onRemoteTrack(e);
-    _rtcPeer.onconnectionstatechange = () => _onConnectionStateChange();
-    _rtcPeer.oniceconnectionstatechange = () => _onIceStateChange();
+        _rtcPeer.ontrack = e => _onRemoteTrack(e);
+        _rtcPeer.onconnectionstatechange = () => _onConnectionStateChange();
+        _rtcPeer.oniceconnectionstatechange = () => _onIceStateChange();
 
-    _rtcPeer.onicecandidate = async e => {
-        if (e.candidate && _callDocRef) {
-            await _callDocRef.collection('calleeCandidates').add(e.candidate.toJSON());
-        }
-    };
+        _rtcPeer.onicecandidate = async e => {
+            if (e.candidate && _callDocRef) {
+                await _callDocRef.collection('calleeCandidates').add(e.candidate.toJSON());
+            }
+        };
 
-    // تعيين Offer وإنشاء Answer
-    const offerDesc = new RTCSessionDescription(callData.offer);
-    await _rtcPeer.setRemoteDescription(offerDesc);
-    const answer = await _rtcPeer.createAnswer();
-    await _rtcPeer.setLocalDescription(answer);
+        // تعيين Offer وإنشاء Answer
+        const offerDesc = new RTCSessionDescription(callData.offer);
+        await _rtcPeer.setRemoteDescription(offerDesc);
+        const answer = await _rtcPeer.createAnswer();
+        await _rtcPeer.setLocalDescription(answer);
 
-    await _callDocRef.update({
-        answer: { type: answer.type, sdp: answer.sdp },
-        status: 'connected'
-    });
+        await _callDocRef.update({
+            answer: { type: answer.type, sdp: answer.sdp },
+            status: 'connected'
+        });
 
-    // استقبال ICE Candidates من الـ Caller
-    _callDocRef.collection('callerCandidates').onSnapshot(snap => {
-        snap.docChanges().forEach(async change => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+        // استقبال ICE Candidates من الـ Caller
+        _callDocRef.collection('callerCandidates').onSnapshot(snap => {
+            snap.docChanges().forEach(async change => {
+                if (change.type === 'added') {
+                    const candidate = new RTCIceCandidate(change.doc.data());
+                    await _rtcPeer.addIceCandidate(candidate).catch(e => console.warn('addIce err:', e));
+                }
+            });
+        });
+
+        // مراقبة تغييرات الحالة
+        _callListenerUnsub = _callDocRef.onSnapshot(snap => {
+            const data = snap.data();
+            if (data && (data.status === 'rejected' || data.status === 'ended')) {
+                _handleCallEnded(data.status);
             }
         });
-    });
-
-    // مراقبة تغييرات الحالة
-    _callListenerUnsub = _callDocRef.onSnapshot(snap => {
-        const data = snap.data();
-        if (data && (data.status === 'rejected' || data.status === 'ended')) {
-            _handleCallEnded(data.status);
-        }
-    });
+    } catch (e) {
+        console.error('answerWebRTCCall signaling error:', e);
+        window.showToast('فشل فتح الاتصال — ' + (e?.message || 'خطأ غير معروف'), 'error');
+        if (_callDocRef) { _callDocRef.update({ status: 'ended' }).catch(()=>{}); }
+        _cleanupCall();
+    }
 };
 
 // ─── رفض اتصال وارد ──────────────────────────────────────────
@@ -26921,6 +26949,7 @@ window.toggleWebRTCSpeaker = function() {
 async function _sendCallNotification(targetUid, callId, callerName, type) {
     const db = window._rtcGetDb ? window._rtcGetDb() : null;
     if (!db) return;
+    const convId = window._rtcGetActiveChatConvId ? window._rtcGetActiveChatConvId() : null;
     try {
         await db.collection('notifications').add({
             toUid:       targetUid,
@@ -26928,7 +26957,7 @@ async function _sendCallNotification(targetUid, callId, callerName, type) {
             callId,
             callerName,
             callType:    type,
-            convId:      activeChatConvId,
+            convId,
             createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
             read:        false
         });
