@@ -14430,7 +14430,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm opacity-70">
                         <div class="flex items-center gap-2">
                             <i class="ph ph-spinner animate-spin text-white text-sm"></i>
-                            <span class="text-xs">جاري رفع الرسالة الصوتية...</span>
+                            <span id="voiceUploadProgressText" class="text-xs">جاري رفع الرسالة الصوتية...</span>
                         </div>
                         <p class="text-[10px] opacity-70 mt-1 text-left">${timeStr}</p>
                     </div>`;
@@ -14438,64 +14438,61 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 area.scrollTop = area.scrollHeight;
             }
 
+            // دالة مساعدة لتحويل Blob إلى base64
+            const blobToBase64 = (b) => new Promise((res, rej) => {
+                const reader = new FileReader();
+                reader.onload  = () => res(reader.result);
+                reader.onerror = () => rej(new Error('FileReader error'));
+                reader.readAsDataURL(b);
+            });
+
             try {
                 let audioUrl = '';
                 let storagePath = '';
 
-                // ── محاولة Firebase Storage أولاً ──
-                const storageAvailable = typeof firebase.storage === 'function' && firebase.apps.some(a => a.name === '[DEFAULT]');
-                if (storageAvailable) {
-                    try {
+                // ── محاولة Firebase Storage ──
+                let storageOk = false;
+                try {
+                    if (typeof firebase.storage === 'function') {
                         const storage  = firebase.storage();
                         const fileName = `voice_${myUid}_${localTs}.${ext}`;
                         storagePath    = `voice/${activeChatConvId}/${fileName}`;
                         const ref      = storage.ref(storagePath);
-                        const uploadTask = ref.put(blob, { contentType: mimeType });
 
-                        // متابعة تقدم الرفع
                         await new Promise((resolve, reject) => {
-                            uploadTask.on('state_changed',
-                                snapshot => {
-                                    const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                                    if (uploadIndicatorEl) {
-                                        const span = uploadIndicatorEl.querySelector('span');
-                                        if (span) span.textContent = `جاري رفع الرسالة الصوتية... ${pct}%`;
-                                    }
+                            const task = ref.put(blob, { contentType: mimeType });
+                            task.on('state_changed',
+                                snap => {
+                                    const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+                                    const el = document.getElementById('voiceUploadProgressText');
+                                    if (el) el.textContent = `جاري الرفع... ${pct}%`;
                                 },
                                 reject,
                                 resolve
                             );
                         });
-                        audioUrl = await ref.getDownloadURL();
-                    } catch (storageErr) {
-                        console.warn('Firebase Storage failed, using base64 fallback:', storageErr);
-                        // ── Fallback: base64 في Firestore عند فشل Storage ──
-                        storagePath = '';
-                        audioUrl = await new Promise((res, rej) => {
-                            const reader = new FileReader();
-                            reader.onload  = () => res(reader.result);
-                            reader.onerror = () => rej(new Error('FileReader error'));
-                            reader.readAsDataURL(blob);
-                        });
-                        // تحقق من حجم base64 — Firestore يحتاج أقل من 900KB للـ document
-                        if (audioUrl.length > 900000) {
-                            throw new Error('الرسالة الصوتية كبيرة جداً — يرجى تقصير المقطع أو التحقق من إعدادات Firebase Storage');
-                        }
+
+                        audioUrl  = await ref.getDownloadURL();
+                        storageOk = true;
                     }
-                } else {
-                    // ── Fallback: base64 في Firestore ──
-                    audioUrl = await new Promise((res, rej) => {
-                        const reader = new FileReader();
-                        reader.onload  = () => res(reader.result);
-                        reader.onerror = () => rej(new Error('FileReader error'));
-                        reader.readAsDataURL(blob);
-                    });
-                    if (audioUrl.length > 900000) {
-                        throw new Error('الرسالة الصوتية كبيرة جداً — يرجى تفعيل Firebase Storage');
+                } catch (storageErr) {
+                    console.warn('Firebase Storage upload failed, falling back to base64:', storageErr.message || storageErr);
+                    storagePath = '';
+                    storageOk   = false;
+                }
+
+                // ── Fallback: base64 مباشرةً في Firestore ──
+                if (!storageOk) {
+                    const el = document.getElementById('voiceUploadProgressText');
+                    if (el) el.textContent = 'جاري معالجة الرسالة الصوتية...';
+                    audioUrl = await blobToBase64(blob);
+                    // حد أمان Firestore: document لا يتجاوز 1MB
+                    if (audioUrl.length > 950000) {
+                        throw new Error('المقطع الصوتي طويل جداً (أكثر من 30 ثانية). يرجى فعّل Firebase Storage.');
                     }
                 }
 
-                // حفظ الرسالة في Firestore
+                // ── حفظ الرسالة في Firestore ──
                 const convRef = db.collection('chats').doc(activeChatConvId);
                 await convRef.collection('messages').add({
                     senderUid : myUid,
@@ -14514,10 +14511,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     lastMsg       : '🎤 رسالة صوتية',
                     lastTimestamp : firebase.firestore.FieldValue.serverTimestamp()
                 };
-                if (otherUid) updateObj[`unread.${otherUid}`] = firebase.firestore.FieldValue.increment(1);
+                if (otherUid) updateObj[\`unread.\${otherUid}\`] = firebase.firestore.FieldValue.increment(1);
                 await convRef.update(updateObj);
 
-                // إزالة مؤشر الرفع (سيُستبدل بالرسالة الحقيقية من onSnapshot)
                 if (uploadIndicatorEl) uploadIndicatorEl.remove();
 
             } catch (err) {
@@ -26584,7 +26580,6 @@ window.startWebRTCCall = async function(type) {
                 const answerDesc = new RTCSessionDescription(data.answer);
                 await _rtcPeer.setRemoteDescription(answerDesc).catch(e => console.error('setRemote answer err:', e));
             }
-            // Fallback: إذا أعلن الطرف الآخر عن status='connected' في Firestore وكان العدّاد لم يبدأ بعد
             if (data.status === 'connected' && !_callConnectedFired) {
                 _markCallConnected();
             }
@@ -26872,14 +26867,11 @@ function _onConnectionStateChange() {
     if (state === 'connected') {
         _markCallConnected();
     } else if (state === 'disconnected' || state === 'failed') {
-        // لا ننهي الاتصال إذا لم يكتمل بعد (أثناء ICE negotiation)
-        if (!_callConnectedFired) return;
+        if (!_callConnectedFired) return; // تجاهل الانقطاع أثناء ICE negotiation
         if (statusText) statusText.textContent = 'انقطع الاتصال';
         if (statusDot)  statusDot.className = 'w-2 h-2 rounded-full bg-red-400 inline-block';
         setTimeout(() => {
-            if (_rtcPeer && (_rtcPeer.connectionState === 'disconnected' || _rtcPeer.connectionState === 'failed')) {
-                endWebRTCCall();
-            }
+            if (_rtcPeer && (_rtcPeer.connectionState === 'disconnected' || _rtcPeer.connectionState === 'failed')) endWebRTCCall();
         }, 5000);
     }
 }
