@@ -11758,11 +11758,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                 <!-- بيانات الشخص: تبدأ مباشرة من يمين القائمة، ملاصقة لـ QR -->
                                 <div class="flex-1 min-w-0 text-right">
                                     <!-- دائرة الحالة + الاسم العربي -->
-                                    <div class="flex items-center gap-2 justify-end mb-0.5" dir="rtl">
-                                        <h3 id="chatWindowNameAr" class="font-bold text-gray-800 text-base leading-tight truncate" dir="rtl" style="text-align:right; direction:rtl;">—</h3>
+                                    <div class="flex items-center gap-2 justify-end mb-0.5" dir="ltr">
                                         <span id="chatWindowOnlineDot"
                                               class="w-2.5 h-2.5 rounded-full shrink-0 bg-gray-300 shadow-sm ring-1 ring-white transition-colors"
                                               title="غير متصل"></span>
+                                        <h3 id="chatWindowNameAr" class="font-bold text-gray-800 text-base leading-tight truncate" dir="rtl" style="text-align:right; direction:rtl;">—</h3>
                                     </div>
                                     <!-- الاسم الإنجليزي -->
                                     <p id="chatWindowNameEn" class="text-xs text-gray-500 truncate text-right font-medium mb-0.5" dir="rtl" style="text-align:right; direction:rtl; unicode-bidi:plaintext;"></p>
@@ -13834,20 +13834,17 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </div>
                     ${conv.lastMsg ? `<p class="text-[10px] text-gray-400 truncate mb-2">${escapeHtml(conv.lastMsg)}</p>` : ''}
                     <div class="flex items-center gap-1 border-t border-white/30 pt-2 mt-1">
-                        <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(startVoiceRecording, 300);"
-                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center gap-1 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 text-[11px] font-semibold" title="رسالة صوتية">
+                        <button onclick="event.stopPropagation(); openChatWindow('${conv.id}'); setTimeout(startVoiceRecording, 300);"
+                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200" title="رسالة صوتية">
                             <i class="ph ph-microphone text-sm"></i>
-                            <span>صوتية</span>
                         </button>
-                        <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(() => startWebRTCCall('voice'), 300);"
-                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center gap-1 text-blue-600 hover:bg-blue-50 hover:border-blue-200 text-[11px] font-semibold" title="اتصال صوتي">
+                        <button onclick="event.stopPropagation(); openChatWindow('${conv.id}'); setTimeout(() => startWebRTCCall('voice'), 300);"
+                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-200" title="اتصال صوتي">
                             <i class="ph ph-phone text-sm"></i>
-                            <span>اتصال</span>
                         </button>
-                        <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(() => startWebRTCCall('video'), 300);"
-                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center gap-1 text-violet-600 hover:bg-violet-50 hover:border-violet-200 text-[11px] font-semibold" title="اتصال فيديو">
+                        <button onclick="event.stopPropagation(); openChatWindow('${conv.id}'); setTimeout(() => startWebRTCCall('video'), 300);"
+                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-violet-600 hover:bg-violet-50 hover:border-violet-200" title="اتصال فيديو">
                             <i class="ph ph-video-camera text-sm"></i>
-                            <span>فيديو</span>
                         </button>
                     </div>
                 `;
@@ -14069,6 +14066,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // ── فتح نافذة المحادثة والاستماع للرسائل ──
         function openChatWindow(convId) {
             if (!currentUser) return;
+            // [FIX-4] أوقف وأطلق كائنات الصوت من المحادثة السابقة
+            _cleanupVoiceAudios();
             activeChatConvId = convId;
             window.activeChatConvId = convId;
             window.chatConversations = chatConversations;
@@ -14146,14 +14145,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function _renderMessages(msgs, myUid) {
             const area = document.getElementById('chatMessagesArea');
             if (!area) return;
-
-            // إيقاف كل الأصوات الجارية وتنظيف كائنات Audio لمنع تسرب الذاكرة
-            Object.keys(_voiceAudios).forEach(k => {
-                const a = _voiceAudios[k];
-                if (a) { a.pause(); a.src = ''; a.onended = null; a.ontimeupdate = null; }
-                delete _voiceAudios[k];
-            });
-
             if (msgs.length === 0) {
                 area.innerHTML = `
                     <div class="flex flex-col items-center justify-center py-12 text-center">
@@ -14352,6 +14343,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 sendChatMessage();
                 updateChatSendBtn('');
             } else {
+                // [FIX-6] منع بدء تسجيل ثانٍ إذا كان الأول لم ينته بعد
+                if (_mediaRecorder && _mediaRecorder.state !== 'inactive') return;
                 startVoiceRecording();
             }
         }
@@ -14361,44 +14354,25 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (!activeChatConvId || !currentUser) {
                 showToast('يجب فتح محادثة أولاً', 'error'); return;
             }
+            // [FIX-1] نحتفظ بـ stream خارج try لضمان إغلاقه حتى عند فشل MediaRecorder
+            let stream = null;
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 _voiceChunks = [];
                 _voiceIsRecording = true;
                 _voiceSeconds = 0;
 
-                // تحديد التنسيق المدعوم — بما فيه iOS/Safari (audio/mp4)
+                // تحديد التنسيق المدعوم
                 const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
                     ? 'audio/webm;codecs=opus'
                     : MediaRecorder.isTypeSupported('audio/webm')
                     ? 'audio/webm'
-                    : MediaRecorder.isTypeSupported('audio/mp4')
-                    ? 'audio/mp4'
-                    : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
-                    ? 'audio/ogg;codecs=opus'
-                    : '';
-
-                // إذا لم يُوجد تنسيق مدعوم (نادر)
-                if (!mimeType) {
-                    stream.getTracks().forEach(t => t.stop());
-                    _voiceIsRecording = false;
-                    showToast('المتصفح لا يدعم التسجيل الصوتي', 'error');
-                    return;
-                }
+                    : 'audio/ogg;codecs=opus';
 
                 _mediaRecorder = new MediaRecorder(stream, { mimeType });
-                // نخزّن الـ stream على الـ recorder للوصول إليه عند الإلغاء المبكر
-                _mediaRecorder._stream = stream;
                 _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) _voiceChunks.push(e.data); };
                 _mediaRecorder.onstop = async () => {
-                    // تحرير الميكروفون دائماً عند الإيقاف
                     stream.getTracks().forEach(t => t.stop());
-                    // حد أدنى ثانية واحدة — نتجاهل التسجيل القصير جداً
-                    if (_voiceSeconds < 1) {
-                        _voiceChunks = [];
-                        showToast('التسجيل قصير جداً — اضغط وامسك للتسجيل', 'info');
-                        return;
-                    }
                     await _uploadAndSendVoice(mimeType);
                 };
                 _mediaRecorder.start(200); // جمع البيانات كل 200ms
@@ -14407,7 +14381,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 _showVoiceRecordingUI();
 
             } catch (err) {
+                // [FIX-1] أغلق stream فوراً إن كان قد فُتح قبل وقوع الخطأ
+                if (stream) stream.getTracks().forEach(t => t.stop());
                 _voiceIsRecording = false;
+                _voiceChunks = [];
                 if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
                     showToast('يرجى السماح بالوصول للميكروفون من إعدادات المتصفح', 'error');
                 } else {
@@ -14431,9 +14408,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
                 _mediaRecorder.onstop = null; // منع الإرسال
                 _mediaRecorder.stop();
-                // تحرير الميكروفون — نستخدم _stream المخزّن أو stream الـ native
-                const tracks = (_mediaRecorder._stream || _mediaRecorder.stream);
-                if (tracks) tracks.getTracks().forEach(t => t.stop());
+                _mediaRecorder.stream?.getTracks().forEach(t => t.stop());
             }
             _voiceIsRecording = false;
             _voiceChunks = [];
@@ -14444,14 +14419,19 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // ── رفع الملف وإرسال الرسالة الصوتية ──
         async function _uploadAndSendVoice(mimeType) {
             if (_voiceChunks.length === 0) return;
-            // تحديد الامتداد الصحيح حسب التنسيق (شامل mp4 لـ Safari)
-            const ext = mimeType.includes('mp4') ? 'm4a'
-                      : mimeType.includes('ogg') ? 'ogg'
-                      : 'webm';
+            const ext  = mimeType.includes('ogg') ? 'ogg' : 'webm';
             const blob = new Blob(_voiceChunks, { type: mimeType });
-            // نُثبّت المدة هنا — _voiceSeconds صحيح لأن clearInterval حدث قبل onstop
-            const durationSec = _voiceSeconds;
             _voiceChunks = [];
+
+            // [FIX-2] احسب المدة الحقيقية من blob عبر AudioContext بدلاً من العداد
+            let durationSec = _voiceSeconds; // fallback إن فشل AudioContext
+            try {
+                const arrBuf  = await blob.arrayBuffer();
+                const actx    = new (window.AudioContext || window.webkitAudioContext)();
+                const decoded = await actx.decodeAudioData(arrBuf);
+                durationSec   = Math.round(decoded.duration);
+                actx.close();
+            } catch (_) { /* يبقى على قيمة العداد كـ fallback */ }
 
             const localTs = Date.now();
             const timeStr = new Date(localTs).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' });
@@ -14548,8 +14528,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             reader.onerror = () => rej(new Error('FileReader error'));
                             reader.readAsDataURL(blob);
                         });
-                        // تحقق من حجم base64 — Firestore يحتاج أقل من 900KB للـ document
-                        if (audioUrl.length > 900000) {
+                        // [FIX-3] التحقق من الحجم بالبايت الفعلي (لا طول string)
+                        // base64 يكبّر الحجم ~33%؛ Firestore حد الـ document 1MB
+                        if (blob.size > 680000) {
                             throw new Error('الرسالة الصوتية كبيرة جداً — يرجى تقصير المقطع أو التحقق من إعدادات Firebase Storage');
                         }
                     }
@@ -14568,7 +14549,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         reader.onerror = () => rej(new Error('FileReader error'));
                         reader.readAsDataURL(blob);
                     });
-                    if (audioUrl.length > 900000) {
+                    // [FIX-3] نفس فحص الحجم بالبايت
+                    if (blob.size > 680000) {
                         throw new Error('الرسالة الصوتية كبيرة جداً — يرجى تفعيل Firebase Storage');
                     }
                 }
@@ -14635,6 +14617,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (btn)  { btn.style.background = 'var(--primary, #0790AC)'; btn.title = 'تسجيل رسالة صوتية'; }
             if (icon) icon.className = 'ph ph-microphone text-white text-base';
             if (_voiceTimerID) { clearInterval(_voiceTimerID); _voiceTimerID = null; }
+            // [FIX-7] أعد ضبط العداد بعد إخفاء الواجهة لمنع تراكم الوقت
+            _voiceSeconds = 0;
         }
 
         // ── تحديث المؤقت ──
@@ -14660,8 +14644,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const dur   = _fmtVoiceDuration(msg.duration || 0);
             const color = isMine ? 'rgba(255,255,255,0.9)' : 'var(--primary, #0790AC)';
             const bgBar = isMine ? 'rgba(255,255,255,0.3)' : 'rgba(7,144,172,0.2)';
-            // نستخدم Firestore doc ID أولاً، ثم localTs كـ fallback ثابت (وليس Date.now() المتغير)
-            const uid   = `vp_${msg.id || msg.localTs || msg.ts?.toMillis?.() || Date.now()}`;
+            const uid   = `vp_${msg.id || Date.now()}`;
             // نخزّن الـ URL في dataset لتجنّب تلفه عند تمريره عبر escapeHtml في onclick
             const safeUrl = encodeURIComponent(msg.audioUrl || '');
             return `
@@ -14690,106 +14673,64 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // الـ Audio objects نخزّنها هنا لتجنّب تعدد التشغيل
         const _voiceAudios = {};
 
+        // [FIX-4] تنظيف جميع كائنات الصوت المُخزَّنة لمنع تسريب الذاكرة
+        function _cleanupVoiceAudios() {
+            Object.values(_voiceAudios).forEach(a => {
+                try { a.pause(); a.src = ''; } catch(_) {}
+            });
+            Object.keys(_voiceAudios).forEach(k => delete _voiceAudios[k]);
+        }
+
         function _toggleVoicePlay(uid, url) {
             if (!url) return;
-            const icon  = document.getElementById(`${uid}_icon`);
-            const fill  = document.getElementById(`${uid}_fill`);
-            const durEl = document.getElementById(`${uid}_dur`);
+            const icon = document.getElementById(`${uid}_icon`);
+            const fill = document.getElementById(`${uid}_fill`);
+            const durEl= document.getElementById(`${uid}_dur`);
+            const msg  = { audioUrl: url, duration: null };
 
             // إيقاف أي مقطع آخر قيد التشغيل
             Object.keys(_voiceAudios).forEach(k => {
-                if (k !== uid && _voiceAudios[k] && !_voiceAudios[k].paused) {
+                if (k !== uid && !_voiceAudios[k].paused) {
                     _voiceAudios[k].pause();
                     const oi = document.getElementById(`${k}_icon`);
-                    if (oi) oi.className = oi.className.replace('ph-pause', 'ph-play');
+                    if (oi) oi.className = oi.className.replace('ph-pause','ph-play');
                 }
             });
 
             if (!_voiceAudios[uid]) {
-                const a = new Audio(url);
-                _voiceAudios[uid] = a;
-
-                a.ontimeupdate = () => {
+                _voiceAudios[uid] = new Audio(url);
+                _voiceAudios[uid].ontimeupdate = () => {
+                    const a = _voiceAudios[uid];
                     if (!a.duration || isNaN(a.duration)) return;
                     const pct = (a.currentTime / a.duration) * 100;
-                    const fillEl = document.getElementById(`${uid}_fill`);
-                    const dEl   = document.getElementById(`${uid}_dur`);
-                    if (fillEl) fillEl.style.width = pct + '%';
+                    if (fill) fill.style.width = pct + '%';
                     const rem = Math.round(a.duration - a.currentTime);
-                    if (dEl) dEl.textContent = _fmtVoiceDuration(rem);
+                    if (durEl) durEl.textContent = _fmtVoiceDuration(rem);
                 };
-
-                a.onended = () => {
-                    const ic = document.getElementById(`${uid}_icon`);
-                    const fl = document.getElementById(`${uid}_fill`);
-                    const dl = document.getElementById(`${uid}_dur`);
-                    if (ic) ic.className = ic.className.replace('ph-pause', 'ph-play');
-                    if (fl) fl.style.width = '0%';
-                    // استعادة مدة التسجيل الأصلية عند الانتهاء
-                    if (dl && a.duration && !isNaN(a.duration)) {
-                        dl.textContent = _fmtVoiceDuration(Math.round(a.duration));
-                    }
-                };
-
-                a.onerror = () => {
-                    showToast('تعذّر تحميل الرسالة الصوتية', 'error');
-                    const ic = document.getElementById(`${uid}_icon`);
-                    if (ic) ic.className = ic.className.replace('ph-pause', 'ph-play');
+                _voiceAudios[uid].onended = () => {
+                    if (icon) icon.className = icon.className.replace('ph-pause','ph-play');
+                    if (fill) fill.style.width = '0%';
                 };
             }
 
             const audio = _voiceAudios[uid];
             if (audio.paused) {
-                audio.play().catch(err => {
-                    console.warn('Voice play error:', err);
-                    showToast('تعذّر تشغيل الصوت', 'error');
-                    if (icon) icon.className = icon.className.replace('ph-pause', 'ph-play');
-                });
-                if (icon) icon.className = icon.className.replace('ph-play', 'ph-pause');
+                audio.play().catch(() => showToast('تعذّر تشغيل الصوت', 'error'));
+                if (icon) icon.className = icon.className.replace('ph-play','ph-pause');
             } else {
                 audio.pause();
-                if (icon) icon.className = icon.className.replace('ph-pause', 'ph-play');
+                if (icon) icon.className = icon.className.replace('ph-pause','ph-play');
             }
         }
 
         function _seekVoice(event, uid) {
             const audio = _voiceAudios[uid];
+            if (!audio || !audio.duration || isNaN(audio.duration)) return;
             const prog  = document.getElementById(`${uid}_prog`);
             if (!prog) return;
             const rect  = prog.getBoundingClientRect();
             const pct   = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-
-            if (!audio) {
-                // الصوت لم يُحمَّل بعد — حاول التحميل من data-url
-                const url = decodeURIComponent(prog.dataset.audioUrl || '');
-                if (!url) return;
-                const newAudio = new Audio(url);
-                _voiceAudios[uid] = newAudio;
-                newAudio.addEventListener('loadedmetadata', () => {
-                    if (!isNaN(newAudio.duration)) {
-                        newAudio.currentTime = pct * newAudio.duration;
-                        const fill = document.getElementById(`${uid}_fill`);
-                        if (fill) fill.style.width = pct * 100 + '%';
-                    }
-                }, { once: true });
-                newAudio.load();
-                return;
-            }
-            if (!audio.duration || isNaN(audio.duration)) {
-                // الميتاداتا لم تُحمَّل بعد — انتظر
-                audio.addEventListener('loadedmetadata', () => {
-                    if (!isNaN(audio.duration)) {
-                        audio.currentTime = pct * audio.duration;
-                        const fill = document.getElementById(`${uid}_fill`);
-                        if (fill) fill.style.width = pct * 100 + '%';
-                    }
-                }, { once: true });
-                audio.load();
-                return;
-            }
             audio.currentTime = pct * audio.duration;
-            const fill = document.getElementById(`${uid}_fill`);
-            if (fill) fill.style.width = pct * 100 + '%';
         }
 
         // ── تحديث حالة الشخص في الهيدر ──
@@ -19714,7 +19655,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         _floatBtn.id = 'showSidebarBtn';
         _floatBtn.title = 'إظهار القائمة';
         _floatBtn.onclick = toggleSidebar;
-        // سهم SVG يشير لليسار (نحو القائمة)
+        // سهم SVG يشير لليسار (نحو القائمة في RTL)
         _floatBtn.innerHTML = `
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                  stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -19742,28 +19683,27 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function _positionFloatBtn() {
             const isPortraitMobile = window.innerWidth <= 480 && window.innerHeight > window.innerWidth;
             if (isPortraitMobile) {
-                // موبايل عمودي: أسفل الشاشة في المنتصف
-                _floatBtn.style.bottom       = '24px';
-                _floatBtn.style.top          = 'auto';
-                _floatBtn.style.right        = 'auto';
-                _floatBtn.style.left         = '50%';
-                _floatBtn.style.transform    = 'translateX(-50%)';
-                _floatBtn.style.width        = '52px';
-                _floatBtn.style.height       = '52px';
+                // موبايل عمودي: تحت التولبار من الجانب الأيمن (تناظري مع زر الإخفاء)
+                _floatBtn.style.bottom       = 'auto';
+                _floatBtn.style.top          = '96px';
+                _floatBtn.style.right        = '12px';
+                _floatBtn.style.left         = 'auto';
+                _floatBtn.style.transform    = 'none';
+                _floatBtn.style.width        = '36px';
+                _floatBtn.style.height       = '36px';
                 _floatBtn.style.borderRadius = '50%';
                 _floatBtn.title = 'إظهار القائمة';
-                // السهم يشير لأعلى
+                // السهم يشير لليسار (نحو القائمة في RTL)
                 _floatBtn.innerHTML = `
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                          stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="18 15 12 9 6 15"></polyline>
+                        <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>`;
             } else {
                 // شاشات كبيرة / لابتوب / تابلت / موبايل أفقي:
-                // موضع تناظري مع زر الإخفاء: أعلى يمين الشاشة عند حافة القائمة
-                // زر الإخفاء يقع في هيدر القائمة (top ~16px داخل القائمة + padding ~16px من الـ navbar ≈ top:80px، right:16px)
+                // موضع تناظري مع زر الإخفاء، أسفل التولبار مباشرة من الجانب الأيمن
                 _floatBtn.style.bottom       = 'auto';
-                _floatBtn.style.top          = '76px';
+                _floatBtn.style.top          = '96px';
                 _floatBtn.style.right        = '16px';
                 _floatBtn.style.left         = 'auto';
                 _floatBtn.style.transform    = 'none';
@@ -19771,11 +19711,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 _floatBtn.style.height       = '36px';
                 _floatBtn.style.borderRadius = '50%';
                 _floatBtn.title = 'إظهار القائمة';
-                // نفس أيقونة زر الإخفاء (caret) لكن معكوسة
+                // السهم يشير لليسار (نحو القائمة في RTL — عكس زر الإخفاء caret-right)
                 _floatBtn.innerHTML = `
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                          stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="9 18 15 12 9 6"></polyline>
+                        <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>`;
             }
         }
@@ -27142,15 +27082,22 @@ window.flipWebRTCCamera = async function() {
 // ─── مكبر الصوت (للموبايل) ───────────────────────────────────
 let _speakerOn = true;
 window.toggleWebRTCSpeaker = function() {
+    // [FIX-5] تحقق من دعم setSinkId قبل المحاولة (غير مدعوم على iOS Safari)
+    const remVid = document.getElementById('webrtcRemoteVideo');
+    if (!remVid || !('setSinkId' in HTMLMediaElement.prototype)) {
+        // أخبر المستخدم بدلاً من إظهار زر خادع
+        showToast && showToast('التحكم في السماعة غير مدعوم على هذا الجهاز', 'info');
+        return;
+    }
     _speakerOn = !_speakerOn;
     const icon = document.getElementById('webrtcSpeakerIcon');
     const btn  = document.getElementById('webrtcSpeakerBtn');
     if (icon) icon.className = _speakerOn ? 'ph ph-speaker-high text-xl' : 'ph ph-speaker-slash text-xl';
     if (btn)  btn.style.background = _speakerOn ? '' : 'rgba(239,68,68,0.4)';
-    // في البيئات التي تدعمه (Android WebView)
-    const remVid = document.getElementById('webrtcRemoteVideo');
-    if (remVid) {
-        try { remVid.setSinkId(_speakerOn ? '' : 'default'); } catch(e) {}
+    try {
+        remVid.setSinkId(_speakerOn ? '' : 'default');
+    } catch(e) {
+        console.warn('setSinkId error:', e);
     }
 };
 
