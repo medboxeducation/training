@@ -13834,15 +13834,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </div>
                     ${conv.lastMsg ? `<p class="text-[10px] text-gray-400 truncate mb-2">${escapeHtml(conv.lastMsg)}</p>` : ''}
                     <div class="flex items-center gap-1 border-t border-white/30 pt-2 mt-1">
-                        <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(startVoiceRecording, 300);"
+                        <button onclick="event.stopPropagation(); openChatWindow('${conv.id}'); setTimeout(startVoiceRecording, 300);"
                             class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200" title="رسالة صوتية">
                             <i class="ph ph-microphone text-sm"></i>
                         </button>
-                        <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(() => startWebRTCCall('voice'), 300);"
+                        <button onclick="event.stopPropagation(); openChatWindow('${conv.id}'); setTimeout(() => startWebRTCCall('voice'), 300);"
                             class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-200" title="اتصال صوتي">
                             <i class="ph ph-phone text-sm"></i>
                         </button>
-                        <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(() => startWebRTCCall('video'), 300);"
+                        <button onclick="event.stopPropagation(); openChatWindow('${conv.id}'); setTimeout(() => startWebRTCCall('video'), 300);"
                             class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-violet-600 hover:bg-violet-50 hover:border-violet-200" title="اتصال فيديو">
                             <i class="ph ph-video-camera text-sm"></i>
                         </button>
@@ -19625,11 +19625,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         _floatBtn.id = 'showSidebarBtn';
         _floatBtn.title = 'إظهار القائمة';
         _floatBtn.onclick = toggleSidebar;
-        // سهم SVG يشير لليمين (نحو القائمة في RTL)
+        // سهم SVG يشير لليسار (نحو القائمة في RTL)
         _floatBtn.innerHTML = `
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                  stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
+                <polyline points="15 18 9 12 15 6"></polyline>
             </svg>`;
         Object.assign(_floatBtn.style, {
             display:        'none',
@@ -19650,13 +19650,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         // ── تحديد الموضع حسب حجم الشاشة ──
         // زر الإظهار يجلس في موضع تناظري تماماً مع زر الإخفاء داخل هيدر القائمة الجانبية
-        // لكن تحت التولبار مباشرةً (وليس عليه)، والسهم يشير نحو القائمة (لليمين في RTL)
         function _positionFloatBtn() {
             const isPortraitMobile = window.innerWidth <= 480 && window.innerHeight > window.innerWidth;
             if (isPortraitMobile) {
                 // موبايل عمودي: تحت التولبار من الجانب الأيمن (تناظري مع زر الإخفاء)
                 _floatBtn.style.bottom       = 'auto';
-                _floatBtn.style.top          = '68px';
+                _floatBtn.style.top          = '96px';
                 _floatBtn.style.right        = '12px';
                 _floatBtn.style.left         = 'auto';
                 _floatBtn.style.transform    = 'none';
@@ -19664,17 +19663,17 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 _floatBtn.style.height       = '36px';
                 _floatBtn.style.borderRadius = '50%';
                 _floatBtn.title = 'إظهار القائمة';
-                // السهم يشير لليمين (نحو القائمة في RTL)
+                // السهم يشير لليسار (نحو القائمة في RTL)
                 _floatBtn.innerHTML = `
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                          stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="9 18 15 12 9 6"></polyline>
+                        <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>`;
             } else {
                 // شاشات كبيرة / لابتوب / تابلت / موبايل أفقي:
-                // تحت التولبار مباشرة من الجانب الأيمن — تناظري مع زر الإخفاء
+                // موضع تناظري مع زر الإخفاء، أسفل التولبار مباشرة من الجانب الأيمن
                 _floatBtn.style.bottom       = 'auto';
-                _floatBtn.style.top          = '68px';
+                _floatBtn.style.top          = '96px';
                 _floatBtn.style.right        = '16px';
                 _floatBtn.style.left         = 'auto';
                 _floatBtn.style.transform    = 'none';
@@ -19682,11 +19681,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 _floatBtn.style.height       = '36px';
                 _floatBtn.style.borderRadius = '50%';
                 _floatBtn.title = 'إظهار القائمة';
-                // السهم يشير لليمين (نحو القائمة في RTL — عكس سهم الإخفاء caret-right→caret-left)
+                // السهم يشير لليسار (نحو القائمة في RTL — عكس زر الإخفاء caret-right)
                 _floatBtn.innerHTML = `
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                          stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="9 18 15 12 9 6"></polyline>
+                        <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>`;
             }
         }
