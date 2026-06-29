@@ -11765,7 +11765,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                               title="غير متصل"></span>
                                     </div>
                                     <!-- الاسم الإنجليزي -->
-                                    <p id="chatWindowNameEn" class="text-xs text-gray-500 truncate text-right font-medium mb-0.5" dir="ltr" style="text-align:right;"></p>
+                                    <p id="chatWindowNameEn" class="text-xs text-gray-500 truncate text-right font-medium mb-0.5" dir="rtl" style="text-align:right; direction:rtl; unicode-bidi:plaintext;"></p>
                                     <!-- رمز المعرف -->
                                     <span id="chatWindowCode" class="inline-block font-mono text-[11px] text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold">—</span>
                                 </div>
@@ -13835,16 +13835,19 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     ${conv.lastMsg ? `<p class="text-[10px] text-gray-400 truncate mb-2">${escapeHtml(conv.lastMsg)}</p>` : ''}
                     <div class="flex items-center gap-1 border-t border-white/30 pt-2 mt-1">
                         <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(startVoiceRecording, 300);"
-                            class="flex-1 glass-icon-btn py-1 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200" title="رسالة صوتية">
+                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center gap-1 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 text-[11px] font-semibold" title="رسالة صوتية">
                             <i class="ph ph-microphone text-sm"></i>
+                            <span>صوتية</span>
                         </button>
-                        <button onclick="event.stopPropagation(); showComingSoon('اتصال صوتي')"
-                            class="flex-1 glass-icon-btn py-1 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-200" title="اتصال صوتي">
+                        <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(() => startWebRTCCall('voice'), 300);"
+                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center gap-1 text-blue-600 hover:bg-blue-50 hover:border-blue-200 text-[11px] font-semibold" title="اتصال صوتي">
                             <i class="ph ph-phone text-sm"></i>
+                            <span>اتصال</span>
                         </button>
-                        <button onclick="event.stopPropagation(); showComingSoon('اتصال فيديو')"
-                            class="flex-1 glass-icon-btn py-1 rounded-lg flex items-center justify-center text-violet-600 hover:bg-violet-50 hover:border-violet-200" title="اتصال فيديو">
+                        <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(() => startWebRTCCall('video'), 300);"
+                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center gap-1 text-violet-600 hover:bg-violet-50 hover:border-violet-200 text-[11px] font-semibold" title="اتصال فيديو">
                             <i class="ph ph-video-camera text-sm"></i>
+                            <span>فيديو</span>
                         </button>
                     </div>
                 `;
@@ -19637,8 +19640,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             zIndex:         '9999',
             alignItems:     'center',
             justifyContent: 'center',
-            width:          '42px',
-            height:         '42px',
+            width:          '36px',
+            height:         '36px',
             background:     'linear-gradient(135deg,#ffffff,rgba(7,144,172,0.08))',
             backdropFilter: 'blur(14px)',
             border:         '1.5px solid rgba(7,144,172,0.28)',
@@ -19649,19 +19652,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         });
 
         // ── تحديد الموضع حسب حجم الشاشة ──
+        // زر الإظهار يجلس في موضع تناظري تماماً مع زر الإخفاء داخل هيدر القائمة الجانبية
         function _positionFloatBtn() {
             const isPortraitMobile = window.innerWidth <= 480 && window.innerHeight > window.innerWidth;
             if (isPortraitMobile) {
                 // موبايل عمودي: أسفل الشاشة في المنتصف
-                _floatBtn.style.bottom    = '24px';
-                _floatBtn.style.top       = 'auto';
-                _floatBtn.style.right     = 'auto';
-                _floatBtn.style.left      = '50%';
-                _floatBtn.style.transform = 'translateX(-50%)';
-                _floatBtn.style.width     = '52px';
-                _floatBtn.style.height    = '52px';
+                _floatBtn.style.bottom       = '24px';
+                _floatBtn.style.top          = 'auto';
+                _floatBtn.style.right        = 'auto';
+                _floatBtn.style.left         = '50%';
+                _floatBtn.style.transform    = 'translateX(-50%)';
+                _floatBtn.style.width        = '52px';
+                _floatBtn.style.height       = '52px';
                 _floatBtn.style.borderRadius = '50%';
-                // السهم يشير لأعلى (القائمة تفتح من اليمين/الجانب)
+                _floatBtn.title = 'إظهار القائمة';
+                // السهم يشير لأعلى
                 _floatBtn.innerHTML = `
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
                          stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -19669,20 +19674,22 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </svg>`;
             } else {
                 // شاشات كبيرة / لابتوب / تابلت / موبايل أفقي:
-                // أعلى يمين الشاشة تحت التولبار مباشرة
-                _floatBtn.style.bottom    = 'auto';
-                _floatBtn.style.top       = '70px';
-                _floatBtn.style.right     = '14px';
-                _floatBtn.style.left      = 'auto';
-                _floatBtn.style.transform = 'none';
-                _floatBtn.style.width     = '42px';
-                _floatBtn.style.height    = '42px';
+                // موضع تناظري مع زر الإخفاء: أعلى يمين الشاشة عند حافة القائمة
+                // زر الإخفاء يقع في هيدر القائمة (top ~16px داخل القائمة + padding ~16px من الـ navbar ≈ top:80px، right:16px)
+                _floatBtn.style.bottom       = 'auto';
+                _floatBtn.style.top          = '76px';
+                _floatBtn.style.right        = '16px';
+                _floatBtn.style.left         = 'auto';
+                _floatBtn.style.transform    = 'none';
+                _floatBtn.style.width        = '36px';
+                _floatBtn.style.height       = '36px';
                 _floatBtn.style.borderRadius = '50%';
-                // السهم يشير لليسار (نحو القائمة)
+                _floatBtn.title = 'إظهار القائمة';
+                // نفس أيقونة زر الإخفاء (caret) لكن معكوسة
                 _floatBtn.innerHTML = `
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                          stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="15 18 9 12 15 6"></polyline>
+                        <polyline points="9 18 15 12 9 6"></polyline>
                     </svg>`;
             }
         }
@@ -19692,15 +19699,17 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         window.addEventListener('orientationchange', () => { setTimeout(_positionFloatBtn, 200); });
 
         _floatBtn.addEventListener('mouseenter', () => {
-            _floatBtn.style.transform = _floatBtn.style.transform.includes('translateX')
+            const t = _floatBtn.style.transform;
+            _floatBtn.style.transform = t.includes('translateX')
                 ? 'translateX(-50%) scale(1.12)'
-                : 'translateY(-50%) scale(1.12)';
+                : (t.includes('none') || t === '' ? 'scale(1.12)' : 'scale(1.12)');
             _floatBtn.style.boxShadow = '0 6px 26px rgba(7,144,172,0.34)';
         });
         _floatBtn.addEventListener('mouseleave', () => {
-            _floatBtn.style.transform = _floatBtn.style.transform.includes('translateX')
+            const t = _floatBtn.style.transform;
+            _floatBtn.style.transform = t.includes('translateX')
                 ? 'translateX(-50%)'
-                : 'translateY(-50%)';
+                : 'none';
             _floatBtn.style.boxShadow = '0 4px 18px rgba(7,144,172,0.22)';
         });
 
