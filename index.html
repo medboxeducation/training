@@ -10625,7 +10625,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <h1 class="text-xl font-bold tracking-wide flex items-baseline gap-0.5">
                         <span dir="ltr" class="inline-flex"><span class="text-primary">MedBox</span><span class="text-gray-400 font-medium">.</span><span class="text-gray-700">Education</span></span>
                     </h1>
-                    <span dir="ltr" class="text-[10px] font-semibold tracking-widest text-gray-400 leading-none select-none">V. 1-1-1</span>
+                    <span dir="ltr" class="text-[10px] font-semibold tracking-widest text-gray-400 leading-none select-none">V. 1-1-2</span>
                 </div>
             </div>
 
@@ -14419,25 +14419,38 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const timeStr = new Date(localTs).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' });
             const myUid   = currentUser.uid;
 
-            // عرض مؤشر الرفع
+            // عرض مؤشر الرفع مع شريط التقدم
             const area = document.getElementById('chatMessagesArea');
             let uploadIndicatorEl = null;
-            const uploadProgressId = `up_prog_${localTs}`;
+            const uploadProgressBarId = `up_bar_${localTs}`;
+            const uploadProgressPctId = `up_pct_${localTs}`;
             if (area) {
                 if (area.querySelector('.ph-chats')) area.innerHTML = '';
                 uploadIndicatorEl = document.createElement('div');
                 uploadIndicatorEl.className = 'flex justify-end mb-1.5';
                 uploadIndicatorEl.dataset.localTs = localTs;
                 uploadIndicatorEl.innerHTML = `
-                    <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm opacity-70">
-                        <div class="flex items-center gap-2">
-                            <i class="ph ph-spinner animate-spin text-white text-sm"></i>
-                            <span id="${uploadProgressId}" class="text-xs">جاري رفع الرسالة الصوتية... 0%</span>
+                    <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm opacity-80">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <i class="ph ph-microphone-stage text-white text-sm"></i>
+                            <span class="text-xs font-medium">جاري رفع الرسالة الصوتية</span>
+                            <span id="${uploadProgressPctId}" class="text-xs font-bold mr-auto">0%</span>
                         </div>
-                        <p class="text-[10px] opacity-70 mt-1 text-left">${timeStr}</p>
+                        <div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
+                            <div id="${uploadProgressBarId}" class="bg-white h-1.5 rounded-full transition-all duration-300 ease-out" style="width:0%"></div>
+                        </div>
+                        <p class="text-[10px] opacity-70 mt-1.5 text-left">${timeStr}</p>
                     </div>`;
                 area.appendChild(uploadIndicatorEl);
                 area.scrollTop = area.scrollHeight;
+            }
+
+            // دالة تحديث شريط التقدم
+            function _updateUploadProgress(pct) {
+                const bar = document.getElementById(uploadProgressBarId);
+                const pctEl = document.getElementById(uploadProgressPctId);
+                if (bar) bar.style.width = pct + '%';
+                if (pctEl) pctEl.textContent = pct + '%';
             }
 
             try {
@@ -14452,28 +14465,48 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         const fileName = `voice_${myUid}_${localTs}.${ext}`;
                         storagePath    = `voice/${activeChatConvId}/${fileName}`;
                         const ref      = storage.ref(storagePath);
-                        const uploadTask = ref.put(blob, { contentType: mimeType });
 
-                        // متابعة تقدم الرفع
-                        await new Promise((resolve, reject) => {
+                        // رفع باستخدام XMLHttpRequest لضمان تتبع التقدم بدقة
+                        audioUrl = await new Promise((resolve, reject) => {
+                            const uploadTask = ref.put(blob, { contentType: mimeType });
+
+                            // تحديث مبدئي لإظهار أن الرفع بدأ
+                            _updateUploadProgress(5);
+
                             uploadTask.on('state_changed',
-                                snapshot => {
-                                    const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                                    const progSpan = document.getElementById(uploadProgressId);
-                                    if (progSpan) progSpan.textContent = `جاري رفع الرسالة الصوتية... ${pct}%`;
+                                (snapshot) => {
+                                    if (snapshot.totalBytes > 0) {
+                                        const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                                        // نعرض 5% كحد أدنى لإظهار بداية الرفع
+                                        _updateUploadProgress(Math.max(5, pct));
+                                    }
                                 },
-                                reject,
-                                resolve
+                                (err) => reject(err),
+                                async () => {
+                                    _updateUploadProgress(100);
+                                    try {
+                                        const url = await ref.getDownloadURL();
+                                        resolve(url);
+                                    } catch (e) {
+                                        reject(e);
+                                    }
+                                }
                             );
                         });
-                        audioUrl = await ref.getDownloadURL();
                     } catch (storageErr) {
                         console.warn('Firebase Storage failed, using base64 fallback:', storageErr);
                         // ── Fallback: base64 في Firestore عند فشل Storage ──
                         storagePath = '';
+                        _updateUploadProgress(10);
                         audioUrl = await new Promise((res, rej) => {
                             const reader = new FileReader();
-                            reader.onload  = () => res(reader.result);
+                            reader.onprogress = (e) => {
+                                if (e.lengthComputable) {
+                                    const pct = Math.round((e.loaded / e.total) * 80) + 10;
+                                    _updateUploadProgress(pct);
+                                }
+                            };
+                            reader.onload  = () => { _updateUploadProgress(95); res(reader.result); };
                             reader.onerror = () => rej(new Error('FileReader error'));
                             reader.readAsDataURL(blob);
                         });
@@ -14484,9 +14517,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     }
                 } else {
                     // ── Fallback: base64 في Firestore ──
+                    _updateUploadProgress(10);
                     audioUrl = await new Promise((res, rej) => {
                         const reader = new FileReader();
-                        reader.onload  = () => res(reader.result);
+                        reader.onprogress = (e) => {
+                            if (e.lengthComputable) {
+                                const pct = Math.round((e.loaded / e.total) * 80) + 10;
+                                _updateUploadProgress(pct);
+                            }
+                        };
+                        reader.onload  = () => { _updateUploadProgress(95); res(reader.result); };
                         reader.onerror = () => rej(new Error('FileReader error'));
                         reader.readAsDataURL(blob);
                     });
@@ -14494,6 +14534,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         throw new Error('الرسالة الصوتية كبيرة جداً — يرجى تفعيل Firebase Storage');
                     }
                 }
+
+                // إكمال شريط التقدم قبل الحفظ
+                _updateUploadProgress(100);
 
                 // حفظ الرسالة في Firestore
                 const convRef = db.collection('chats').doc(activeChatConvId);
