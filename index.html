@@ -26552,6 +26552,11 @@ window.startWebRTCCall = async function(type) {
                 const answerDesc = new RTCSessionDescription(data.answer);
                 await _rtcPeer.setRemoteDescription(answerDesc).catch(e => console.error('setRemote answer err:', e));
             }
+            // Fallback: إذا أعلن الطرف الآخر عن status='connected' في Firestore
+            // وكان العدّاد لم يبدأ بعد (حالة ICE بطيئة أو غير مُبلَّغ عنها)
+            if (data.status === 'connected' && !_callConnectedFired) {
+                _markCallConnected();
+            }
             if (data.status === 'rejected' || data.status === 'ended') {
                 _handleCallEnded(data.status);
             }
@@ -26836,9 +26841,16 @@ function _onConnectionStateChange() {
     if (state === 'connected') {
         _markCallConnected();
     } else if (state === 'disconnected' || state === 'failed') {
+        // فقط إذا كان الاتصال قد نجح فعلاً من قبل (العدّاد شغّال)
+        // لا ننهي الاتصال إذا كنا لا نزال في مرحلة التفاوض الأولى
+        if (!_callConnectedFired) return; // تجاهل الانقطاعات المؤقتة أثناء ICE negotiation
         if (statusText) statusText.textContent = 'انقطع الاتصال';
         if (statusDot)  statusDot.className = 'w-2 h-2 rounded-full bg-red-400 inline-block';
-        setTimeout(() => { if (_rtcPeer && (_rtcPeer.connectionState === 'disconnected' || _rtcPeer.connectionState === 'failed')) endWebRTCCall(); }, 3000);
+        setTimeout(() => {
+            if (_rtcPeer && (_rtcPeer.connectionState === 'disconnected' || _rtcPeer.connectionState === 'failed')) {
+                endWebRTCCall();
+            }
+        }, 5000); // زيادة المهلة إلى 5 ثوانٍ لإتاحة إعادة الاتصال
     }
 }
 
