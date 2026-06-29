@@ -11758,11 +11758,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                 <!-- بيانات الشخص: تبدأ مباشرة من يمين القائمة، ملاصقة لـ QR -->
                                 <div class="flex-1 min-w-0 text-right">
                                     <!-- دائرة الحالة + الاسم العربي -->
-                                    <div class="flex items-center gap-2 justify-end mb-0.5" dir="rtl">
-                                        <h3 id="chatWindowNameAr" class="font-bold text-gray-800 text-base leading-tight truncate" dir="rtl" style="text-align:right; direction:rtl;">—</h3>
+                                    <div class="flex items-center gap-2 justify-end mb-0.5" dir="ltr">
                                         <span id="chatWindowOnlineDot"
                                               class="w-2.5 h-2.5 rounded-full shrink-0 bg-gray-300 shadow-sm ring-1 ring-white transition-colors"
                                               title="غير متصل"></span>
+                                        <h3 id="chatWindowNameAr" class="font-bold text-gray-800 text-base leading-tight truncate" dir="rtl" style="text-align:right; direction:rtl;">—</h3>
                                     </div>
                                     <!-- الاسم الإنجليزي -->
                                     <p id="chatWindowNameEn" class="text-xs text-gray-500 truncate text-right font-medium mb-0.5" dir="rtl" style="text-align:right; direction:rtl; unicode-bidi:plaintext;"></p>
@@ -13835,19 +13835,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     ${conv.lastMsg ? `<p class="text-[10px] text-gray-400 truncate mb-2">${escapeHtml(conv.lastMsg)}</p>` : ''}
                     <div class="flex items-center gap-1 border-t border-white/30 pt-2 mt-1">
                         <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(startVoiceRecording, 300);"
-                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center gap-1 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 text-[11px] font-semibold" title="رسالة صوتية">
+                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200" title="رسالة صوتية">
                             <i class="ph ph-microphone text-sm"></i>
-                            <span>صوتية</span>
                         </button>
                         <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(() => startWebRTCCall('voice'), 300);"
-                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center gap-1 text-blue-600 hover:bg-blue-50 hover:border-blue-200 text-[11px] font-semibold" title="اتصال صوتي">
+                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-200" title="اتصال صوتي">
                             <i class="ph ph-phone text-sm"></i>
-                            <span>اتصال</span>
                         </button>
                         <button onclick="event.stopPropagation(); openChatWindow(conv.id); setTimeout(() => startWebRTCCall('video'), 300);"
-                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center gap-1 text-violet-600 hover:bg-violet-50 hover:border-violet-200 text-[11px] font-semibold" title="اتصال فيديو">
+                            class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-violet-600 hover:bg-violet-50 hover:border-violet-200" title="اتصال فيديو">
                             <i class="ph ph-video-camera text-sm"></i>
-                            <span>فيديو</span>
                         </button>
                     </div>
                 `;
@@ -19628,11 +19625,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         _floatBtn.id = 'showSidebarBtn';
         _floatBtn.title = 'إظهار القائمة';
         _floatBtn.onclick = toggleSidebar;
-        // سهم SVG يشير لليسار (نحو القائمة)
+        // سهم SVG يشير لليمين (نحو القائمة في RTL)
         _floatBtn.innerHTML = `
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                  stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
+                <polyline points="9 18 15 12 9 6"></polyline>
             </svg>`;
         Object.assign(_floatBtn.style, {
             display:        'none',
@@ -19653,31 +19650,31 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         // ── تحديد الموضع حسب حجم الشاشة ──
         // زر الإظهار يجلس في موضع تناظري تماماً مع زر الإخفاء داخل هيدر القائمة الجانبية
+        // لكن تحت التولبار مباشرةً (وليس عليه)، والسهم يشير نحو القائمة (لليمين في RTL)
         function _positionFloatBtn() {
             const isPortraitMobile = window.innerWidth <= 480 && window.innerHeight > window.innerWidth;
             if (isPortraitMobile) {
-                // موبايل عمودي: أسفل الشاشة في المنتصف
-                _floatBtn.style.bottom       = '24px';
-                _floatBtn.style.top          = 'auto';
-                _floatBtn.style.right        = 'auto';
-                _floatBtn.style.left         = '50%';
-                _floatBtn.style.transform    = 'translateX(-50%)';
-                _floatBtn.style.width        = '52px';
-                _floatBtn.style.height       = '52px';
+                // موبايل عمودي: تحت التولبار من الجانب الأيمن (تناظري مع زر الإخفاء)
+                _floatBtn.style.bottom       = 'auto';
+                _floatBtn.style.top          = '68px';
+                _floatBtn.style.right        = '12px';
+                _floatBtn.style.left         = 'auto';
+                _floatBtn.style.transform    = 'none';
+                _floatBtn.style.width        = '36px';
+                _floatBtn.style.height       = '36px';
                 _floatBtn.style.borderRadius = '50%';
                 _floatBtn.title = 'إظهار القائمة';
-                // السهم يشير لأعلى
+                // السهم يشير لليمين (نحو القائمة في RTL)
                 _floatBtn.innerHTML = `
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                          stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="18 15 12 9 6 15"></polyline>
+                        <polyline points="9 18 15 12 9 6"></polyline>
                     </svg>`;
             } else {
                 // شاشات كبيرة / لابتوب / تابلت / موبايل أفقي:
-                // موضع تناظري مع زر الإخفاء: أعلى يمين الشاشة عند حافة القائمة
-                // زر الإخفاء يقع في هيدر القائمة (top ~16px داخل القائمة + padding ~16px من الـ navbar ≈ top:80px، right:16px)
+                // تحت التولبار مباشرة من الجانب الأيمن — تناظري مع زر الإخفاء
                 _floatBtn.style.bottom       = 'auto';
-                _floatBtn.style.top          = '76px';
+                _floatBtn.style.top          = '68px';
                 _floatBtn.style.right        = '16px';
                 _floatBtn.style.left         = 'auto';
                 _floatBtn.style.transform    = 'none';
@@ -19685,7 +19682,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 _floatBtn.style.height       = '36px';
                 _floatBtn.style.borderRadius = '50%';
                 _floatBtn.title = 'إظهار القائمة';
-                // نفس أيقونة زر الإخفاء (caret) لكن معكوسة
+                // السهم يشير لليمين (نحو القائمة في RTL — عكس سهم الإخفاء caret-right→caret-left)
                 _floatBtn.innerHTML = `
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                          stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
