@@ -14414,9 +14414,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const durationSec = _voiceSeconds;
             _voiceChunks = [];
 
-            // إذا لم يكن Firebase Storage متاحاً — نرفع كـ base64 في Firestore مباشرةً (للملفات الصغيرة)
-            const useBase64Fallback = !firebase.apps.length || typeof firebase.storage !== 'function';
-
             const localTs = Date.now();
             const timeStr = new Date(localTs).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' });
             const myUid   = currentUser.uid;
@@ -14445,14 +14442,46 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 let audioUrl = '';
                 let storagePath = '';
 
-                if (!useBase64Fallback && typeof firebase.storage === 'function') {
-                    // ── Firebase Storage ──
-                    const storage  = firebase.storage();
-                    const fileName = `voice_${myUid}_${localTs}.${ext}`;
-                    storagePath    = `chats/${activeChatConvId}/voice/${fileName}`;
-                    const ref      = storage.ref(storagePath);
-                    await ref.put(blob, { contentType: mimeType });
-                    audioUrl = await ref.getDownloadURL();
+                // ── محاولة Firebase Storage أولاً ──
+                const storageAvailable = typeof firebase.storage === 'function' && firebase.apps.some(a => a.name === '[DEFAULT]');
+                if (storageAvailable) {
+                    try {
+                        const storage  = firebase.storage();
+                        const fileName = `voice_${myUid}_${localTs}.${ext}`;
+                        storagePath    = `voice/${activeChatConvId}/${fileName}`;
+                        const ref      = storage.ref(storagePath);
+                        const uploadTask = ref.put(blob, { contentType: mimeType });
+
+                        // متابعة تقدم الرفع
+                        await new Promise((resolve, reject) => {
+                            uploadTask.on('state_changed',
+                                snapshot => {
+                                    const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                                    if (uploadIndicatorEl) {
+                                        const span = uploadIndicatorEl.querySelector('span');
+                                        if (span) span.textContent = `جاري رفع الرسالة الصوتية... ${pct}%`;
+                                    }
+                                },
+                                reject,
+                                resolve
+                            );
+                        });
+                        audioUrl = await ref.getDownloadURL();
+                    } catch (storageErr) {
+                        console.warn('Firebase Storage failed, using base64 fallback:', storageErr);
+                        // ── Fallback: base64 في Firestore عند فشل Storage ──
+                        storagePath = '';
+                        audioUrl = await new Promise((res, rej) => {
+                            const reader = new FileReader();
+                            reader.onload  = () => res(reader.result);
+                            reader.onerror = () => rej(new Error('FileReader error'));
+                            reader.readAsDataURL(blob);
+                        });
+                        // تحقق من حجم base64 — Firestore يحتاج أقل من 900KB للـ document
+                        if (audioUrl.length > 900000) {
+                            throw new Error('الرسالة الصوتية كبيرة جداً — يرجى تقصير المقطع أو التحقق من إعدادات Firebase Storage');
+                        }
+                    }
                 } else {
                     // ── Fallback: base64 في Firestore ──
                     audioUrl = await new Promise((res, rej) => {
@@ -14461,6 +14490,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         reader.onerror = () => rej(new Error('FileReader error'));
                         reader.readAsDataURL(blob);
                     });
+                    if (audioUrl.length > 900000) {
+                        throw new Error('الرسالة الصوتية كبيرة جداً — يرجى تفعيل Firebase Storage');
+                    }
                 }
 
                 // حفظ الرسالة في Firestore
@@ -14490,7 +14522,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
             } catch (err) {
                 console.error('Voice upload error:', err);
-                showToast('فشل رفع الرسالة الصوتية', 'error');
+                showToast('فشل رفع الرسالة الصوتية: ' + (err?.message || 'خطأ غير معروف'), 'error');
                 if (uploadIndicatorEl) uploadIndicatorEl.remove();
             }
         }
@@ -26552,8 +26584,7 @@ window.startWebRTCCall = async function(type) {
                 const answerDesc = new RTCSessionDescription(data.answer);
                 await _rtcPeer.setRemoteDescription(answerDesc).catch(e => console.error('setRemote answer err:', e));
             }
-            // Fallback: إذا أعلن الطرف الآخر عن status='connected' في Firestore
-            // وكان العدّاد لم يبدأ بعد (حالة ICE بطيئة أو غير مُبلَّغ عنها)
+            // Fallback: إذا أعلن الطرف الآخر عن status='connected' في Firestore وكان العدّاد لم يبدأ بعد
             if (data.status === 'connected' && !_callConnectedFired) {
                 _markCallConnected();
             }
@@ -26841,16 +26872,15 @@ function _onConnectionStateChange() {
     if (state === 'connected') {
         _markCallConnected();
     } else if (state === 'disconnected' || state === 'failed') {
-        // فقط إذا كان الاتصال قد نجح فعلاً من قبل (العدّاد شغّال)
-        // لا ننهي الاتصال إذا كنا لا نزال في مرحلة التفاوض الأولى
-        if (!_callConnectedFired) return; // تجاهل الانقطاعات المؤقتة أثناء ICE negotiation
+        // لا ننهي الاتصال إذا لم يكتمل بعد (أثناء ICE negotiation)
+        if (!_callConnectedFired) return;
         if (statusText) statusText.textContent = 'انقطع الاتصال';
         if (statusDot)  statusDot.className = 'w-2 h-2 rounded-full bg-red-400 inline-block';
         setTimeout(() => {
             if (_rtcPeer && (_rtcPeer.connectionState === 'disconnected' || _rtcPeer.connectionState === 'failed')) {
                 endWebRTCCall();
             }
-        }, 5000); // زيادة المهلة إلى 5 ثوانٍ لإتاحة إعادة الاتصال
+        }, 5000);
     }
 }
 
