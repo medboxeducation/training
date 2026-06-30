@@ -27541,14 +27541,14 @@ function initNotificationSystem() {
 // ═══════════════════════════════════════════════════
 function _saveNotifToStorage() {
     try {
-        const uid = window.currentUser?.uid || 'guest';
+        const uid = currentUser?.uid || 'guest';
         localStorage.setItem(_NOTIF_KEY + '_' + uid, JSON.stringify(_notifItems.slice(0, _NOTIF_MAX)));
     } catch(_) {}
 }
 
 function _loadNotifFromStorage() {
     try {
-        const uid = window.currentUser?.uid || 'guest';
+        const uid = currentUser?.uid || 'guest';
         const raw = localStorage.getItem(_NOTIF_KEY + '_' + uid);
         _notifItems = raw ? JSON.parse(raw) : [];
     } catch(_) { _notifItems = []; }
@@ -27561,7 +27561,7 @@ function _loadNotifFromStorage() {
 // ═══════════════════════════════════════════════════
 function addNotification({ type, action, title, body, icon, targetRole }) {
     // تحقق من صلاحية المستخدم الحالي
-    const role = window.currentUser?.role || '';
+    const role = currentUser?.role || '';
     if (!_shouldShowNotif(type, action, targetRole, role)) return;
 
     const notif = {
@@ -27623,7 +27623,7 @@ function _defaultIcon(type) {
 // ═══════════════════════════════════════════════════
 function _listenChatForNotif() {
     const db = window._rtcGetDb ? window._rtcGetDb() : null;
-    const cu = window.currentUser;
+    const cu = currentUser;
     if (!db || !cu) return;
 
     // استمع لتغيّرات محادثات المستخدم الحالي
@@ -27698,7 +27698,7 @@ function _listenChatForNotif() {
 //  عرض/إخفاء لوحة الإشعارات
 // ═══════════════════════════════════════════════════
 function toggleNotifPanel() {
-    if (!window.currentUser) return; // الإشعارات للمستخدمين المسجَّلين فقط
+    if (!currentUser) return; // الإشعارات للمستخدمين المسجَّلين فقط
     const panel = document.getElementById('notifPanel');
     if (!panel) return;
     _notifOpen = !_notifOpen;
@@ -27974,7 +27974,7 @@ function _notifOnTrainerSave(isEdit, name) {
 
 // ── 5. ميزة جديدة في النظام (يرسلها الأدمن يدوياً) ──
 function sendFeatureNotification(title, body) {
-    const role = window.currentUser?.role || '';
+    const role = currentUser?.role || '';
     if (role !== 'admin') { showToast?.('هذه الميزة للأدمن فقط','error'); return; }
     addNotification({ type:'feature', action:'new', title: '✨ ' + title, body });
     showToast?.('✅ تم إرسال إشعار الميزة الجديدة','success');
