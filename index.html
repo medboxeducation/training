@@ -10457,6 +10457,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         body.guest-mode .admin-only   { display: none !important; }
         body.auth-mode  .guest-only   { display: none !important; }
         body.guest-mode .program-actions { display: none !important; }
+        /* عناصر تظهر فقط للمستخدمين المسجَّلين (مثل جرس الإشعارات) — مخفية للزوار */
+        body.guest-mode .auth-only    { display: none !important; }
 
         /* ====== Trainee Mode Styles ====== */
         body.trainee-mode .admin-only        { display: none !important; }
@@ -10688,20 +10690,20 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
     <!-- 2. التول بار (Toolbar) -->
     <nav class="glass-panel z-50 px-4 py-3 flex flex-col shrink-0 gap-2">
-        <!-- السطر الأول: الشعار + أزرار التنقل (في الشاشات الكبيرة) + أزرار اليمين -->
-        <div class="flex justify-between items-center">
+        <!-- السطر الأول: الشعار + أزرار التنقل (شاشات كبيرة) / الشعار+المستخدم (موبايل) -->
+        <div id="navRow1" class="flex flex-wrap lg:flex-nowrap justify-between items-center gap-y-2">
         <!-- اليمين: الشعار + أزرار التنقل للشاشات الكبيرة -->
-        <div class="flex items-center gap-3 md:gap-4">
+        <div id="navRightBlock" class="flex items-center gap-3 md:gap-4">
             <!-- ايقونة واسم البرنامج -->
             <div class="flex items-center gap-3 cursor-pointer" onclick="showDashboard()">
                 <div class="w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-primary/30 ring-1 ring-white/60 bg-white/40 flex items-center justify-center">
                     <img src="data:image/jpeg;base64,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" alt="MedBox.Education" class="w-full h-full object-cover">
                 </div>
-                <div id="navTitleWrap" class="hidden md:flex flex-col gap-0">
-                    <h1 class="text-xl font-bold tracking-wide flex items-baseline gap-0.5">
+                <div id="navTitleWrap" class="flex flex-col gap-0">
+                    <h1 class="text-base md:text-xl font-bold tracking-wide flex items-baseline gap-0.5">
                         <span dir="ltr" class="inline-flex"><span class="text-primary">MedBox</span><span class="text-gray-400 font-medium">.</span><span class="text-gray-700">Education</span></span>
                     </h1>
-                    <span dir="ltr" class="text-[10px] font-semibold tracking-widest text-gray-400 leading-none select-none">V. 1-1-2</span>
+                    <span dir="ltr" class="text-[9px] md:text-[10px] font-semibold tracking-widest text-gray-400 leading-none select-none">V. 1-1-2</span>
                 </div>
             </div>
 
@@ -10757,8 +10759,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             
         </div>
 
-        <!-- اليسار -->
-        <div class="flex items-center gap-2 md:gap-3">
+        <!-- اليسار: أزرار الإجراءات — سطر مستقل على الموبايل (تحت اسم البرنامج/المستخدم)، بجانبهم في الشاشات الكبيرة -->
+        <div id="navActionsRow" class="order-3 basis-full lg:order-none lg:basis-auto flex items-center justify-between lg:justify-end gap-2 md:gap-3 flex-wrap">
             <button class="admin-only glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center" title="الإعدادات" onclick="showSettingsSidebar()">
                 <i class="ph ph-gear text-lg md:text-xl"></i>
             </button>
@@ -10774,8 +10776,20 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 <i class="ph ph-house text-lg md:text-xl"></i>
             </button>
 
-            <!-- ══════ زر الإشعارات ══════ -->
-            <div class="relative" id="notifBellWrapper">
+            <!-- زر ملفي الشخصي — يظهر فقط للمتدرب/المدرب (مسجل دخول) — يبقى دائماً في صف الأزرار -->
+            <button id="navTraineeProfileBtn" onclick="showMyProfile()" title="ملفي الشخصي"
+                class="hidden glass-element w-9 h-9 md:w-10 md:h-10 rounded-full text-sky-700 hover:bg-sky-50 hover:border-sky-300 transition-colors flex items-center justify-center">
+                <i class="ph ph-identification-card text-lg"></i>
+            </button>
+            <!-- زر امتحاناتي — يظهر فقط للمتدرب (مسجل دخول) — يبقى دائماً في صف الأزرار -->
+            <button id="navTraineeExamsBtn" onclick="openTraineeExamList()" title="امتحاناتي"
+                class="hidden glass-element w-9 h-9 md:w-10 md:h-10 rounded-full text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-colors flex items-center justify-center relative">
+                <i class="ph ph-exam text-lg"></i>
+                <span id="traineeExamsBadge" class="hidden absolute -top-1 -left-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">!</span>
+            </button>
+
+            <!-- ══════ زر الإشعارات — يظهر فقط للمستخدمين المسجَّلين ══════ -->
+            <div class="relative auth-only" id="notifBellWrapper">
                 <button id="notifBellBtn" onclick="toggleNotifPanel()"
                     class="glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors hover:text-primary"
                     title="الإشعارات">
@@ -10790,6 +10804,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <!-- فاصل -->
             <div class="h-6 w-px bg-white/50 mx-1 hidden md:block"></div>
             
+            <!-- مجموعة تسجيل الدخول / اسم المستخدم — وحدة واحدة تُنقل إلى السطر الأول (يسار الشعار) في الشاشات الصغيرة عبر JS -->
+            <div id="navAuthSlot" class="flex items-center gap-2">
             <!-- زر تسجيل الدخول (يظهر للزوار) -->
             <div id="loginDropdownWrapper" class="relative">
                 <button id="navLoginBtn" onclick="openLoginModal()"
@@ -10938,22 +10954,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             </div><!-- loginDropdownWrapper -->
             <!-- عنصر المستخدم المسجل (يظهر بعد الدخول) -->
             <div id="navUserBtn" class="hidden items-center gap-2">
-                <!-- زر ملفي الشخصي — يظهر فقط للمتدرب -->
-                <button id="navTraineeProfileBtn" onclick="showMyProfile()" title="ملفي الشخصي"
-                    class="hidden glass-element w-9 h-9 md:w-10 md:h-10 rounded-full text-sky-700 hover:bg-sky-50 hover:border-sky-300 transition-colors flex items-center justify-center">
-                    <i class="ph ph-identification-card text-lg"></i>
-                </button>
-                <!-- زر امتحاناتي — يظهر فقط للمتدرب -->
-                <button id="navTraineeExamsBtn" onclick="openTraineeExamList()" title="امتحاناتي"
-                    class="hidden glass-element w-9 h-9 md:w-10 md:h-10 rounded-full text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-colors flex items-center justify-center relative">
-                    <i class="ph ph-exam text-lg"></i>
-                    <span id="traineeExamsBadge" class="hidden absolute -top-1 -left-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">!</span>
-                </button>
                 <div id="accountInfoWrapper" class="relative">
                     <button id="navUserNameBtn" onclick="toggleAccountInfoDropdown()"
                         class="glass-element px-3 md:px-4 py-2 rounded-full flex items-center gap-1.5 text-xs md:text-sm font-semibold text-gray-700 hover:bg-white/50 transition-colors">
+                        <div class="flex flex-col items-end leading-tight">
+                            <span id="navUserName" class="max-w-[100px] md:max-w-[120px] truncate">—</span>
+                            <span id="navUserRole" class="text-[9px] md:text-[10px] font-normal text-gray-400 leading-none"></span>
+                        </div>
                         <i class="ph ph-user-circle text-primary text-base md:text-lg"></i>
-                        <span id="navUserName" class="hidden md:inline max-w-[120px] truncate">—</span>
                         <i class="ph ph-caret-down text-[10px] text-gray-400 hidden md:inline"></i>
                     </button>
 
@@ -10980,10 +10988,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </div><!-- accountInfoDropdown -->
                 </div><!-- accountInfoWrapper -->
             </div>
+            </div><!-- navAuthSlot -->
         </div>
         </div><!-- نهاية السطر الأول -->
 
-        <!-- السطر الثاني: روابط الأقسام — أيقونات فقط في الموبايل، مخفي في الشاشات الكبيرة -->
+        <!-- السطر الثالث: روابط الأقسام (البرامج التدريبية، الموسوعة، الجلسات الافتراضية) — أيقونات في الموبايل، مخفي في الشاشات الكبيرة -->
         <div class="flex lg:hidden items-center gap-2 border-t border-white/30 pt-2">
             <button class="flex-1 glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5" onclick="showProgramsGrid()">
                 <i class="ph ph-books text-base"></i>
@@ -12956,6 +12965,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             navUserBtn.classList.add('flex');
             document.getElementById('navUserName').textContent =
                 currentUser.displayName || currentUser.email || 'مستخدم';
+            // صفة الحساب (مدرب / مدير / متدرب) تحت اسم المستخدم
+            const navUserRoleEl = document.getElementById('navUserRole');
+            if (navUserRoleEl) {
+                const _roleLabels = { admin: 'مدير', trainer: 'مدرب', trainee: 'متدرب' };
+                navUserRoleEl.textContent = _roleLabels[currentUser.role] || '';
+            }
             const accountInfoEmail = document.getElementById('accountInfoEmail');
             if (accountInfoEmail) accountInfoEmail.textContent = currentUser.email || '—';
 
@@ -13002,6 +13017,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             chatConversations   = [];
             chatOnlineStatus    = {};
             activeChatConvId    = null;
+            // إعادة ضبط نظام الإشعارات بالكامل (وإلا تبقى إشعارات المستخدم السابق ظاهرة
+            // لأي مستخدم آخر يسجّل الدخول بعده على نفس الجهاز دون إعادة تحميل الصفحة)
+            if (typeof _notifChatListener !== 'undefined' && _notifChatListener) { _notifChatListener(); _notifChatListener = null; }
+            if (typeof _notifItems !== 'undefined') _notifItems = [];
+            if (typeof _notifInitDone !== 'undefined') _notifInitDone = false;
+            const notifPanelOut = document.getElementById('notifPanel');
+            if (notifPanelOut) notifPanelOut.classList.add('hidden');
+            _notifOpen = false;
+            if (typeof _renderNotifList === 'function') _renderNotifList();
+            if (typeof _updateNotifBadge === 'function') _updateNotifBadge();
             if (auth) { try { auth.signOut(); } catch(e){} }
             currentUser = null;
             document.body.classList.remove('auth-mode', 'trainee-mode', 'trainer-mode');
@@ -13030,6 +13055,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             closeAccountInfoDropdown();
             const accountInfoEmail = document.getElementById('accountInfoEmail');
             if (accountInfoEmail) accountInfoEmail.textContent = '—';
+            const navUserRoleElOut = document.getElementById('navUserRole');
+            if (navUserRoleElOut) navUserRoleElOut.textContent = '';
             // تفريغ حقول تسجيل الدخول
             const emailEl    = document.getElementById('loginEmail');
             const passEl     = document.getElementById('loginPassword');
@@ -13109,6 +13136,24 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 _restoreAnchoredDropdown('accountInfoDropdown');
             }, { once: true });
         }
+
+        // ======== نقل مجموعة (تسجيل الدخول / اسم المستخدم) إلى السطر الأول في الشاشات الصغيرة ========
+        // في الشاشات الكبيرة (lg+) تبقى ضمن صف الأزرار كالمعتاد. في الشاشات الصغيرة تُنقل
+        // لتظهر بجانب الشعار في السطر الأول، على يسار الصف (بفضل justify-between في navRow1).
+        function _placeNavAuthSlot() {
+            const slot = document.getElementById('navAuthSlot');
+            const row1 = document.getElementById('navRow1');
+            const actionsRow = document.getElementById('navActionsRow');
+            if (!slot || !row1 || !actionsRow) return;
+            if (window.innerWidth < 1024) {
+                if (slot.parentElement !== row1) row1.insertBefore(slot, actionsRow);
+            } else {
+                if (slot.parentElement !== actionsRow) actionsRow.appendChild(slot);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', _placeNavAuthSlot);
+        window.addEventListener('resize', _placeNavAuthSlot);
+        _placeNavAuthSlot();
 
         // ======== نظام عام لتموضع القوائم المنسدلة المثبّتة بجوار زر (تسجيل الدخول / بيانات الحساب) ========
         // يمنع خروج القائمة عن حدود الشاشة على الشاشات الكبيرة والصغيرة وشاشات الموبايل،
@@ -27593,8 +27638,9 @@ function _listenChatForNotif() {
                 if (unreadCount <= 0) return;
                 // تجنّب الإشعارات المكررة لنفس المحادثة في وقت قصير
                 const convId = change.doc.id;
+                const isCall     = (data.lastMsg || '')?.includes('مكالمة') || (data.lastMsg || '')?.includes('call');
                 const lastNotifForConv = _notifItems.find(n =>
-                    n.type === 'message' && n.convId === convId
+                    n.type === (isCall ? 'call' : 'message') && n.convId === convId
                 );
                 const now = Date.now();
                 if (lastNotifForConv && (now - lastNotifForConv.ts) < 5000) return;
@@ -27602,7 +27648,6 @@ function _listenChatForNotif() {
                 const senderName = data.lastSenderName || 'مستخدم';
                 const lastMsg    = data.lastMsg || 'رسالة جديدة';
                 const isVoice    = lastMsg === '🎤 رسالة صوتية';
-                const isCall     = lastMsg?.includes('مكالمة') || lastMsg?.includes('call');
 
                 const notif = {
                     id     : 'n_' + now + '_' + Math.random().toString(36).slice(2,6),
@@ -27653,6 +27698,7 @@ function _listenChatForNotif() {
 //  عرض/إخفاء لوحة الإشعارات
 // ═══════════════════════════════════════════════════
 function toggleNotifPanel() {
+    if (!window.currentUser) return; // الإشعارات للمستخدمين المسجَّلين فقط
     const panel = document.getElementById('notifPanel');
     if (!panel) return;
     _notifOpen = !_notifOpen;
