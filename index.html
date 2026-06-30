@@ -14682,7 +14682,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm opacity-80">
                         <div class="flex items-center gap-2 mb-1.5">
                             <i class="ph ph-microphone-stage text-white text-sm"></i>
-                            <span class="text-xs font-medium">جاري رفع الرسالة الصوتية</span>
+                            <span id="up_label_${localTs}" class="text-xs font-medium">جاري رفع الرسالة الصوتية</span>
                             <span id="${uploadProgressPctId}" class="text-xs font-bold mr-auto">0%</span>
                         </div>
                         <div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
@@ -14700,6 +14700,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 const pctEl = document.getElementById(uploadProgressPctId);
                 if (bar) bar.style.width = pct + '%';
                 if (pctEl) pctEl.textContent = pct + '%';
+            }
+
+            // دالة تحديث نص العبارة الظاهرة أثناء الرفع
+            function _updateUploadLabel(text) {
+                const labelEl = document.getElementById(`up_label_${localTs}`);
+                if (labelEl) labelEl.textContent = text;
             }
 
             try {
@@ -14722,6 +14728,18 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             // تحديث مبدئي لإظهار أن الرفع بدأ
                             _updateUploadProgress(5);
 
+                            // مؤقت أمان: إن لم يتحرك الرفع لأي سبب (مشكلة شبكة/CORS/صلاحيات)
+                            // يبقى عالقاً عند 5% للأبد بدون هذا المؤقت لأن state_changed لا يصدر
+                            // أي حدث نجاح أو فشل في هذه الحالة. نلغي الرفع ونرفض الوعد بعد مهلة
+                            // معقولة كي ينتقل الكود تلقائياً لمسار base64 الاحتياطي.
+                            let _settled = false;
+                            const _stallTimeout = setTimeout(() => {
+                                if (_settled) return;
+                                _settled = true;
+                                try { uploadTask.cancel(); } catch(e) {}
+                                reject(new Error('upload-stalled-timeout'));
+                            }, 15000);
+
                             uploadTask.on('state_changed',
                                 (snapshot) => {
                                     if (snapshot.totalBytes > 0) {
@@ -14730,8 +14748,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                         _updateUploadProgress(Math.max(5, pct));
                                     }
                                 },
-                                (err) => reject(err),
+                                (err) => { if (_settled) return; _settled = true; clearTimeout(_stallTimeout); reject(err); },
                                 async () => {
+                                    if (_settled) return;
+                                    _settled = true;
+                                    clearTimeout(_stallTimeout);
                                     _updateUploadProgress(100);
                                     try {
                                         const url = await ref.getDownloadURL();
@@ -14746,6 +14767,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         console.warn('Firebase Storage failed, using base64 fallback:', storageErr);
                         // ── Fallback: base64 في Firestore عند فشل Storage ──
                         storagePath = '';
+                        _updateUploadLabel('جاري تحويل صيغة الصوت');
                         _updateUploadProgress(10);
                         audioUrl = await new Promise((res, rej) => {
                             const reader = new FileReader();
@@ -14767,6 +14789,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     }
                 } else {
                     // ── Fallback: base64 في Firestore ──
+                    _updateUploadLabel('جاري تحويل صيغة الصوت');
                     _updateUploadProgress(10);
                     audioUrl = await new Promise((res, rej) => {
                         const reader = new FileReader();
