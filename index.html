@@ -12878,6 +12878,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // فتح التطبيق بعد تسجيل الدخول الناجح
         function enterApp() {
             closeLoginModal();
+            _saveSessionCache();
             setTimeout(() => {
                 activateAuthMode();
                 // تسجيل الحضور (أونلاين)
@@ -13028,6 +13029,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (typeof _renderNotifList === 'function') _renderNotifList();
             if (typeof _updateNotifBadge === 'function') _updateNotifBadge();
             if (auth) { try { auth.signOut(); } catch(e){} }
+            _clearSessionCache();
             currentUser = null;
             document.body.classList.remove('auth-mode', 'trainee-mode', 'trainer-mode');
             document.body.classList.add('guest-mode');
@@ -13062,6 +13064,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const passEl     = document.getElementById('loginPassword');
             const userEl     = document.getElementById('loginUsername');
             const pinEl      = document.getElementById('loginPin');
+            // حفظ الإيميل فقط (بدون كلمة السر) لتعبئته تلقائياً في المرة القادمة
+            try {
+                if (emailEl && emailEl.value.trim()) {
+                    localStorage.setItem('lastLoginEmail', emailEl.value.trim());
+                } else {
+                    localStorage.removeItem('lastLoginEmail');
+                }
+            } catch(e) {}
             if (emailEl)  emailEl.value  = '';
             if (passEl)   passEl.value   = '';
             if (userEl)   userEl.value   = '';
@@ -13291,10 +13301,20 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             _ensureAnchoredDropdownResizeListener();
             _positionAnchoredDropdown('loginDropdown');
 
-            // Focus email on open
+            // Focus email on open (وتعبئته تلقائياً إن كان محفوظاً من جلسة سابقة)
             setTimeout(() => {
                 const em = document.getElementById('loginEmail');
-                if (em) em.focus();
+                if (em) {
+                    let savedEmail = '';
+                    try { savedEmail = localStorage.getItem('lastLoginEmail') || ''; } catch(e) {}
+                    if (savedEmail && !em.value) {
+                        em.value = savedEmail;
+                        const pw = document.getElementById('loginPassword');
+                        if (pw) { pw.focus(); } else { em.focus(); }
+                    } else {
+                        em.focus();
+                    }
+                }
             }, 200);
 
             // Close on outside click (account for the dropdown possibly being
@@ -13356,6 +13376,41 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (banner) banner.classList.toggle('hidden', firebaseInitialized);
         }
 
+        // ======== استعادة جلسة الدخول تلقائياً عند إعادة فتح البرنامج ========
+        let _authRestoreAttached = false;
+        let _authRestoreHandled  = false;
+
+        function _saveSessionCache() {
+            try {
+                if (currentUser && currentUser.uid) {
+                    localStorage.setItem('medbox_lastSession', JSON.stringify(currentUser));
+                }
+            } catch(e) {}
+        }
+
+        function _clearSessionCache() {
+            try { localStorage.removeItem('medbox_lastSession'); } catch(e) {}
+        }
+
+        function _setupAuthSessionRestore() {
+            if (_authRestoreAttached || !auth) return;
+            _authRestoreAttached = true;
+            auth.onAuthStateChanged(function(user) {
+                if (_authRestoreHandled) return; // فقط للاستعادة التلقائية الأولى عند تحميل الصفحة
+                _authRestoreHandled = true;
+                if (!user || currentUser) return; // إن كان هناك دخول يدوي جارٍ بالفعل، لا تتدخل
+                try {
+                    const raw = localStorage.getItem('medbox_lastSession');
+                    if (!raw) return;
+                    const cached = JSON.parse(raw);
+                    if (cached && cached.uid === user.uid) {
+                        currentUser = cached;
+                        enterApp();
+                    }
+                } catch(e) {}
+            });
+        }
+
         /**
          * تهيئة Firebase بالإعدادات المقدمة.
          * تُستدعى تلقائياً عند تحميل الصفحة إن وُجدت إعدادات محفوظة،
@@ -13371,8 +13426,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 firebase.initializeApp(config);
                 db   = firebase.firestore();
                 auth = firebase.auth();
-                // تعيين استمرارية الجلسة فقط (تسجيل خروج تلقائي عند إغلاق أو تحديث الصفحة)
-                await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+                // تعيين استمرارية الجلسة بشكل دائم (تبقى جلسة الدخول محفوظة حتى عند إغلاق وإعادة فتح البرنامج)
+                await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+                // محاولة استعادة جلسة الدخول السابقة تلقائياً (إن وُجدت) دون الحاجة لإعادة كتابة البيانات
+                _setupAuthSessionRestore();
                 // اختبار الاتصال: محاولة قراءة مجموعة البرامج
                 await db.collection('programs').limit(1).get();
                 firebaseInitialized = true;
