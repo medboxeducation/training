@@ -10273,6 +10273,82 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         input[type=checkbox].accent-red-500 { accent-color: #ef4444; }
         input[type=checkbox].accent-amber-500 { accent-color: #f59e0b; }
 
+        /* ══════════════════════════════════════════
+           نظام الإشعارات — Notification System Styles
+        ══════════════════════════════════════════ */
+        .notif-filter-btn {
+            background: transparent;
+            color: #6b7280;
+            border: 1px solid transparent;
+        }
+        .notif-filter-btn:hover {
+            background: rgba(7,144,172,0.08);
+            color: var(--primary, #0790AC);
+        }
+        .notif-filter-btn.active {
+            background: var(--primary, #0790AC);
+            color: #fff;
+            border-color: transparent;
+        }
+        .notif-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.4);
+            cursor: pointer;
+            transition: background 0.15s;
+            position: relative;
+        }
+        .notif-item:hover { background: rgba(7,144,172,0.06); }
+        .notif-item.unread { background: rgba(7,144,172,0.05); }
+        .notif-item.unread::before {
+            content: '';
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary, #0790AC);
+        }
+        .notif-item:last-child { border-bottom: none; }
+        .notif-icon-wrap {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 15px;
+        }
+        .notif-icon-program  { background: rgba(7,144,172,0.12);  color: var(--primary,#0790AC); }
+        .notif-icon-course   { background: rgba(16,185,129,0.12); color: #10b981; }
+        .notif-icon-trainee  { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+        .notif-icon-trainer  { background: rgba(245,158,11,0.12); color: #f59e0b; }
+        .notif-icon-message  { background: rgba(59,130,246,0.12); color: #3b82f6; }
+        .notif-icon-call     { background: rgba(16,185,129,0.12); color: #10b981; }
+        .notif-icon-feature  { background: rgba(236,72,153,0.12); color: #ec4899; }
+        @keyframes notifBellRing {
+            0%,100% { transform: rotate(0deg); }
+            15%      { transform: rotate(18deg); }
+            30%      { transform: rotate(-14deg); }
+            45%      { transform: rotate(10deg); }
+            60%      { transform: rotate(-6deg); }
+            75%      { transform: rotate(3deg); }
+        }
+        .notif-bell-ring { animation: notifBellRing 0.7s ease-in-out; }
+        @keyframes notifToastIn {
+            from { opacity:0; transform: translateX(30px); }
+            to   { opacity:1; transform: translateX(0); }
+        }
+        .notif-toast-item {
+            animation: notifToastIn 0.3s ease-out;
+            pointer-events: auto;
+        }
+
         /* ── Voice recording styles ── */
         @keyframes voicePulse {
             0%, 100% { transform: scale(1); opacity: 1; }
@@ -10697,6 +10773,19 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <button onclick="showDashboard()" class="glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-primary border-primary/30 bg-primary/10" title="الرئيسية">
                 <i class="ph ph-house text-lg md:text-xl"></i>
             </button>
+
+            <!-- ══════ زر الإشعارات ══════ -->
+            <div class="relative" id="notifBellWrapper">
+                <button id="notifBellBtn" onclick="toggleNotifPanel()"
+                    class="glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors hover:text-primary"
+                    title="الإشعارات">
+                    <i id="notifBellIcon" class="ph ph-bell text-lg md:text-xl"></i>
+                    <span id="notifBadge"
+                        class="hidden absolute -top-1 -left-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm ring-2 ring-white">
+                        0
+                    </span>
+                </button>
+            </div>
             
             <!-- فاصل -->
             <div class="h-6 w-px bg-white/50 mx-1 hidden md:block"></div>
@@ -11762,10 +11851,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                         <span id="chatWindowOnlineDot"
                                               class="w-2.5 h-2.5 rounded-full shrink-0 bg-gray-300 shadow-sm ring-1 ring-white transition-colors"
                                               title="غير متصل"></span>
-                                        <h3 id="chatWindowNameAr" class="font-bold text-gray-800 text-base leading-tight truncate" dir="rtl" style="text-align:right; direction:rtl;">—</h3>
+                                        <h3 id="chatWindowNameAr" class="font-bold text-gray-800 text-base leading-tight truncate cursor-pointer hover:text-primary transition-colors" dir="rtl" style="text-align:right; direction:rtl;" title="فتح القائمة الجانبية" onclick="if(window._isSidebarOpen && !window._isSidebarOpen()) window._openSidebar && window._openSidebar()">—</h3>
                                     </div>
                                     <!-- الاسم الإنجليزي -->
-                                    <p id="chatWindowNameEn" class="text-xs text-gray-500 truncate text-right font-medium mb-0.5" dir="rtl" style="text-align:right; direction:rtl; unicode-bidi:plaintext;"></p>
+                                    <p id="chatWindowNameEn" class="text-xs text-gray-500 truncate text-right font-medium mb-0.5 cursor-pointer hover:text-primary transition-colors" dir="rtl" style="text-align:right; direction:rtl; unicode-bidi:plaintext;" title="فتح القائمة الجانبية" onclick="if(window._isSidebarOpen && !window._isSidebarOpen()) window._openSidebar && window._openSidebar()"></p>
                                     <!-- رمز المعرف -->
                                     <span id="chatWindowCode" class="inline-block font-mono text-[11px] text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold">—</span>
                                 </div>
@@ -12794,6 +12883,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 });
                 const name = currentUser.displayName || currentUser.email || '';
                 showToast('مرحباً ' + name + '! تم تسجيل الدخول بنجاح ✅', 'success');
+                // تهيئة نظام الإشعارات بعد تسجيل الدخول
+                setTimeout(() => { if (typeof initNotificationSystem === 'function') initNotificationSystem(); }, 1200);
 
                 // إن كان هناك طلب معلّق لفتح ملف متدرب (قادم من مسح رمز QR أو رابط مباشر) — نفّذه الآن بعد تسجيل الدخول
                 if (pendingQRTraineeId) {
@@ -13039,14 +13130,36 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const dd = document.getElementById(dropdownId);
             if (!dd || dd.classList.contains('hidden')) return;
 
-            const isLandscapeCompact = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+            const isLandscapeCompact  = window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+            const isMobilePortrait    = window.innerWidth <= 540 && window.innerHeight > window.innerWidth;
+            // Portal to body in both landscape-compact AND mobile-portrait so that
+            // backdrop-filter / overflow on the toolbar never clips or mis-positions the panel
+            const needsPortal = isLandscapeCompact || isMobilePortrait;
 
-            if (isLandscapeCompact) {
+            if (needsPortal) {
                 if (dd.parentElement !== document.body) {
                     _anchoredDdOriginalParents.set(dd, { parent: dd.parentElement, next: dd.nextSibling });
                     document.body.appendChild(dd);
                 }
+                // Apply fixed centering inline so it always sits in the visible viewport
+                dd.style.position  = 'fixed';
+                dd.style.left      = '50%';
+                dd.style.right     = 'auto';
+                dd.style.top       = isLandscapeCompact ? '8px' : '72px';
+                dd.style.transform = 'translateX(-50%)';
+                dd.style.width     = 'calc(100vw - 24px)';
+                dd.style.maxWidth  = '420px';
+                dd.style.zIndex    = '9999';
             } else {
+                // Restore position to normal (non-portal) in-flow styles
+                dd.style.position  = '';
+                dd.style.left      = '';
+                dd.style.right     = '';
+                dd.style.top       = '';
+                dd.style.transform = '';
+                dd.style.width     = '';
+                dd.style.maxWidth  = '';
+                dd.style.zIndex    = '';
                 const saved = _anchoredDdOriginalParents.get(dd);
                 if (saved && dd.parentElement === document.body) {
                     if (saved.next && saved.next.parentElement === saved.parent) {
@@ -13057,13 +13170,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 }
             }
 
-            dd.style.left  = '';
-            dd.style.right = '';
-
-            if (!isLandscapeCompact) {
+            if (!needsPortal) {
                 requestAnimationFrame(() => {
-                    // On mobile portrait (≤540px), CSS handles centering — don't override
-                    if (window.innerWidth <= 540) return;
                     const rect = dd.getBoundingClientRect();
                     if (rect.left < 8) {
                         dd.style.right = 'auto';
@@ -13082,8 +13190,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function _restoreAnchoredDropdown(dropdownId) {
             const dd = document.getElementById(dropdownId);
             if (!dd) return;
-            dd.style.left  = '';
-            dd.style.right = '';
+            // Clear all inline styles set by _positionAnchoredDropdown
+            dd.style.position  = '';
+            dd.style.left      = '';
+            dd.style.right     = '';
+            dd.style.top       = '';
+            dd.style.transform = '';
+            dd.style.width     = '';
+            dd.style.maxWidth  = '';
+            dd.style.zIndex    = '';
             const saved = _anchoredDdOriginalParents.get(dd);
             if (saved && dd.parentElement === document.body) {
                 if (saved.next && saved.next.parentElement === saved.parent) {
@@ -14155,6 +14270,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 return;
             }
             const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
+            // [FIX-D] نظّف كائنات الصوت المُخزَّنة قبل إعادة البناء لمنع التشغيل المزدوج
+            _cleanupVoiceAudios();
             area.innerHTML = msgs.map(msg => {
                 const isMine  = msg.senderUid === myUid;
                 const ts      = msg.ts?.toMillis ? msg.ts.toMillis() : (msg.ts || Date.now());
@@ -14326,6 +14443,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         //  نظام التسجيل الصوتي
         // ════════════════════════════════════════════
         let _mediaRecorder    = null;
+        let _mediaStream      = null;   // [FIX-A] نحتفظ بـ stream على مستوى الـ module لإغلاقه عند الإلغاء
         let _voiceChunks      = [];
         let _voiceIsRecording = false;
         let _voiceTimerID     = null;
@@ -14358,6 +14476,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             let stream = null;
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                _mediaStream = stream; // [FIX-A] حفظ Stream على مستوى الـ module
                 _voiceChunks = [];
                 _voiceIsRecording = true;
                 _voiceSeconds = 0;
@@ -14372,8 +14491,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 _mediaRecorder = new MediaRecorder(stream, { mimeType });
                 _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) _voiceChunks.push(e.data); };
                 _mediaRecorder.onstop = async () => {
+                    // [FIX-B] احفظ مدة التسجيل هنا فوراً لأن _hideVoiceRecordingUI ستصفّرها
+                    const savedSeconds = _voiceSeconds;
                     stream.getTracks().forEach(t => t.stop());
-                    await _uploadAndSendVoice(mimeType);
+                    _mediaStream = null;
+                    _mediaRecorder = null; // [FIX-C] إعادة ضبط _mediaRecorder بعد انتهاء التسجيل
+                    await _uploadAndSendVoice(mimeType, savedSeconds);
                 };
                 _mediaRecorder.start(200); // جمع البيانات كل 200ms
 
@@ -14383,6 +14506,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             } catch (err) {
                 // [FIX-1] أغلق stream فوراً إن كان قد فُتح قبل وقوع الخطأ
                 if (stream) stream.getTracks().forEach(t => t.stop());
+                _mediaStream = null;
                 _voiceIsRecording = false;
                 _voiceChunks = [];
                 if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -14408,8 +14532,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (_mediaRecorder && _mediaRecorder.state !== 'inactive') {
                 _mediaRecorder.onstop = null; // منع الإرسال
                 _mediaRecorder.stop();
-                _mediaRecorder.stream?.getTracks().forEach(t => t.stop());
             }
+            // [FIX-A] أغلق الـ stream عبر المتغير المحفوظ (لا يوجد _mediaRecorder.stream معياري)
+            if (_mediaStream) {
+                _mediaStream.getTracks().forEach(t => t.stop());
+                _mediaStream = null;
+            }
+            _mediaRecorder = null; // [FIX-C] إعادة ضبط
             _voiceIsRecording = false;
             _voiceChunks = [];
             _hideVoiceRecordingUI();
@@ -14417,21 +14546,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
 
         // ── رفع الملف وإرسال الرسالة الصوتية ──
-        async function _uploadAndSendVoice(mimeType) {
+        async function _uploadAndSendVoice(mimeType, savedSeconds) {
             if (_voiceChunks.length === 0) return;
             const ext  = mimeType.includes('ogg') ? 'ogg' : 'webm';
             const blob = new Blob(_voiceChunks, { type: mimeType });
             _voiceChunks = [];
 
-            // [FIX-2] احسب المدة الحقيقية من blob عبر AudioContext بدلاً من العداد
-            let durationSec = _voiceSeconds; // fallback إن فشل AudioContext
+            // [FIX-B] استخدم savedSeconds (محفوظ قبل reset الواجهة) بدلاً من _voiceSeconds الذي صار 0
+            let durationSec = savedSeconds || 0; // fallback إن فشل AudioContext
             try {
                 const arrBuf  = await blob.arrayBuffer();
                 const actx    = new (window.AudioContext || window.webkitAudioContext)();
                 const decoded = await actx.decodeAudioData(arrBuf);
                 durationSec   = Math.round(decoded.duration);
                 actx.close();
-            } catch (_) { /* يبقى على قيمة العداد كـ fallback */ }
+            } catch (_) { /* يبقى على قيمة savedSeconds كـ fallback */ }
 
             const localTs = Date.now();
             const timeStr = new Date(localTs).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' });
@@ -14902,11 +15031,57 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function toggleVirtualSessionsMobileDropdown() {
             const dd = document.getElementById('virtualSessionsMobileDropdown');
             if (!dd) return;
-            dd.classList.toggle('hidden');
+            if (dd.classList.contains('hidden')) {
+                dd.classList.remove('hidden');
+                _fixSimpleDropdownPosition(dd);
+            } else {
+                dd.classList.add('hidden');
+                _unfixSimpleDropdown(dd);
+            }
         }
         function closeVirtualSessionsMobileDropdown() {
             const dd = document.getElementById('virtualSessionsMobileDropdown');
-            if (dd) dd.classList.add('hidden');
+            if (dd) { dd.classList.add('hidden'); _unfixSimpleDropdown(dd); }
+        }
+
+        // تثبيت القوائم البسيطة (غير login-dd) في منتصف الشاشة على الموبايل العمودي
+        function _fixSimpleDropdownPosition(dd) {
+            const isMobilePortrait = window.innerWidth <= 540 && window.innerHeight > window.innerWidth;
+            if (!isMobilePortrait) return; // شاشات كبيرة تبقى بـ CSS العادي
+            // أخرج من الـ relative parent وضعه في body بـ fixed
+            if (dd.parentElement !== document.body) {
+                dd._origParent = dd.parentElement;
+                dd._origNext   = dd.nextSibling;
+                document.body.appendChild(dd);
+            }
+            dd.style.position  = 'fixed';
+            dd.style.top       = '72px';
+            dd.style.left      = '50%';
+            dd.style.right     = 'auto';
+            dd.style.transform = 'translateX(-50%)';
+            dd.style.width     = 'calc(100vw - 32px)';
+            dd.style.maxWidth  = '320px';
+            dd.style.zIndex    = '9999';
+        }
+        function _unfixSimpleDropdown(dd) {
+            if (!dd) return;
+            dd.style.position  = '';
+            dd.style.top       = '';
+            dd.style.left      = '';
+            dd.style.right     = '';
+            dd.style.transform = '';
+            dd.style.width     = '';
+            dd.style.maxWidth  = '';
+            dd.style.zIndex    = '';
+            if (dd._origParent && dd.parentElement === document.body) {
+                if (dd._origNext && dd._origNext.parentElement === dd._origParent) {
+                    dd._origParent.insertBefore(dd, dd._origNext);
+                } else {
+                    dd._origParent.appendChild(dd);
+                }
+                dd._origParent = null;
+                dd._origNext   = null;
+            }
         }
 
         // إغلاق القوائم المنسدلة عند الضغط خارجها
@@ -19773,6 +19948,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         // إغلاق القائمة الجانبية افتراضياً عند فتح التطبيق
         closeSidebar();
+
+        // تصدير دوال القائمة للاستخدام الخارجي
+        window._openSidebar  = openSidebar;
+        window._closeSidebar = closeSidebar;
+        window._isSidebarOpen = () => isSidebarOpen;
 
         // بدء التطبيق على الداش بورد
         showDashboard();
@@ -26741,6 +26921,27 @@ function _showIncomingCallUI(callData) {
     if (icon)   icon.className = callData.type === 'video' ? 'ph ph-video-camera text-2xl text-primary animate-bounce' : 'ph ph-phone-call text-2xl text-primary animate-bounce';
     if (modal)  modal.classList.remove('hidden');
 
+    // ── إشعار المتصفح (OS-level) للمكالمة الواردة ──
+    {
+        const _isVideo = callData.type === 'video';
+        const _callerN = callData.callerName || 'مستخدم';
+        _sendBrowserNotification(
+            _isVideo ? `📹 مكالمة مرئية واردة` : `📞 مكالمة صوتية واردة`,
+            `${_callerN} يتصل بك — انقر للرد`,
+            {
+                icon:  _isVideo ? _MEDBOX_VIDEO_ICON : _MEDBOX_CALL_ICON,
+                tag:   `medbox_call_${callData.id}`,
+                onClick: () => {
+                    // انقل التركيز للتطبيق ثم أظهر مودال الرد
+                    try {
+                        const m = document.getElementById('webrtcIncomingModal');
+                        if (m) m.classList.remove('hidden');
+                    } catch(_) {}
+                }
+            }
+        );
+    }
+
     // إغلاق تلقائي بعد 45 ثانية إذا لم يُرد
     setTimeout(() => {
         if (_incomingCallId === callData.id) {
@@ -27141,5 +27342,806 @@ window.addEventListener('beforeunload', () => {
     if (_rtcPeer) endWebRTCCall();
 });
 </script>
+
+<!-- ══════════════════════════════════════════════════════════
+     نظام الإشعارات — MedBox Education Notification System
+══════════════════════════════════════════════════════════ -->
+<script>
+// ════════════════════════════════════════════════════
+//  متغيرات نظام الإشعارات
+// ════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════
+//  إشعارات المتصفح — Browser Push Notifications
+// ════════════════════════════════════════════════════
+
+/**
+ * يطلب إذن إشعارات المتصفح ويخزّن النتيجة
+ * يُستدعى مرة واحدة بعد تسجيل الدخول
+ */
+async function _requestBrowserNotifPermission() {
+    if (!('Notification' in window)) return; // المتصفح لا يدعم الإشعارات
+    if (Notification.permission === 'granted') return; // لديه إذن مسبقاً
+    if (Notification.permission === 'denied') return;  // رفض المستخدم مسبقاً
+    // اطلب الإذن (سيظهر popup من المتصفح)
+    try {
+        const perm = await Notification.requestPermission();
+        console.log('[BrowserNotif] Permission:', perm);
+    } catch(e) {
+        console.warn('[BrowserNotif] Could not request permission:', e);
+    }
+}
+
+/**
+ * يرسل إشعار متصفح حقيقي (OS-level) إذا كان الإذن ممنوحاً
+ * @param {string} title   - عنوان الإشعار
+ * @param {string} body    - نص الإشعار
+ * @param {string} icon    - مسار الأيقونة (اختياري)
+ * @param {string} tag     - تاغ لتجنّب التكرار (اختياري)
+ * @param {Function} onClick - دالة تُنفَّذ عند النقر (اختياري)
+ */
+function _sendBrowserNotification(title, body, { icon = '', tag = '', onClick = null } = {}) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    // إذا كانت الصفحة مرئية (نشطة)، لا نرسل إشعار النظام
+    // لأن الـ Toast الداخلي كافٍ — الإشعار الخارجي فقط عند الغياب
+    if (document.visibilityState === 'visible') return;
+
+    const options = {
+        body,
+        icon: icon || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔔</text></svg>',
+        badge: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>',
+        tag: tag || ('medbox_' + Date.now()),
+        requireInteraction: true,   // لا يختفي تلقائياً — يبقى حتى يتفاعل المستخدم
+        silent: false,
+        vibrate: [200, 100, 200],   // اهتزاز: 200ms ثم توقف 100ms ثم 200ms
+        dir: 'rtl',
+        lang: 'ar'
+    };
+
+    try {
+        const notif = new Notification(title, options);
+
+        // عند النقر: انقل التركيز للتبويب وشغّل الدالة المخصصة
+        notif.onclick = function(event) {
+            event.preventDefault();
+            window.focus();
+            notif.close();
+            if (typeof onClick === 'function') {
+                try { onClick(); } catch(_) {}
+            }
+        };
+
+        // للمكالمات: أغلق الإشعار بعد 45 ثانية تلقائياً
+        if (tag && tag.startsWith('medbox_call_')) {
+            setTimeout(() => notif.close(), 45000);
+        }
+
+    } catch(e) {
+        console.warn('[BrowserNotif] Failed to show notification:', e);
+    }
+}
+
+/**
+ * أيقونة base64 صغيرة لـ MedBox (دائرة بلون الـ primary)
+ */
+const _MEDBOX_ICON_SVG = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%230790AC'/><text x='50%25' y='55%25' text-anchor='middle' font-size='36' fill='white'>📚</text></svg>`;
+const _MEDBOX_CALL_ICON = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%23059669'/><text x='50%25' y='55%25' text-anchor='middle' font-size='36' fill='white'>📞</text></svg>`;
+const _MEDBOX_VIDEO_ICON = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%237C3AED'/><text x='50%25' y='55%25' text-anchor='middle' font-size='36' fill='white'>📹</text></svg>`;
+const _MEDBOX_MSG_ICON   = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%230790AC'/><text x='50%25' y='55%25' text-anchor='middle' font-size='36' fill='white'>💬</text></svg>`;
+
+// ════════════════════════════════════════════════════
+//  متغيرات نظام الإشعارات الداخلي
+// ════════════════════════════════════════════════════
+const _NOTIF_KEY      = 'medbox_notifications_v1';
+const _NOTIF_MAX      = 80;          // أقصى عدد محفوظ
+let   _notifItems     = [];          // المصفوفة الرئيسية
+let   _notifFilter    = 'all';       // الفلتر الحالي
+let   _notifOpen      = false;       // هل اللوحة مفتوحة؟
+let   _notifChatListener = null;     // مستمع رسائل الدردشة
+let   _notifInitDone  = false;       // هل تمّ التهيئة؟
+
+// ═══════════════════════════════════════════════════
+//  التهيئة: تُستدعى بعد تسجيل الدخول (من enterApp)
+// ═══════════════════════════════════════════════════
+/**
+ * يحدّث زر تفعيل إشعارات المتصفح في رأس اللوحة
+ * يُخفيه إذا كان الإذن ممنوحاً، ويُظهره إذا كان default (لم يُقرَّر بعد)
+ */
+function _updateBrowserNotifBtn() {
+    const btn = document.getElementById('browserNotifBtn');
+    if (!btn || !('Notification' in window)) return;
+
+    if (Notification.permission === 'granted') {
+        btn.classList.add('hidden');
+    } else if (Notification.permission === 'denied') {
+        // لا يمكن طلب الإذن — أظهر تلميحاً مختلفاً
+        btn.classList.remove('hidden');
+        btn.title = 'الإشعارات محجوبة — يرجى السماح بها من إعدادات المتصفح';
+        btn.style.color = '#ef4444';
+        btn.style.background = 'rgba(239,68,68,0.1)';
+        btn.innerHTML = '<i class="ph ph-bell-slash text-xs ml-0.5"></i>';
+        btn.onclick = () => alert('الإشعارات محجوبة في متصفحك.\nيرجى الذهاب إلى إعدادات المتصفح وإعادة السماح لهذا الموقع بإرسال الإشعارات.');
+    } else {
+        // default — يمكن الطلب
+        btn.classList.remove('hidden');
+        btn.title = 'تفعيل إشعارات المتصفح';
+        btn.style.color = '#0790AC';
+        btn.style.background = 'rgba(7,144,172,0.1)';
+        btn.innerHTML = '<i class="ph ph-bell-ringing text-xs ml-0.5"></i> تفعيل';
+        btn.onclick = () => _requestBrowserNotifPermission().then(() => _updateBrowserNotifBtn());
+    }
+}
+
+function initNotificationSystem() {
+    if (_notifInitDone) return;
+    _notifInitDone = true;
+    _loadNotifFromStorage();
+    _renderNotifList();
+    _updateNotifBadge();
+    _listenChatForNotif();
+    // طلب إذن إشعارات المتصفح (OS-level) ثم تحديث الزر
+    _requestBrowserNotifPermission().then(() => _updateBrowserNotifBtn());
+    // استمع لتغيّر حالة الإذن (Chrome 93+)
+    if (typeof PermissionStatus !== 'undefined') {
+        navigator.permissions?.query({ name: 'notifications' }).then(status => {
+            status.onchange = () => _updateBrowserNotifBtn();
+        }).catch(() => {});
+    }
+    console.log('[Notif] System initialized');
+}
+
+// ═══════════════════════════════════════════════════
+//  الحفظ والتحميل — localStorage
+// ═══════════════════════════════════════════════════
+function _saveNotifToStorage() {
+    try {
+        const uid = window.currentUser?.uid || 'guest';
+        localStorage.setItem(_NOTIF_KEY + '_' + uid, JSON.stringify(_notifItems.slice(0, _NOTIF_MAX)));
+    } catch(_) {}
+}
+
+function _loadNotifFromStorage() {
+    try {
+        const uid = window.currentUser?.uid || 'guest';
+        const raw = localStorage.getItem(_NOTIF_KEY + '_' + uid);
+        _notifItems = raw ? JSON.parse(raw) : [];
+    } catch(_) { _notifItems = []; }
+}
+
+// ═══════════════════════════════════════════════════
+//  إضافة إشعار جديد
+//  type: 'program' | 'course' | 'trainee' | 'trainer' | 'message' | 'call' | 'feature'
+//  action: 'add' | 'update'
+// ═══════════════════════════════════════════════════
+function addNotification({ type, action, title, body, icon, targetRole }) {
+    // تحقق من صلاحية المستخدم الحالي
+    const role = window.currentUser?.role || '';
+    if (!_shouldShowNotif(type, action, targetRole, role)) return;
+
+    const notif = {
+        id       : 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+        type,       // فئة الإشعار
+        action,     // نوع الحدث
+        title,      // عنوان الإشعار
+        body,       // نص الإشعار
+        icon : icon || _defaultIcon(type),
+        ts   : Date.now(),
+        read : false
+    };
+
+    _notifItems.unshift(notif);
+    if (_notifItems.length > _NOTIF_MAX) _notifItems = _notifItems.slice(0, _NOTIF_MAX);
+
+    _saveNotifToStorage();
+    _renderNotifList();
+    _updateNotifBadge();
+    _ringBell();
+    _showNotifToast(notif);
+}
+
+// تحديد ما إذا كان يجب عرض الإشعار للمستخدم الحالي
+function _shouldShowNotif(type, action, targetRole, userRole) {
+    if (!userRole) return false; // غير مسجل
+    // الميزات الجديدة — للجميع
+    if (type === 'feature') return true;
+    // الرسائل والمكالمات — للجميع المسجلين
+    if (type === 'message' || type === 'call') return true;
+    // البرامج والدورات — للجميع المسجلين
+    if (type === 'program' || type === 'course') return true;
+    // المدرب/المتدرب الجديد أو تحديثهم
+    if (type === 'trainer' || type === 'trainee') {
+        // الأدمن يرى دائماً
+        if (userRole === 'admin') return true;
+        // إذا كان targetRole يحدد الفئة المستهدفة
+        if (targetRole && Array.isArray(targetRole)) return targetRole.includes(userRole);
+        return true;
+    }
+    return true;
+}
+
+function _defaultIcon(type) {
+    const icons = {
+        program : 'ph-books',
+        course  : 'ph-chalkboard-teacher',
+        trainee : 'ph-student',
+        trainer : 'ph-chalkboard-teacher',
+        message : 'ph-chat-circle-dots',
+        call    : 'ph-phone',
+        feature : 'ph-sparkle'
+    };
+    return icons[type] || 'ph-bell';
+}
+
+// ═══════════════════════════════════════════════════
+//  مستمع رسائل الدردشة لاكتشاف الرسائل الجديدة
+// ═══════════════════════════════════════════════════
+function _listenChatForNotif() {
+    const db = window._rtcGetDb ? window._rtcGetDb() : null;
+    const cu = window.currentUser;
+    if (!db || !cu) return;
+
+    // استمع لتغيّرات محادثات المستخدم الحالي
+    if (_notifChatListener) _notifChatListener();
+    _notifChatListener = db.collection('chats')
+        .where('participants', 'array-contains', cu.uid)
+        .onSnapshot(snap => {
+            snap.docChanges().forEach(change => {
+                if (change.type !== 'modified') return;
+                const data = change.doc.data();
+                const unreadCount = (data.unread || {})[cu.uid] || 0;
+                if (unreadCount <= 0) return;
+                // تجنّب الإشعارات المكررة لنفس المحادثة في وقت قصير
+                const convId = change.doc.id;
+                const lastNotifForConv = _notifItems.find(n =>
+                    n.type === 'message' && n.convId === convId
+                );
+                const now = Date.now();
+                if (lastNotifForConv && (now - lastNotifForConv.ts) < 5000) return;
+
+                const senderName = data.lastSenderName || 'مستخدم';
+                const lastMsg    = data.lastMsg || 'رسالة جديدة';
+                const isVoice    = lastMsg === '🎤 رسالة صوتية';
+                const isCall     = lastMsg?.includes('مكالمة') || lastMsg?.includes('call');
+
+                const notif = {
+                    id     : 'n_' + now + '_' + Math.random().toString(36).slice(2,6),
+                    type   : isCall ? 'call' : 'message',
+                    action : 'new',
+                    title  : isCall ? '📞 مكالمة واردة' : (isVoice ? '🎤 رسالة صوتية' : '💬 رسالة جديدة'),
+                    body   : `من: ${senderName}${isVoice ? '' : ' — ' + lastMsg.slice(0,40)}`,
+                    icon   : isCall ? 'ph-phone' : (isVoice ? 'ph-microphone-stage' : 'ph-chat-circle-dots'),
+                    ts     : now,
+                    read   : false,
+                    convId,
+                    action_fn: `openChatWindow('${convId}')`
+                };
+                _notifItems.unshift(notif);
+                if (_notifItems.length > _NOTIF_MAX) _notifItems = _notifItems.slice(0, _NOTIF_MAX);
+                _saveNotifToStorage();
+                _renderNotifList();
+                _updateNotifBadge();
+                _ringBell();
+                _showNotifToast(notif);
+
+                // ── إشعار المتصفح (OS-level) عند غياب المستخدم ──
+                {
+                    const _browserTitle = isCall
+                        ? `📞 مكالمة واردة من ${senderName}`
+                        : (isVoice
+                            ? `🎤 رسالة صوتية من ${senderName}`
+                            : `💬 رسالة جديدة من ${senderName}`);
+                    const _browserBody = isCall
+                        ? 'انقر للرد على المكالمة'
+                        : (isVoice ? 'رسالة صوتية جديدة' : lastMsg.slice(0, 80));
+                    const _browserIcon = isCall ? _MEDBOX_CALL_ICON
+                                       : (isVoice ? _MEDBOX_MSG_ICON : _MEDBOX_MSG_ICON);
+                    const _browserTag  = isCall ? `medbox_call_${convId}` : `medbox_msg_${convId}`;
+                    _sendBrowserNotification(_browserTitle, _browserBody, {
+                        icon: _browserIcon,
+                        tag: _browserTag,
+                        onClick: () => {
+                            try { if (convId) openChatWindow(convId); } catch(_) {}
+                        }
+                    });
+                }
+            });
+        }, err => console.warn('[Notif] chat listener error', err));
+}
+
+// ═══════════════════════════════════════════════════
+//  عرض/إخفاء لوحة الإشعارات
+// ═══════════════════════════════════════════════════
+function toggleNotifPanel() {
+    const panel = document.getElementById('notifPanel');
+    if (!panel) return;
+    _notifOpen = !_notifOpen;
+    if (_notifOpen) {
+        panel.classList.remove('hidden');
+        _renderNotifList();
+        // أغلق اللوحة عند النقر خارجها
+        setTimeout(() => {
+            document.addEventListener('mousedown', _closeNotifOnOutside);
+        }, 50);
+    } else {
+        panel.classList.add('hidden');
+        document.removeEventListener('mousedown', _closeNotifOnOutside);
+    }
+}
+
+function _closeNotifOnOutside(e) {
+    const panel = document.getElementById('notifPanel');
+    const bell  = document.getElementById('notifBellWrapper');
+    if (!panel || !bell) return;
+    if (!panel.contains(e.target) && !bell.contains(e.target)) {
+        panel.classList.add('hidden');
+        _notifOpen = false;
+        document.removeEventListener('mousedown', _closeNotifOnOutside);
+    }
+}
+
+// ═══════════════════════════════════════════════════
+//  تصفية الإشعارات
+// ═══════════════════════════════════════════════════
+function filterNotif(cat) {
+    _notifFilter = cat;
+    document.querySelectorAll('.notif-filter-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById(`notifFilter_${cat}`);
+    if (btn) btn.classList.add('active');
+    _renderNotifList();
+}
+
+// ═══════════════════════════════════════════════════
+//  رسم قائمة الإشعارات
+// ═══════════════════════════════════════════════════
+function _renderNotifList() {
+    const list    = document.getElementById('notifList');
+    const empty   = document.getElementById('notifEmpty');
+    const unreadEl = document.getElementById('notifUnreadCount');
+    if (!list || !empty) return;
+
+    // تصفية حسب الفلتر
+    const catMap = {
+        program : ['program', 'course'],
+        people  : ['trainer', 'trainee'],
+        message : ['message', 'call'],
+        feature : ['feature'],
+        all     : null
+    };
+    const allowed = catMap[_notifFilter];
+    const filtered = allowed
+        ? _notifItems.filter(n => allowed.includes(n.type))
+        : _notifItems;
+
+    // عدد غير المقروء
+    const unreadCount = _notifItems.filter(n => !n.read).length;
+    if (unreadEl) {
+        if (unreadCount > 0) {
+            unreadEl.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            unreadEl.classList.remove('hidden');
+        } else {
+            unreadEl.classList.add('hidden');
+        }
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = '';
+        list.classList.add('hidden');
+        empty.classList.remove('hidden');
+        empty.classList.add('flex');
+        return;
+    }
+    list.classList.remove('hidden');
+    empty.classList.add('hidden');
+    empty.classList.remove('flex');
+
+    list.innerHTML = filtered.map(n => {
+        const timeAgo = _timeAgo(n.ts);
+        const iconClass = _iconClass(n.type);
+        const unreadDot = !n.read ? 'unread' : '';
+        const actionFn  = n.action_fn ? `onclick="${n.action_fn}; markNotifRead('${n.id}'); toggleNotifPanel();"` : `onclick="markNotifRead('${n.id}')"`;
+        return `
+        <div class="notif-item ${unreadDot}" id="notifItem_${n.id}" ${actionFn}>
+            <div class="notif-icon-wrap notif-icon-${n.type}">
+                <i class="ph ${n.icon || _defaultIcon(n.type)}"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-[12px] font-bold text-gray-800 leading-snug truncate">${escHtml(n.title)}</p>
+                <p class="text-[11px] text-gray-500 leading-relaxed mt-0.5 line-clamp-2">${escHtml(n.body)}</p>
+                <p class="text-[10px] text-gray-300 mt-1 font-medium">${timeAgo}</p>
+            </div>
+            <button onclick="event.stopPropagation(); dismissNotif('${n.id}')"
+                class="shrink-0 w-5 h-5 rounded-md flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+                title="حذف">
+                <i class="ph ph-x text-[10px]"></i>
+            </button>
+        </div>`;
+    }).join('');
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+}
+
+function _iconClass(type) {
+    const m = { program:'program', course:'course', trainee:'trainee', trainer:'trainer',
+                 message:'message', call:'call', feature:'feature' };
+    return m[type] || '';
+}
+
+// ═══════════════════════════════════════════════════
+//  إجراءات: قراءة / مسح
+// ═══════════════════════════════════════════════════
+function markNotifRead(id) {
+    const n = _notifItems.find(x => x.id === id);
+    if (n) { n.read = true; _saveNotifToStorage(); _renderNotifList(); _updateNotifBadge(); }
+}
+
+function dismissNotif(id) {
+    _notifItems = _notifItems.filter(x => x.id !== id);
+    _saveNotifToStorage();
+    _renderNotifList();
+    _updateNotifBadge();
+}
+
+function markAllNotifRead() {
+    _notifItems.forEach(n => n.read = true);
+    _saveNotifToStorage();
+    _renderNotifList();
+    _updateNotifBadge();
+}
+
+function clearAllNotif() {
+    if (!confirm('هل تريد مسح جميع الإشعارات؟')) return;
+    _notifItems = [];
+    _saveNotifToStorage();
+    _renderNotifList();
+    _updateNotifBadge();
+}
+
+// ═══════════════════════════════════════════════════
+//  تحديث badge العداد على الجرس
+// ═══════════════════════════════════════════════════
+function _updateNotifBadge() {
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    const count = _notifItems.filter(n => !n.read).length;
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+// ═══════════════════════════════════════════════════
+//  تأثير رنين الجرس
+// ═══════════════════════════════════════════════════
+function _ringBell() {
+    const icon = document.getElementById('notifBellIcon');
+    if (!icon) return;
+    icon.classList.remove('notif-bell-ring');
+    void icon.offsetWidth; // reflow لإعادة تشغيل الانيميشن
+    icon.classList.add('notif-bell-ring');
+    setTimeout(() => icon.classList.remove('notif-bell-ring'), 800);
+}
+
+// ═══════════════════════════════════════════════════
+//  Toast إشعار سريع (أسفل اليمين)
+// ═══════════════════════════════════════════════════
+function _showNotifToast(notif) {
+    const container = document.getElementById('notifToastContainer');
+    if (!container) return;
+
+    const toastId = 'nt_' + notif.id;
+    const el = document.createElement('div');
+    el.id = toastId;
+    el.className = 'notif-toast-item glass-panel rounded-xl px-3 py-2.5 shadow-lg border border-white/60 flex items-start gap-2.5 cursor-pointer';
+    el.style.background = 'rgba(255,255,255,0.95)';
+    el.style.backdropFilter = 'blur(16px)';
+    el.onclick = () => {
+        if (notif.action_fn) { try { eval(notif.action_fn); } catch(_) {} }
+        markNotifRead(notif.id);
+        el.remove();
+    };
+    el.innerHTML = `
+        <div class="notif-icon-wrap notif-icon-${notif.type} shrink-0" style="width:30px;height:30px;font-size:13px;">
+            <i class="ph ${notif.icon || _defaultIcon(notif.type)}"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p class="text-[11px] font-bold text-gray-800 truncate">${escHtml(notif.title)}</p>
+            <p class="text-[10px] text-gray-500 truncate mt-0.5">${escHtml(notif.body)}</p>
+        </div>
+        <button onclick="event.stopPropagation();this.parentElement.remove()"
+            class="shrink-0 w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-gray-500 transition-colors">
+            <i class="ph ph-x text-[10px]"></i>
+        </button>`;
+    container.appendChild(el);
+    // إزالة تلقائية بعد 5 ثوانٍ
+    setTimeout(() => { if (el.parentElement) el.remove(); }, 5000);
+    // حد أقصى 4 toasts في نفس الوقت
+    while (container.children.length > 4) container.removeChild(container.firstChild);
+}
+
+// ═══════════════════════════════════════════════════
+//  أداة وقت منذ الآن
+// ═══════════════════════════════════════════════════
+function _timeAgo(ts) {
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60)    return 'الآن';
+    if (diff < 3600)  return Math.floor(diff/60) + ' د';
+    if (diff < 86400) return Math.floor(diff/3600) + ' س';
+    return Math.floor(diff/86400) + ' يوم';
+}
+
+// ═══════════════════════════════════════════════════
+//  ربط نقاط الإشعار بالدوال الموجودة
+//  — يتمّ الاستدعاء من داخل كل دالة حفظ
+// ═══════════════════════════════════════════════════
+
+// ── 1. برنامج جديد أو تحديث ──
+function _notifOnProgramSave(isEdit, programTitle) {
+    addNotification({
+        type  : 'program',
+        action: isEdit ? 'update' : 'add',
+        title : isEdit ? '✏️ تحديث برنامج' : '📚 برنامج تدريبي جديد',
+        body  : programTitle || 'تم ' + (isEdit ? 'تحديث' : 'إضافة') + ' برنامج تدريبي'
+    });
+}
+
+// ── 2. دورة جديدة أو تحديث ──
+function _notifOnCourseSave(isEdit, courseCode, programTitle) {
+    addNotification({
+        type  : 'course',
+        action: isEdit ? 'update' : 'add',
+        title : isEdit ? '✏️ تحديث دورة' : '🎓 دورة جديدة',
+        body  : (courseCode || 'دورة') + (programTitle ? ' — ' + programTitle : '')
+    });
+}
+
+// ── 3. متدرب جديد أو تحديث ──
+function _notifOnTraineeSave(isEdit, name) {
+    addNotification({
+        type  : 'trainee',
+        action: isEdit ? 'update' : 'add',
+        title : isEdit ? '✏️ تحديث بيانات متدرب' : '👤 متدرب جديد',
+        body  : name || (isEdit ? 'تم تحديث بيانات متدرب' : 'تم تسجيل متدرب جديد'),
+        targetRole: ['admin', 'trainer', 'trainee']
+    });
+}
+
+// ── 4. مدرب جديد أو تحديث ──
+function _notifOnTrainerSave(isEdit, name) {
+    addNotification({
+        type  : 'trainer',
+        action: isEdit ? 'update' : 'add',
+        title : isEdit ? '✏️ تحديث بيانات مدرب' : '🏫 مدرب جديد',
+        body  : name || (isEdit ? 'تم تحديث بيانات مدرب' : 'تم تسجيل مدرب جديد'),
+        targetRole: ['admin', 'trainer', 'trainee']
+    });
+}
+
+// ── 5. ميزة جديدة في النظام (يرسلها الأدمن يدوياً) ──
+function sendFeatureNotification(title, body) {
+    const role = window.currentUser?.role || '';
+    if (role !== 'admin') { showToast?.('هذه الميزة للأدمن فقط','error'); return; }
+    addNotification({ type:'feature', action:'new', title: '✨ ' + title, body });
+    showToast?.('✅ تم إرسال إشعار الميزة الجديدة','success');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  التهيئة عند إدخال التطبيق — ندمج مع enterApp الموجودة
+// ══════════════════════════════════════════════════════════════
+(function _hookNotifIntoApp() {
+    // انتظر enterApp ثم أضف إليها
+    const _origEnterApp = window.enterApp;
+    if (typeof _origEnterApp === 'function') {
+        window.enterApp = function() {
+            const result = _origEnterApp.apply(this, arguments);
+            setTimeout(initNotificationSystem, 800);
+            return result;
+        };
+    } else {
+        // إذا لم توجد enterApp بعد، انتظر قليلاً
+        setTimeout(() => {
+            initNotificationSystem();
+        }, 2000);
+    }
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  ربط الإشعارات بدوال الحفظ الموجودة (monkey-patching)
+// ═══════════════════════════════════════════════════════════════
+(function _patchSaveFunctions() {
+    // نحاول الربط بعد تأكد اكتمال التحميل
+    window.addEventListener('load', () => {
+
+        // ─── saveProgramModal ───
+        const _origSaveProg = window.saveProgramModal;
+        if (typeof _origSaveProg === 'function') {
+            window.saveProgramModal = async function() {
+                // قراءة حالة الوضع قبل الاستدعاء
+                const isEdit  = (typeof modalMode !== 'undefined' && modalMode === 'edit');
+                const nameAr  = document.getElementById('programNameArInput')?.value?.trim() ||
+                                document.getElementById('progNameAr')?.value?.trim() || '';
+                const nameEn  = document.getElementById('programNameEnInput')?.value?.trim() ||
+                                document.getElementById('progNameEn')?.value?.trim() || '';
+                const result  = await _origSaveProg.apply(this, arguments);
+                _notifOnProgramSave(isEdit, (nameAr || nameEn));
+                return result;
+            };
+        }
+
+        // ─── saveCourseModal ───
+        const _origSaveCourse = window.saveCourseModal;
+        if (typeof _origSaveCourse === 'function') {
+            window.saveCourseModal = async function() {
+                const isEdit    = (typeof courseModalMode !== 'undefined' && courseModalMode === 'edit');
+                const code      = document.getElementById('courseCodeInput')?.value?.trim() || '';
+                const progKey   = typeof courseModalProgramKey !== 'undefined' ? courseModalProgramKey : '';
+                const progTitle = (typeof programsData !== 'undefined' && programsData[progKey])
+                                  ? (programsData[progKey].title || programsData[progKey].titleEn || progKey)
+                                  : progKey;
+                const result    = await _origSaveCourse.apply(this, arguments);
+                _notifOnCourseSave(isEdit, code, progTitle);
+                return result;
+            };
+        }
+
+        // ─── saveRegistryTrainee ───
+        const _origSaveTrainee = window.saveRegistryTrainee;
+        if (typeof _origSaveTrainee === 'function') {
+            window.saveRegistryTrainee = async function() {
+                const isEdit = !!(typeof traineeModalEditId !== 'undefined' && traineeModalEditId);
+                const name   = document.getElementById('rtNameAr')?.value?.trim() || '';
+                const result = await _origSaveTrainee.apply(this, arguments);
+                _notifOnTraineeSave(isEdit, name);
+                return result;
+            };
+        }
+
+        // ─── saveRegistryTrainer ───
+        const _origSaveTrainer = window.saveRegistryTrainer;
+        if (typeof _origSaveTrainer === 'function') {
+            window.saveRegistryTrainer = async function() {
+                const isEdit = !!(typeof trainerModalEditId !== 'undefined' && trainerModalEditId);
+                const name   = document.getElementById('rtrNameAr')?.value?.trim() || '';
+                const result = await _origSaveTrainer.apply(this, arguments);
+                _notifOnTrainerSave(isEdit, name);
+                return result;
+            };
+        }
+
+        // ─── saveTraineeModal (داخل الدورة) ───
+        const _origSaveTraineeCourse = window.saveTraineeModal;
+        if (typeof _origSaveTraineeCourse === 'function') {
+            window.saveTraineeModal = async function() {
+                const isEdit = (typeof traineeModalMode !== 'undefined' && traineeModalMode === 'edit');
+                const name   = document.getElementById('traineeNameInput')?.value?.trim() || '';
+                const result = await _origSaveTraineeCourse.apply(this, arguments);
+                _notifOnTraineeSave(isEdit, name);
+                return result;
+            };
+        }
+
+        console.log('[Notif] Save functions patched successfully');
+    });
+})();
+
+// تصدير للاستخدام الخارجي
+window.addNotification       = addNotification;
+window.sendFeatureNotification = sendFeatureNotification;
+window.toggleNotifPanel      = toggleNotifPanel;
+window.filterNotif           = filterNotif;
+window.markNotifRead         = markNotifRead;
+window.dismissNotif          = dismissNotif;
+window.markAllNotifRead      = markAllNotifRead;
+window.clearAllNotif         = clearAllNotif;
+window.initNotificationSystem = initNotificationSystem;
+window._sendBrowserNotification = _sendBrowserNotification;
+window._updateBrowserNotifBtn   = _updateBrowserNotifBtn;
+window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
+</script>
+
+    <!-- ══════════════════════════════════════════════════════════
+         لوحة الإشعارات — Notification Panel
+    ══════════════════════════════════════════════════════════ -->
+    <div id="notifPanel"
+         class="hidden fixed z-[500] shadow-2xl"
+         style="top:64px; left:16px; width:360px; max-width:calc(100vw - 32px);"
+         dir="rtl">
+        <div class="glass-panel rounded-2xl overflow-hidden border border-white/60"
+             style="backdrop-filter:blur(20px); background:rgba(255,255,255,0.92);">
+
+            <!-- رأس اللوحة -->
+            <div class="flex items-center justify-between px-4 py-3 border-b border-white/40"
+                 style="background:linear-gradient(135deg,rgba(7,144,172,0.12),rgba(7,144,172,0.04));">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
+                        <i class="ph ph-bell text-primary text-base"></i>
+                    </div>
+                    <span class="font-bold text-gray-800 text-sm">الإشعارات</span>
+                    <span id="notifUnreadCount"
+                          class="hidden bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="_requestBrowserNotifPermission().then(()=>_updateBrowserNotifBtn())"
+                            id="browserNotifBtn"
+                            class="text-[11px] font-semibold px-2 py-1 rounded-lg transition-colors hidden"
+                            title="تفعيل إشعارات المتصفح">
+                        <i class="ph ph-bell-ringing text-xs ml-0.5"></i>
+                    </button>
+                    <button onclick="markAllNotifRead()"
+                            class="text-[11px] font-semibold text-primary hover:underline px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors"
+                            title="تحديد الكل كمقروء">
+                        <i class="ph ph-checks text-xs ml-0.5"></i> قراءة الكل
+                    </button>
+                    <button onclick="clearAllNotif()"
+                            class="text-[11px] font-semibold text-gray-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                            title="مسح الكل">
+                        <i class="ph ph-trash text-xs ml-0.5"></i> مسح
+                    </button>
+                    <button onclick="toggleNotifPanel()"
+                            class="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                        <i class="ph ph-x text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- فلاتر الفئات -->
+            <div class="flex items-center gap-1 px-3 py-2 border-b border-white/30 overflow-x-auto"
+                 style="scrollbar-width:none;">
+                <button onclick="filterNotif('all')" id="notifFilter_all"
+                    class="notif-filter-btn active shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold transition-colors">
+                    الكل
+                </button>
+                <button onclick="filterNotif('program')" id="notifFilter_program"
+                    class="notif-filter-btn shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold transition-colors">
+                    <i class="ph ph-books text-[11px]"></i> البرامج
+                </button>
+                <button onclick="filterNotif('people')" id="notifFilter_people"
+                    class="notif-filter-btn shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold transition-colors">
+                    <i class="ph ph-users text-[11px]"></i> الأشخاص
+                </button>
+                <button onclick="filterNotif('message')" id="notifFilter_message"
+                    class="notif-filter-btn shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold transition-colors">
+                    <i class="ph ph-chat-circle text-[11px]"></i> الرسائل
+                </button>
+                <button onclick="filterNotif('feature')" id="notifFilter_feature"
+                    class="notif-filter-btn shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold transition-colors">
+                    <i class="ph ph-sparkle text-[11px]"></i> الميزات
+                </button>
+            </div>
+
+            <!-- قائمة الإشعارات -->
+            <div id="notifList"
+                 class="overflow-y-auto"
+                 style="max-height:360px; scrollbar-width:thin; scrollbar-color:rgba(7,144,172,0.3) transparent;">
+                <!-- تُملأ ديناميكياً -->
+            </div>
+
+            <!-- حالة فارغة -->
+            <div id="notifEmpty"
+                 class="hidden flex-col items-center justify-center py-10 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                    <i class="ph ph-bell-slash text-3xl text-gray-300"></i>
+                </div>
+                <p class="text-sm font-semibold text-gray-400">لا توجد إشعارات</p>
+                <p class="text-xs text-gray-300 mt-1">ستظهر هنا الإشعارات الجديدة</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast للإشعارات الجديدة (يظهر في أسفل اليمين) -->
+    <div id="notifToastContainer"
+         class="fixed bottom-4 right-4 z-[600] flex flex-col-reverse gap-2 pointer-events-none"
+         style="max-width:320px;">
+    </div>
+
 </body>
 </html>
