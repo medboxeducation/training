@@ -10689,7 +10689,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
 
     <!-- 2. التول بار (Toolbar) -->
-    <nav class="glass-panel z-50 px-4 py-3 flex flex-col shrink-0 gap-2">
+    <nav id="mainToolbar" class="glass-panel z-50 px-4 py-3 flex flex-col shrink-0 gap-2">
         <!-- السطر الأول: الشعار + أزرار التنقل (شاشات كبيرة) / الشعار+المستخدم (موبايل) -->
         <div id="navRow1" class="flex flex-wrap lg:flex-nowrap justify-between items-center gap-y-2">
         <!-- اليمين: الشعار + أزرار التنقل للشاشات الكبيرة -->
@@ -10703,7 +10703,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <h1 class="text-base md:text-xl font-bold tracking-wide flex items-baseline gap-0.5">
                         <span dir="ltr" class="inline-flex"><span class="text-primary">MedBox</span><span class="text-gray-400 font-medium">.</span><span class="text-gray-700">Education</span></span>
                     </h1>
-                    <span dir="ltr" class="text-[9px] md:text-[10px] font-semibold tracking-widest text-gray-400 leading-none select-none">V. 1-1-2</span>
                 </div>
             </div>
 
@@ -10711,7 +10710,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <div class="hidden lg:flex items-center gap-1.5 border-r-2 border-white/40 pr-4 mr-1">
                 <button class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all" onclick="showProgramsGrid()">
                     <i class="ph ph-books"></i>
-                    <span>البرامج التدريبية</span>
+                    <span class="flex flex-col items-start leading-tight">
+                        <span>البرامج التدريبية</span>
+                        <span class="text-[10px] font-normal text-gray-400">Training Programs</span>
+                    </span>
                 </button>
                 <!-- Academic Pedia Dropdown -->
                 <div class="relative" id="academicPediaWrapper">
@@ -10734,26 +10736,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
 
                 <!-- Virtual Sessions Button — للمسجلين فقط (عدا الضيوف) -->
-                <div class="relative hidden" id="virtualSessionsWrapper">
-                    <button onclick="toggleVirtualSessionsDropdown()" class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all">
+                <div class="hidden" id="virtualSessionsWrapper">
+                    <button onclick="showVirtualSessionsGrid()" class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all">
                         <i class="ph ph-video-camera"></i>
                         <span class="flex flex-col items-start leading-tight">
                             <span>الجلسات الافتراضية</span>
                             <span class="text-[10px] font-normal text-gray-400">Virtual Sessions</span>
                         </span>
-                        <i class="ph ph-caret-down text-[10px] text-gray-400"></i>
                     </button>
-                    <div id="virtualSessionsDropdown" class="hidden absolute top-full right-0 mt-2 w-52 glass-panel rounded-2xl shadow-xl z-50 py-2" dir="rtl">
-                        <button onclick="openChatSidebar(); closeVirtualSessionsDropdown()" class="w-full text-right px-4 py-2.5 text-sm font-semibold hover:bg-primary/10 hover:text-primary flex items-center gap-2 transition-colors">
-                            <i class="ph ph-chat-circle-dots text-primary"></i> محادثة
-                        </button>
-                        <button onclick="showComingSoon('الجلسات المتزامنة'); closeVirtualSessionsDropdown()" class="w-full text-right px-4 py-2.5 text-sm font-semibold hover:bg-primary/10 hover:text-primary flex items-center gap-2 transition-colors">
-                            <i class="ph ph-monitor-play text-primary"></i> الجلسات المتزامنة
-                        </button>
-                        <button onclick="showComingSoon('الجلسات الغير متزامنة'); closeVirtualSessionsDropdown()" class="w-full text-right px-4 py-2.5 text-sm font-semibold hover:bg-primary/10 hover:text-primary flex items-center gap-2 transition-colors">
-                            <i class="ph ph-clock-countdown text-primary"></i> الجلسات الغير متزامنة
-                        </button>
-                    </div>
                 </div>
             </div>
             
@@ -11018,25 +11008,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             </div>
 
             <!-- Virtual Sessions Mobile — للمسجلين فقط -->
-            <div class="relative flex-1 hidden" id="virtualSessionsMobileWrapper">
-                <button onclick="toggleVirtualSessionsMobileDropdown()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
+            <div class="flex-1 hidden" id="virtualSessionsMobileWrapper">
+                <button onclick="showVirtualSessionsGrid()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
                     <i class="ph ph-video-camera text-base"></i>
                     <span class="flex flex-col items-center leading-tight">
                         <span>الجلسات</span>
                         <span class="text-[9px] font-normal text-gray-400">Virtual Sessions</span>
                     </span>
                 </button>
-                <div id="virtualSessionsMobileDropdown" class="hidden absolute top-full right-0 mt-2 w-52 glass-panel rounded-2xl shadow-xl z-50 py-2" dir="rtl">
-                    <button onclick="openChatSidebar(); closeVirtualSessionsMobileDropdown()" class="w-full text-right px-4 py-2.5 text-sm font-semibold hover:bg-primary/10 hover:text-primary flex items-center gap-2 transition-colors">
-                        <i class="ph ph-chat-circle-dots text-primary"></i> محادثة
-                    </button>
-                    <button onclick="showComingSoon('الجلسات المتزامنة'); closeVirtualSessionsMobileDropdown()" class="w-full text-right px-4 py-2.5 text-sm font-semibold hover:bg-primary/10 hover:text-primary flex items-center gap-2 transition-colors">
-                        <i class="ph ph-monitor-play text-primary"></i> الجلسات المتزامنة
-                    </button>
-                    <button onclick="showComingSoon('الجلسات الغير متزامنة'); closeVirtualSessionsMobileDropdown()" class="w-full text-right px-4 py-2.5 text-sm font-semibold hover:bg-primary/10 hover:text-primary flex items-center gap-2 transition-colors">
-                        <i class="ph ph-clock-countdown text-primary"></i> الجلسات الغير متزامنة
-                    </button>
-                </div>
             </div>
         </div>
     </nav>
@@ -11706,6 +11685,48 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
             </div>
 
+            <!-- ب-2. لوحة الجلسات الافتراضية (Virtual Sessions Grid) - مخفي افتراضياً -->
+            <div id="virtualSessionsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-3">
+                        <i class="ph ph-video-camera text-3xl text-primary"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">الجلسات الافتراضية</h2>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- بطاقة: المحادثة -->
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="openChatSidebar()">
+                        <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
+                            <i class="ph ph-chat-circle-dots"></i>
+                        </div>
+                        <h3 class="font-bold text-lg text-gray-800 mb-1">المحادثة</h3>
+                        <p class="text-xs font-mono text-primary/70 mb-3" dir="ltr">Chat</p>
+                        <p class="text-sm text-gray-500">تواصل مباشر مع المدربين والمتدربين عبر الرسائل النصية والصوتية والمكالمات</p>
+                    </div>
+
+                    <!-- بطاقة: الجلسات المتزامنة -->
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="showComingSoon('الجلسات المتزامنة')">
+                        <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
+                            <i class="ph ph-monitor-play"></i>
+                        </div>
+                        <h3 class="font-bold text-lg text-gray-800 mb-1">الجلسات المتزامنة</h3>
+                        <p class="text-xs font-mono text-primary/70 mb-3" dir="ltr">Sync Sessions</p>
+                        <p class="text-sm text-gray-500">جلسات تدريبية مباشرة تُعقد في وقت محدد بحضور جميع المشاركين</p>
+                    </div>
+
+                    <!-- بطاقة: الجلسات الغير متزامنة -->
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="showComingSoon('الجلسات الغير متزامنة')">
+                        <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
+                            <i class="ph ph-clock-countdown"></i>
+                        </div>
+                        <h3 class="font-bold text-lg text-gray-800 mb-1">الجلسات الغير متزامنة</h3>
+                        <p class="text-xs font-mono text-primary/70 mb-3" dir="ltr">Non Sync Sessions</p>
+                        <p class="text-sm text-gray-500">محتوى تدريبي مسجل يمكن للمتدرب متابعته في الوقت الذي يناسبه</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- ب. عرض التفاصيل (Details View) - مخفي افتراضياً -->
             <div id="detailsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <!-- هيدر الدورة -->
@@ -11869,42 +11890,48 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                 </div>
                             </div>
 
-                            <!-- أزرار الإجراءات: حذف (قائمة منسدلة) بجانب حظر -->
-                            <div class="shrink-0 flex items-center gap-1">
-                                <!-- زر حذف موحّد — يفتح قائمة منسدلة (حذف لدي / حذف لدى الجميع) -->
-                                <div class="relative">
-                                    <button id="chatDeleteBtn" onclick="toggleChatDeleteDropdown(event)"
-                                        class="glass-icon-btn px-2 py-1.5 rounded-xl text-[11px] font-semibold text-gray-500 flex items-center gap-1 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-                                        title="حذف المحادثة">
-                                        <i class="ph ph-trash text-sm text-gray-400"></i>
-                                        <span class="hidden sm:inline">حذف</span>
-                                        <i class="ph ph-caret-down text-[10px]"></i>
-                                    </button>
-                                    <div id="chatDeleteDropdown" class="hidden absolute left-0 top-10 z-50 glass-panel rounded-xl shadow-xl p-1.5 min-w-[150px] border border-white/60">
-                                        <button onclick="closeChatDeleteDropdown(); deleteChatForMe(activeChatConvId)"
-                                            class="w-full text-right px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 flex items-center gap-2 transition-colors">
-                                            <i class="ph ph-trash text-sm text-gray-400"></i> حذف لدي
+                            <!-- أزرار الإجراءات: حذف (قائمة منسدلة) بجانب حظر — وعلى الشاشات الكبيرة تُضاف أزرار الاتصال + حالة الشخص هنا -->
+                            <div class="shrink-0 flex flex-col items-end gap-1.5">
+                                <div id="chatHeaderActionsTop" class="flex items-center gap-1 flex-wrap justify-end">
+                                    <!-- زر حذف موحّد — يفتح قائمة منسدلة (حذف لدي / حذف لدى الجميع) -->
+                                    <div class="relative">
+                                        <button id="chatDeleteBtn" onclick="toggleChatDeleteDropdown(event)"
+                                            class="glass-icon-btn px-2 py-1.5 rounded-xl text-[11px] font-semibold text-gray-500 flex items-center gap-1 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                                            title="حذف المحادثة">
+                                            <i class="ph ph-trash text-sm text-gray-400"></i>
+                                            <span class="hidden sm:inline">حذف</span>
+                                            <i class="ph ph-caret-down text-[10px]"></i>
                                         </button>
-                                        <button onclick="closeChatDeleteDropdown(); deleteChatForBoth(activeChatConvId)"
-                                            class="w-full text-right px-3 py-2 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors">
-                                            <i class="ph ph-trash-simple text-sm"></i> حذف لدى الجميع
-                                        </button>
+                                        <div id="chatDeleteDropdown" class="hidden absolute left-0 top-10 z-50 glass-panel rounded-xl shadow-xl p-1.5 min-w-[150px] border border-white/60">
+                                            <button onclick="closeChatDeleteDropdown(); deleteChatForMe(activeChatConvId)"
+                                                class="w-full text-right px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 flex items-center gap-2 transition-colors">
+                                                <i class="ph ph-trash text-sm text-gray-400"></i> حذف لدي
+                                            </button>
+                                            <button onclick="closeChatDeleteDropdown(); deleteChatForBoth(activeChatConvId)"
+                                                class="w-full text-right px-3 py-2 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors">
+                                                <i class="ph ph-trash-simple text-sm"></i> حذف لدى الجميع
+                                            </button>
+                                        </div>
                                     </div>
+                                    <!-- زر حظر -->
+                                    <button onclick="showComingSoon('حظر المستخدم')"
+                                        class="glass-icon-btn px-2 py-1.5 rounded-xl text-[11px] font-semibold text-red-600 flex items-center gap-1 hover:bg-red-50 hover:border-red-300 transition-colors"
+                                        title="حظر المستخدم">
+                                        <i class="ph ph-prohibit text-sm"></i>
+                                        <span class="hidden sm:inline">حظر</span>
+                                    </button>
+                                    <!-- على الشاشات الكبيرة فقط: أزرار الاتصال + الإيميل تُنقل هنا بجانب حذف/حظر عبر JS -->
+                                    <div id="chatHeaderCallButtonsDesktop" class="hidden lg:flex items-center gap-1.5"></div>
                                 </div>
-                                <!-- زر حظر -->
-                                <button onclick="showComingSoon('حظر المستخدم')"
-                                    class="glass-icon-btn px-2 py-1.5 rounded-xl text-[11px] font-semibold text-red-600 flex items-center gap-1 hover:bg-red-50 hover:border-red-300 transition-colors"
-                                    title="حظر المستخدم">
-                                    <i class="ph ph-prohibit text-sm"></i>
-                                    <span class="hidden sm:inline">حظر</span>
-                                </button>
+                                <!-- على الشاشات الكبيرة فقط: حالة الشخص تُنقل هنا أسفل أزرار حذف/حظر أقصى اليسار عبر JS -->
+                                <div id="chatContactStatusDesktopWrap" class="hidden lg:flex items-center justify-end w-full"></div>
                             </div>
                         </div>
 
-                        <!-- الصف الثاني: أزرار الاتصال + الإيميل + حالة الشخص -->
-                        <div class="flex items-center justify-between gap-3 px-4 py-2.5">
+                        <!-- الصف الثاني: أزرار الاتصال + الإيميل + حالة الشخص (تُستخدم على الشاشات الصغيرة/المتوسطة فقط؛ تُنقل عناصرها للأعلى على الشاشات الكبيرة عبر JS) -->
+                        <div id="chatHeaderRow2" class="flex items-center justify-between gap-3 px-4 py-2.5">
                             <!-- أزرار الاتصال + الإيميل بجانبها -->
-                            <div class="flex items-center gap-1.5">
+                            <div id="chatHeaderCallButtonsGroup" class="flex items-center gap-1.5">
                                 <button onclick="startVoiceRecording()"
                                     class="glass-icon-btn px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-emerald-600 flex items-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300 transition-colors"
                                     title="رسالة صوتية">
@@ -11962,6 +11989,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                          فوتر الإرسال — ثابت في الأسفل
                     ══════════════════════════════════════════ -->
                     <div class="shrink-0 pt-3">
+
+                        <!-- ── شريط الرد/التعديل (يظهر عند الرد على رسالة أو تعديلها) ── -->
+                        <div id="composerActionBar" class="hidden"></div>
 
                         <!-- ── شريط التسجيل الصوتي (يظهر عند التسجيل) ── -->
                         <div id="voiceRecordBar"
@@ -12028,7 +12058,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                 <input type="text" id="chatMessageInput" placeholder="اكتب رسالة..."
                                     class="w-full glass-element rounded-full px-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 text-right"
                                     onkeydown="if(event.key==='Enter' && !event.shiftKey) sendChatMessage(event)"
-                                    oninput="updateChatSendBtn(this.value)">
+                                    oninput="updateChatSendBtn(this.value); onChatMessageTyping(this.value)">
                             </div>
 
                             <!-- مايك (يمين الحقل) — يتحول لزر إرسال عند الكتابة أو لإيقاف التسجيل -->
@@ -12046,6 +12076,58 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             </div><!-- /chatView -->
 
         </main>
+    </div>
+
+    <!-- ===== قائمة خيارات الرسالة (رد / حذف / تعديل / نسخ / توجيه) ===== -->
+    <div id="messageContextMenu"
+         class="hidden fixed z-[250] glass-panel rounded-2xl shadow-2xl border border-white/60 overflow-hidden py-1"
+         style="backdrop-filter:blur(16px);" onclick="event.stopPropagation()"></div>
+
+    <!-- ===== نافذة: تأكيد حذف رسالة ===== -->
+    <div id="deleteMessageModal" class="hidden fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="closeDeleteMessageModal()">
+        <div class="glass-panel bg-white/95 w-full max-w-sm rounded-2xl p-6 shadow-2xl text-center" onclick="event.stopPropagation()">
+            <div class="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 text-3xl mx-auto mb-4 border border-red-100">
+                <i class="ph ph-trash"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-800 mb-1">حذف الرسالة</h3>
+            <p class="text-xs text-gray-500 mb-5">اختر طريقة الحذف</p>
+            <div class="flex flex-col gap-2">
+                <button id="deleteMsgBothBtn" onclick="deleteMessageForBoth()"
+                    class="w-full py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors">
+                    حذف من الطرفين
+                </button>
+                <button onclick="deleteMessageForMe()"
+                    class="w-full py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold hover:bg-gray-200 transition-colors">
+                    حذف من عندي فقط
+                </button>
+                <button onclick="closeDeleteMessageModal()"
+                    class="w-full py-2 rounded-xl text-gray-400 text-xs font-semibold hover:text-gray-600 transition-colors">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== نافذة: إعادة توجيه رسالة ===== -->
+    <div id="forwardMessageModal" class="hidden fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="closeForwardModal()">
+        <div class="glass-panel bg-white/95 w-full max-w-sm rounded-2xl p-5 shadow-2xl" style="max-height:80vh; display:flex; flex-direction:column;" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-3 shrink-0">
+                <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-share-fat text-primary"></i> إعادة توجيه الرسالة
+                </h3>
+                <button onclick="closeForwardModal()" class="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50">
+                    <i class="ph ph-x text-sm"></i>
+                </button>
+            </div>
+            <p id="forwardMsgPreview" class="text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2 mb-3 truncate shrink-0"></p>
+            <input type="text" id="forwardSearchInput" placeholder="بحث عن شخص أو محادثة..."
+                oninput="onForwardSearch(this.value)"
+                class="w-full glass-element rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 text-right mb-3 shrink-0">
+            <div class="overflow-y-auto flex-1 min-h-0">
+                <div id="forwardConvList" class="space-y-0.5"></div>
+                <div id="forwardNewSearchResults" class="space-y-0.5 mt-1"></div>
+            </div>
+        </div>
     </div>
 
     <!-- ===== نافذة: دخول الامتحان (كلمة السر) ===== -->
@@ -13682,7 +13764,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView'];
+        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -13803,7 +13885,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         let chatSortMode      = 'date-desc';
         let activeChatConvId  = null;   // conv doc ID المفتوحة حالياً
         let chatConversations = [];     // قائمة المحادثات المحملة من Firestore
+        // ── حالة خيارات الرسالة (رد / تعديل / توجيه) ──
+        let _chatMsgsCache = [];        // آخر نسخة مرسومة من رسائل المحادثة الحالية
+        let _chatReplyTo   = null;      // {id, text, senderUid, isMine} عند الرد على رسالة
+        let _chatEditId    = null;      // معرف الرسالة الجاري تعديلها
+        let _forwardMsgId  = null;      // معرف الرسالة الجاري توجيهها
+        let _msgLongPressTimer = null;
         let chatOnlineStatus  = {};     // { uid: true/false }
+        let chatTypingStatus  = {};     // { uid: { typingConvId, recordingConvId } }
+        let _myTypingDebounceTimer = null;
 
         // Listeners نشطة (لإلغاء الاشتراك عند الإغلاق)
         let _chatConvsListener  = null; // listener لقائمة المحادثات
@@ -13837,6 +13927,36 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             } catch(e) { console.warn('presence set error', e); }
         }
 
+        // ── تحديث حالة "جاري الكتابة" لمحادثة معيّنة (تُمسح تلقائياً بعد توقف الكتابة) ──
+        async function setTypingStatus(convId, isTyping) {
+            if (!db || !currentUser?.uid) return;
+            try {
+                await db.collection('presence').doc(currentUser.uid).set({
+                    typingConvId: isTyping ? convId : null,
+                    typingAt: isTyping ? firebase.firestore.FieldValue.serverTimestamp() : null
+                }, { merge: true });
+            } catch(e) { console.warn('typing status error', e); }
+        }
+
+        // ── تحديث حالة "جاري إرسال رسالة صوتية" لمحادثة معيّنة ──
+        async function setRecordingVoiceStatus(convId, isRecording) {
+            if (!db || !currentUser?.uid) return;
+            try {
+                await db.collection('presence').doc(currentUser.uid).set({
+                    recordingConvId: isRecording ? convId : null,
+                    recordingAt: isRecording ? firebase.firestore.FieldValue.serverTimestamp() : null
+                }, { merge: true });
+            } catch(e) { console.warn('recording status error', e); }
+        }
+
+        // ── يحدد عبارة الحالة (متصل/غير متصل/يكتب الآن/يرسل رسالة صوتية) لمستخدم معيّن ضمن محادثة معيّنة ──
+        function _getContactStatusState(otherUid, convId) {
+            const t = chatTypingStatus[otherUid] || {};
+            if (t.recordingConvId === convId) return 'recording_voice';
+            if (t.typingConvId === convId)    return 'typing';
+            return (chatOnlineStatus[otherUid] || false) ? 'online' : 'offline';
+        }
+
         // ── مراقبة حالة حضور مستخدم معيّن ──
         function watchPresence(uid) {
             if (!db || !uid || _presenceListeners[uid]) return;
@@ -13850,6 +13970,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     const lastSeen = data.lastSeen?.toMillis ? data.lastSeen.toMillis() : 0;
                     const freshEnough = lastSeen > 0 && (Date.now() - lastSeen) < 5 * 60 * 1000; // 5 دقائق
                     chatOnlineStatus[uid] = isOnlineFlag && freshEnough;
+
+                    // حالة "جاري الكتابة" و"جاري إرسال رسالة صوتية" — صالحة لمدة 6 ثوانٍ فقط
+                    // لتفادي بقاء الحالة عالقة إذا أُغلق المتصفح فجأة أثناء الكتابة/التسجيل
+                    const typingAtMs    = data.typingAt?.toMillis ? data.typingAt.toMillis() : 0;
+                    const recordingAtMs = data.recordingAt?.toMillis ? data.recordingAt.toMillis() : 0;
+                    chatTypingStatus[uid] = {
+                        typingConvId:    (typingAtMs    && (Date.now() - typingAtMs)    < 6000) ? data.typingConvId    : null,
+                        recordingConvId: (recordingAtMs && (Date.now() - recordingAtMs) < 6000) ? data.recordingConvId : null
+                    };
+
                     _refreshOnlineDots();
                 }, err => console.warn('presence listener error', uid, err));
         }
@@ -13878,7 +14008,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         dot.className = `w-2.5 h-2.5 rounded-full shrink-0 shadow-sm ring-1 ring-white transition-colors ${isOnline ? 'bg-green-500' : 'bg-red-400'}`;
                         dot.title = isOnline ? 'متصل' : 'غير متصل';
                     }
-                    updateChatContactStatus(isOnline ? 'online' : 'offline');
+                    updateChatContactStatus(_getContactStatusState(conv.otherUid, conv.id));
                 }
             }
         }
@@ -13988,9 +14118,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
 
         // ── البحث الموحد: يوجه للدالة المناسبة حسب وضع الشريط ──
+        // ملاحظة: في وضع المحادثة (chat) لا يتم البحث الفوري أثناء الكتابة؛
+        // يجب إكمال الكتابة ثم الضغط على زر البحث أو Enter (انظر onChatSearchSubmit)
         function onUnifiedSidebarSearch(val) {
             if (sidebarMode === 'chat') {
-                onChatSearch(val);
+                if (!val || !val.trim()) {
+                    const res = document.getElementById('chatSearchResults');
+                    if (res) res.classList.add('hidden');
+                }
+                return; // لا بحث فوري في وضع المحادثة
             }
             // الأوضاع الأخرى: البحث الأصلي يعمل عبر event listener
         }
@@ -14017,6 +14153,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             sorted.forEach(conv => {
                 const isActive = conv.id === activeChatConvId;
                 const isOnline = chatOnlineStatus[conv.otherUid] || false;
+                const statusState  = _getContactStatusState(conv.otherUid, conv.id);
+                const isActivity   = statusState === 'typing' || statusState === 'recording_voice';
+                const statusLabels = { online: 'متصل', offline: 'غير متصل', typing: 'جاري الكتابة...', recording_voice: 'جاري إرسال رسالة صوتية...' };
+                const dotColorClass = isActivity ? 'bg-amber-400 animate-pulse' : (isOnline ? 'bg-green-500' : 'bg-red-400');
                 const card = document.createElement('div');
                 card.className = `glass-element rounded-xl p-3 cursor-pointer transition-all hover:border-primary/50 hover:-translate-y-0.5 ${isActive ? 'border-primary/40 bg-primary/5' : ''}`;
                 card.dataset.convId = conv.id;
@@ -14028,7 +14168,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 card.innerHTML = `
                     <div class="flex items-start justify-between mb-1.5 gap-1">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                            <span class="w-2.5 h-2.5 rounded-full shrink-0 ${isOnline ? 'bg-green-500' : 'bg-red-400'} ring-1 ring-white shadow-sm" title="${isOnline ? 'متصل' : 'غير متصل'}"></span>
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0 ${dotColorClass} ring-1 ring-white shadow-sm" title="${statusLabels[statusState]}"></span>
                             <div class="min-w-0 flex-1">
                                 <p class="font-bold text-sm text-gray-800 leading-tight truncate">${conv.nameAr || '—'}</p>
                                 ${conv.nameEn ? `<p class="text-[11px] text-gray-500 truncate mt-0.5">${conv.nameEn}</p>` : ''}
@@ -14049,7 +14189,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             </button>
                         </div>
                     </div>
-                    ${conv.lastMsg ? `<p class="text-[10px] text-gray-400 truncate mb-2">${escapeHtml(conv.lastMsg)}</p>` : ''}
+                    ${isActivity
+                        ? `<p class="text-[10px] font-semibold mb-2 ${statusState === 'typing' ? 'text-primary' : 'text-emerald-600'}">${statusLabels[statusState]}</p>`
+                        : (conv.lastMsg ? `<p class="text-[10px] text-gray-400 truncate mb-2">${escapeHtml(conv.lastMsg)}</p>` : '')}
                     <div class="flex items-center gap-1 border-t border-white/30 pt-2 mt-1">
                         <button onclick="event.stopPropagation(); openChatWindow('${conv.id}'); setTimeout(startVoiceRecording, 300);"
                             class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200" title="رسالة صوتية">
@@ -14107,14 +14249,27 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             buildChatConversationsList();
         }
 
-        // ── البحث في المحادثة (يُستدعى من حقل البحث الموحد أو القديم) ──
-        let _chatSearchTimer = null;
+        // ── البحث في المحادثة: يُستدعى فقط عند الضغط على "بحث" أو Enter بعد اكتمال الكتابة ──
+        // (تم إلغاء البحث الفوري أثناء الكتابة بناءً على طلب: البحث يتم حصراً
+        //  برقم الهاتف أو الإيميل أو الرقم الوطني/المعرف، ولا تظهر النتائج إلا بعد
+        //  اكتمال الكتابة والضغط على زر البحث أو Enter)
         function onChatSearch(q) {
-            clearTimeout(_chatSearchTimer);
+            // محتفظ بها للتوافق مع أي استدعاء قديم — لا تُنفّذ بحثاً فورياً
             q = (q || '').trim();
             const resultsBox = document.getElementById('chatSearchResults');
-            if (!q) { if (resultsBox) resultsBox.classList.add('hidden'); return; }
-            _chatSearchTimer = setTimeout(() => performChatSearch(q), 300);
+            if (!q && resultsBox) resultsBox.classList.add('hidden');
+        }
+
+        // يُستدعى عند الضغط على زر البحث أو مفتاح Enter في وضع المحادثة
+        function onChatSearchSubmit(q) {
+            q = (q || '').trim();
+            const resultsBox = document.getElementById('chatSearchResults');
+            if (!q) {
+                if (resultsBox) resultsBox.classList.add('hidden');
+                showToast('أدخل رقم الهاتف أو الإيميل أو المعرف للبحث', 'info');
+                return;
+            }
+            performChatSearch(q);
         }
 
         async function performChatSearch(q) {
@@ -14130,22 +14285,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (registryTrainers.length === 0) { try { await loadTrainersFromFirebase(); } catch(_){} }
             if (registryTrainees.length === 0) { try { await loadTraineesFromFirebase(); } catch(_){} }
 
-            // البحث في المدربين
+            // البحث حصراً برقم الهاتف / الإيميل / الرقم الوطني / المعرف (الرمز الشخصي)
+            // — لا يتم البحث بالاسم إطلاقاً —
             registryTrainers.forEach(t => {
-                const match = (t.nameAr||'').includes(q) ||
-                              (t.nameEn||'').toLowerCase().includes(lower) ||
-                              (t.phone||'').replace(/\s+/g,'').includes(lower) ||
+                const match = (t.phone||'').replace(/\s+/g,'').includes(lower) ||
                               (t.code||'').toLowerCase().includes(lower) ||
+                              (t.nationalId||'').replace(/\s+/g,'').includes(lower) ||
                               (t.email||'').toLowerCase().includes(lower);
                 if (match) results.push({ ...t, _type: 'trainer' });
             });
 
             // البحث في المتدربين
             registryTrainees.forEach(t => {
-                const match = (t.nameAr||'').includes(q) ||
-                              (t.nameEn||'').toLowerCase().includes(lower) ||
-                              (t.phone||'').replace(/\s+/g,'').includes(lower) ||
+                const match = (t.phone||'').replace(/\s+/g,'').includes(lower) ||
                               (t.code||'').toLowerCase().includes(lower) ||
+                              (t.nationalId||'').replace(/\s+/g,'').includes(lower) ||
                               (t.email||'').toLowerCase().includes(lower);
                 if (match) results.push({ ...t, _type: 'trainee' });
             });
@@ -14154,6 +14308,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (appUsersData.length > 0) {
                 appUsersData.forEach(u => {
                     const match = (u.email||'').toLowerCase().includes(lower) ||
+                                  (u.phone||'').replace(/\s+/g,'').includes(lower) ||
                                   (u.username||'').toLowerCase().includes(lower);
                     if (match) results.push({ ...u, nameAr: u.name || u.username || u.email, _type: 'admin' });
                 });
@@ -14347,7 +14502,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 onlineDot.className = `w-2.5 h-2.5 rounded-full shrink-0 shadow-sm ring-1 ring-white transition-colors ${isOnline ? 'bg-green-500' : 'bg-red-400'}`;
                 onlineDot.title = isOnline ? 'متصل' : 'غير متصل';
             }
-            updateChatContactStatus(isOnline ? 'online' : 'offline');
+            updateChatContactStatus(_getContactStatusState(conv.otherUid, conv.id));
             // QR
             const qrDiv = document.getElementById('chatHeaderQR');
             if (qrDiv) {
@@ -14359,9 +14514,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
 
         // ── رسم الرسائل في منطقة المحادثة ──
-        function _renderMessages(msgs, myUid) {
+        function _renderMessages(rawMsgs, myUid) {
             const area = document.getElementById('chatMessagesArea');
             if (!area) return;
+            // استبعاد الرسائل المحذوفة من عندي فقط
+            const msgs = (rawMsgs || []).filter(m => !(m.deletedFor || []).includes(myUid));
+            // نخزّن نسخة من الرسائل الحالية لاستخدامها في قوائم الخيارات (رد/حذف/تعديل/نسخ/توجيه)
+            _chatMsgsCache = msgs;
             if (msgs.length === 0) {
                 area.innerHTML = `
                     <div class="flex flex-col items-center justify-center py-12 text-center">
@@ -14374,39 +14533,78 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
             // [FIX-D] نظّف كائنات الصوت المُخزَّنة قبل إعادة البناء لمنع التشغيل المزدوج
             _cleanupVoiceAudios();
+            const byId = {}; msgs.forEach(m => byId[m.id] = m);
             area.innerHTML = msgs.map(msg => {
                 const isMine  = msg.senderUid === myUid;
                 const ts      = msg.ts?.toMillis ? msg.ts.toMillis() : (msg.ts || Date.now());
                 const timeStr = new Date(ts).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' });
                 const isVoice = msg.type === 'voice' && msg.audioUrl;
 
+                // ── شارة "إعادة توجيه" ──
+                const forwardedTag = msg.forwarded
+                    ? `<p class="text-[10px] ${isMine ? 'text-white/70' : 'text-gray-400'} flex items-center gap-1 mb-1"><i class="ph ph-share-fat text-[10px]"></i>إعادة توجيه</p>`
+                    : '';
+
+                // ── شارة "(معدّلة)" ──
+                const editedTag = msg.edited ? ` <span class="${isMine ? 'opacity-70' : 'text-gray-400'}" style="font-size:10px;">(معدّلة)</span>` : '';
+
+                // ── اقتباس الرسالة المردود عليها ──
+                let replyHTML = '';
+                if (msg.replyTo && msg.replyTo.text) {
+                    const replyBg = isMine ? 'rgba(255,255,255,0.18)' : 'rgba(7,144,172,0.07)';
+                    const replyBorder = isMine ? 'rgba(255,255,255,0.6)' : 'var(--primary,#0790AC)';
+                    replyHTML = `
+                        <div class="rounded-lg px-2.5 py-1.5 mb-1.5" style="background:${replyBg}; border-right:3px solid ${replyBorder};">
+                            <p class="text-[11px] font-bold ${isMine ? 'text-white/90' : 'text-primary'}">${escapeHtml(msg.replyTo.senderUid === myUid ? 'أنت' : (document.getElementById('chatWindowNameAr')?.textContent || 'الطرف الآخر'))}</p>
+                            <p class="text-[11px] ${isMine ? 'text-white/75' : 'text-gray-500'} truncate">${escapeHtml(msg.replyTo.text)}</p>
+                        </div>`;
+                }
+
+                // ── زر/مؤشر فتح قائمة خيارات الرسالة (نقرة لسطح المكتب أو ضغط مطول للمس) ──
+                const menuTrigger = `
+                    <button type="button"
+                        onclick="handleMessageBubbleClick(this,'${msg.id}',${isMine},event)"
+                        class="absolute -top-1.5 ${isMine ? '-left-1.5' : '-right-1.5'} w-5 h-5 rounded-full bg-white shadow border border-gray-100 flex items-center justify-center text-gray-400 hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="خيارات الرسالة">
+                        <i class="ph ph-caret-down text-[10px]"></i>
+                    </button>`;
+                const touchAttrs = `ontouchstart="handleMsgTouchStart(this,'${msg.id}',${isMine})" ontouchend="handleMsgTouchEnd()" ontouchmove="handleMsgTouchEnd()"`;
+
                 if (isVoice) {
                     const playerHTML = _buildVoicePlayerHTML(msg, isMine);
                     return isMine
-                        ? `<div class="flex justify-end mb-1.5">
-                              <div class="max-w-[85%] bg-primary text-white rounded-2xl rounded-tr-sm px-3 py-2.5 shadow-sm">
+                        ? `<div class="flex justify-end mb-1.5 relative group">
+                              <div class="max-w-[85%] bg-primary text-white rounded-2xl rounded-tr-sm px-3 py-2.5 shadow-sm relative" ${touchAttrs}>
+                                  ${menuTrigger}
+                                  ${forwardedTag}${replyHTML}
                                   ${playerHTML}
-                                  <p class="text-[10px] opacity-70 mt-1.5 text-left">${timeStr} ✓✓</p>
+                                  <p class="text-[10px] opacity-70 mt-1.5 text-left">${timeStr} ✓✓${editedTag}</p>
                               </div>
                            </div>`
-                        : `<div class="flex justify-start mb-1.5">
-                              <div class="max-w-[85%] glass-element rounded-2xl rounded-tl-sm px-3 py-2.5 shadow-sm">
+                        : `<div class="flex justify-start mb-1.5 relative group">
+                              <div class="max-w-[85%] glass-element rounded-2xl rounded-tl-sm px-3 py-2.5 shadow-sm relative" ${touchAttrs}>
+                                  ${menuTrigger}
+                                  ${forwardedTag}${replyHTML}
                                   ${playerHTML}
-                                  <p class="text-[10px] text-gray-400 mt-1.5">${timeStr}</p>
+                                  <p class="text-[10px] text-gray-400 mt-1.5">${timeStr}${editedTag}</p>
                               </div>
                            </div>`;
                 }
                 return isMine
-                    ? `<div class="flex justify-end mb-1.5">
-                          <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm">
+                    ? `<div class="flex justify-end mb-1.5 relative group">
+                          <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm relative" ${touchAttrs}>
+                              ${menuTrigger}
+                              ${forwardedTag}${replyHTML}
                               <p class="text-sm leading-relaxed">${escapeHtml(msg.text)}</p>
-                              <p class="text-[10px] opacity-70 mt-1 text-left">${timeStr} ✓✓</p>
+                              <p class="text-[10px] opacity-70 mt-1 text-left">${timeStr} ✓✓${editedTag}</p>
                           </div>
                        </div>`
-                    : `<div class="flex justify-start mb-1.5">
-                          <div class="max-w-[78%] glass-element rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm">
+                    : `<div class="flex justify-start mb-1.5 relative group">
+                          <div class="max-w-[78%] glass-element rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm relative" ${touchAttrs}>
+                              ${menuTrigger}
+                              ${forwardedTag}${replyHTML}
                               <p class="text-sm text-gray-800 leading-relaxed">${escapeHtml(msg.text)}</p>
-                              <p class="text-[10px] text-gray-400 mt-1">${timeStr}</p>
+                              <p class="text-[10px] text-gray-400 mt-1">${timeStr}${editedTag}</p>
                           </div>
                        </div>`;
             }).join('');
@@ -14427,8 +14625,33 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (!inp) return;
             const text = inp.value.trim();
             if (!text) return;
+
+            // ── وضع التعديل: نحدّث الرسالة بدلاً من إرسال رسالة جديدة ──
+            if (_chatEditId) {
+                const editId = _chatEditId;
+                inp.value = '';
+                updateChatSendBtn('');
+                _chatEditId = null;
+                _updateComposerBar();
+                try {
+                    await db.collection('chats').doc(activeChatConvId).collection('messages').doc(editId).update({
+                        text, edited: true, editedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch(err) {
+                    console.error('edit message error', err);
+                    showToast('فشل تعديل الرسالة', 'error');
+                }
+                return;
+            }
+
+            const replyTo = _chatReplyTo ? { id: _chatReplyTo.id, text: _chatReplyTo.text, senderUid: _chatReplyTo.senderUid } : null;
+            _chatReplyTo = null;
+            _updateComposerBar();
+
             inp.value = '';
             updateChatSendBtn('');
+            clearTimeout(_myTypingDebounceTimer);
+            setTypingStatus(activeChatConvId, false);
 
             const myUid   = currentUser.uid;
             const localTs = Date.now(); // طابع زمني محلي للعرض الفوري
@@ -14442,8 +14665,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 div.className = 'flex justify-end mb-1.5';
                 div.dataset.localTs = localTs;
                 const timeStr = new Date(localTs).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' });
+                const replyPreviewHTML = replyTo ? `
+                    <div class="rounded-lg px-2.5 py-1.5 mb-1.5" style="background:rgba(255,255,255,0.18); border-right:3px solid rgba(255,255,255,0.6);">
+                        <p class="text-[11px] font-bold text-white/90">${escapeHtml(replyTo.senderUid === myUid ? 'أنت' : (document.getElementById('chatWindowNameAr')?.textContent || 'الطرف الآخر'))}</p>
+                        <p class="text-[11px] text-white/75 truncate">${escapeHtml(replyTo.text)}</p>
+                    </div>` : '';
                 div.innerHTML = `
                     <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm">
+                        ${replyPreviewHTML}
                         <p class="text-sm leading-relaxed">${escapeHtml(text)}</p>
                         <p class="text-[10px] opacity-70 mt-1 text-left">${timeStr} ✓</p>
                     </div>`;
@@ -14454,12 +14683,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const convRef = db.collection('chats').doc(activeChatConvId);
 
             try {
-                await convRef.collection('messages').add({
+                const payload = {
                     senderUid: myUid,
                     text,
                     ts: firebase.firestore.FieldValue.serverTimestamp(),
                     localTs   // نحفظ الطابع المحلي أيضاً للترتيب الاحتياطي
-                });
+                };
+                if (replyTo) payload.replyTo = replyTo;
+                await convRef.collection('messages').add(payload);
                 const conv      = chatConversations.find(c => c.id === activeChatConvId);
                 const otherUid  = conv?.otherUid || '';
                 const updateObj = { lastMsg: text, lastTimestamp: firebase.firestore.FieldValue.serverTimestamp() };
@@ -14478,6 +14709,27 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
 
 
+
+        // ── على الشاشات الكبيرة فقط: نقل أزرار الاتصال/الإيميل بجانب حذف وحظر، ونقل حالة الشخص أسفلها أقصى اليسار ──
+        function adjustChatHeaderLayout() {
+            const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+            const callGroup = document.getElementById('chatHeaderCallButtonsGroup');
+            const statusEl = document.getElementById('chatContactStatus');
+            const desktopCallSlot = document.getElementById('chatHeaderCallButtonsDesktop');
+            const desktopStatusSlot = document.getElementById('chatContactStatusDesktopWrap');
+            const row2 = document.getElementById('chatHeaderRow2');
+            if (!callGroup || !statusEl || !desktopCallSlot || !desktopStatusSlot || !row2) return;
+            if (isDesktop) {
+                if (callGroup.parentElement !== desktopCallSlot) desktopCallSlot.appendChild(callGroup);
+                if (statusEl.parentElement !== desktopStatusSlot) desktopStatusSlot.appendChild(statusEl);
+            } else {
+                if (callGroup.parentElement !== row2) row2.insertBefore(callGroup, row2.firstChild);
+                if (statusEl.parentElement !== row2) row2.appendChild(statusEl);
+            }
+        }
+        window.addEventListener('resize', adjustChatHeaderLayout);
+        document.addEventListener('DOMContentLoaded', adjustChatHeaderLayout);
+        adjustChatHeaderLayout();
 
         // ── تبديل القائمة المنسدلة لزر حذف المحادثة (حذف لدي / حذف لدى الجميع) ──
         function toggleChatDeleteDropdown(e) {
@@ -14538,6 +14790,18 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 btn.title = 'تسجيل رسالة صوتية';
                 btn.style.background = 'var(--primary, #0790AC)';
                 icon.className = 'ph ph-microphone text-white text-base';
+            }
+        }
+
+        // ── بثّ حالة "جاري الكتابة" مع مؤقت لمسحها بعد توقف الكتابة ──
+        function onChatMessageTyping(val) {
+            if (!activeChatConvId || !currentUser) return;
+            clearTimeout(_myTypingDebounceTimer);
+            if (val && val.trim().length > 0) {
+                setTypingStatus(activeChatConvId, true);
+                _myTypingDebounceTimer = setTimeout(() => setTypingStatus(activeChatConvId, false), 3000);
+            } else {
+                setTypingStatus(activeChatConvId, false);
             }
         }
 
@@ -14604,6 +14868,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
                 // تحديث واجهة المستخدم
                 _showVoiceRecordingUI();
+                clearTimeout(_myTypingDebounceTimer);
+                setTypingStatus(activeChatConvId, false);
+                setRecordingVoiceStatus(activeChatConvId, true);
 
             } catch (err) {
                 // [FIX-1] أغلق stream فوراً إن كان قد فُتح قبل وقوع الخطأ
@@ -14626,6 +14893,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 _mediaRecorder.stop();
             }
             _voiceIsRecording = false;
+            if (activeChatConvId) setRecordingVoiceStatus(activeChatConvId, false);
             _hideVoiceRecordingUI();
         }
 
@@ -14643,6 +14911,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             _mediaRecorder = null; // [FIX-C] إعادة ضبط
             _voiceIsRecording = false;
             _voiceChunks = [];
+            if (activeChatConvId) setRecordingVoiceStatus(activeChatConvId, false);
             _hideVoiceRecordingUI();
             showToast('تم إلغاء التسجيل', 'info');
         }
@@ -14997,6 +15266,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 online:        { cls: 'ph ph-circle text-sm text-green-500',        txt: 'متصل الآن',          tcls: 'text-green-500' },
                 offline:       { cls: 'ph ph-circle-dashed text-sm text-gray-400',  txt: 'غير متصل',           tcls: 'text-gray-400' },
                 typing:        { cls: 'ph ph-pencil-simple text-sm text-primary animate-pulse', txt: 'جاري الكتابة...', tcls: 'text-primary' },
+                recording_voice: { cls: 'ph ph-microphone text-sm text-emerald-500 animate-pulse', txt: 'جاري إرسال رسالة صوتية...', tcls: 'text-emerald-500' },
                 sending_file:  { cls: 'ph ph-file-arrow-up text-sm text-blue-500 animate-pulse', txt: 'جاري إرسال ملف...', tcls: 'text-blue-500' },
                 sending_media: { cls: 'ph ph-image text-sm text-violet-500 animate-pulse', txt: 'جاري إرسال ميديا...', tcls: 'text-violet-500' },
             };
@@ -15062,6 +15332,342 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
         window.escapeHtml = escapeHtml;
+
+        // ════════════════════════════════════════════════════════════
+        //   نظام خيارات الرسالة: رد / حذف / تعديل / نسخ / إعادة توجيه
+        // ════════════════════════════════════════════════════════════
+
+        function _getMsgById(id) {
+            return _chatMsgsCache.find(m => m.id === id) || null;
+        }
+
+        // ── فتح قائمة خيارات رسالة معيّنة (نقرة على المؤشر أو ضغط مطول) ──
+        function openMessageMenu(anchorEl, msgId, isMine) {
+            closeMessageMenu();
+            const menu = document.getElementById('messageContextMenu');
+            const msg  = _getMsgById(msgId);
+            if (!menu || !msg) return;
+
+            let html = '';
+            html += `<button onclick="replyToMessage('${msgId}')" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/8 hover:text-primary transition-colors text-right"><i class="ph ph-arrow-bend-up-left text-base text-blue-500"></i>رد</button>`;
+            if (msg.type !== 'voice') {
+                html += `<div class="border-t border-white/40"></div>`;
+                html += `<button onclick="copyMessageText('${msgId}')" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/8 hover:text-primary transition-colors text-right"><i class="ph ph-copy text-base text-gray-500"></i>نسخ</button>`;
+            }
+            html += `<div class="border-t border-white/40"></div>`;
+            html += `<button onclick="forwardMessage('${msgId}')" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/8 hover:text-primary transition-colors text-right"><i class="ph ph-share-fat text-base text-violet-500"></i>إعادة توجيه</button>`;
+            if (isMine && msg.type !== 'voice') {
+                html += `<div class="border-t border-white/40"></div>`;
+                html += `<button onclick="startEditMessage('${msgId}')" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-primary/8 hover:text-primary transition-colors text-right"><i class="ph ph-pencil-simple text-base text-amber-500"></i>تعديل</button>`;
+            }
+            html += `<div class="border-t border-white/40"></div>`;
+            html += `<button onclick="deleteMessageDialog('${msgId}', ${isMine})" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-right"><i class="ph ph-trash text-base"></i>حذف</button>`;
+
+            menu.innerHTML = html;
+            menu.classList.remove('hidden');
+
+            const rect  = anchorEl.getBoundingClientRect();
+            const menuW = 190;
+            let left = rect.left + rect.width/2 - menuW/2;
+            left = Math.max(8, Math.min(left, window.innerWidth - menuW - 8));
+            let top = rect.bottom + 6;
+            const estH = 230;
+            if (top + estH > window.innerHeight) top = Math.max(8, rect.top - 6 - estH);
+            menu.style.left  = left + 'px';
+            menu.style.top   = top + 'px';
+            menu.style.width = menuW + 'px';
+
+            setTimeout(() => document.addEventListener('click', _closeMsgMenuOnOutside), 50);
+        }
+        function _closeMsgMenuOnOutside(ev) {
+            const menu = document.getElementById('messageContextMenu');
+            if (menu && !menu.contains(ev.target)) closeMessageMenu();
+        }
+        function closeMessageMenu() {
+            const menu = document.getElementById('messageContextMenu');
+            if (menu) menu.classList.add('hidden');
+            document.removeEventListener('click', _closeMsgMenuOnOutside);
+        }
+        // نقرة على مؤشر الخيارات (سطح المكتب)
+        function handleMessageBubbleClick(el, msgId, isMine, ev) {
+            if (ev) ev.stopPropagation();
+            openMessageMenu(el, msgId, isMine);
+        }
+        // ضغط مطول على الرسالة (الأجهزة اللمسية)
+        function handleMsgTouchStart(el, msgId, isMine) {
+            clearTimeout(_msgLongPressTimer);
+            _msgLongPressTimer = setTimeout(() => {
+                if (navigator.vibrate) try { navigator.vibrate(15); } catch(_) {}
+                openMessageMenu(el, msgId, isMine);
+            }, 480);
+        }
+        function handleMsgTouchEnd() {
+            clearTimeout(_msgLongPressTimer);
+        }
+
+        // ── رد على رسالة ──
+        function replyToMessage(msgId) {
+            const msg = _getMsgById(msgId);
+            closeMessageMenu();
+            if (!msg) return;
+            _chatEditId = null;
+            _chatReplyTo = {
+                id: msgId,
+                text: msg.type === 'voice' ? '🎤 رسالة صوتية' : (msg.text || ''),
+                senderUid: msg.senderUid
+            };
+            _updateComposerBar();
+            const inp = document.getElementById('chatMessageInput');
+            if (inp) inp.focus();
+        }
+
+        // ── بدء تعديل رسالة (للرسائل المرسلة فقط) ──
+        function startEditMessage(msgId) {
+            const msg = _getMsgById(msgId);
+            closeMessageMenu();
+            if (!msg || msg.senderUid !== currentUser?.uid || msg.type === 'voice') return;
+            _chatReplyTo = null;
+            _chatEditId  = msgId;
+            _updateComposerBar();
+            const inp = document.getElementById('chatMessageInput');
+            if (inp) { inp.value = msg.text || ''; inp.focus(); updateChatSendBtn(inp.value); }
+        }
+
+        // ── إلغاء وضع الرد/التعديل الحالي ──
+        function cancelComposerAction() {
+            const wasEdit = !!_chatEditId;
+            _chatReplyTo = null;
+            _chatEditId  = null;
+            _updateComposerBar();
+            if (wasEdit) {
+                const inp = document.getElementById('chatMessageInput');
+                if (inp) { inp.value = ''; updateChatSendBtn(''); }
+            }
+        }
+
+        // ── تحديث شريط معاينة الرد/التعديل فوق حقل الإدخال ──
+        function _updateComposerBar() {
+            const bar = document.getElementById('composerActionBar');
+            if (!bar) return;
+            if (_chatReplyTo) {
+                const who = _chatReplyTo.senderUid === currentUser?.uid ? 'أنت' : (document.getElementById('chatWindowNameAr')?.textContent || 'الطرف الآخر');
+                bar.classList.remove('hidden');
+                bar.innerHTML = `
+                    <div class="flex items-center gap-2 px-3 py-2 rounded-xl border border-primary/20 mb-2" style="background:rgba(7,144,172,0.06);">
+                        <i class="ph ph-arrow-bend-up-left text-primary text-base shrink-0"></i>
+                        <div class="flex-1 min-w-0 border-r-2 border-primary pr-2">
+                            <p class="text-[11px] font-bold text-primary">${escapeHtml(who)}</p>
+                            <p class="text-xs text-gray-600 truncate">${escapeHtml(_chatReplyTo.text)}</p>
+                        </div>
+                        <button onclick="cancelComposerAction()" class="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 shrink-0"><i class="ph ph-x text-sm"></i></button>
+                    </div>`;
+            } else if (_chatEditId) {
+                bar.classList.remove('hidden');
+                bar.innerHTML = `
+                    <div class="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-300 mb-2" style="background:rgba(245,158,11,0.08);">
+                        <i class="ph ph-pencil-simple text-amber-500 text-base shrink-0"></i>
+                        <div class="flex-1 min-w-0 border-r-2 border-amber-400 pr-2">
+                            <p class="text-[11px] font-bold text-amber-600">تعديل الرسالة</p>
+                        </div>
+                        <button onclick="cancelComposerAction()" class="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 shrink-0"><i class="ph ph-x text-sm"></i></button>
+                    </div>`;
+            } else {
+                bar.classList.add('hidden');
+                bar.innerHTML = '';
+            }
+        }
+
+        // ── نسخ نص الرسالة ──
+        function copyMessageText(msgId) {
+            const msg = _getMsgById(msgId);
+            closeMessageMenu();
+            if (!msg) return;
+            const text = msg.text || '';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text)
+                    .then(() => showToast('📋 تم نسخ النص', 'success'))
+                    .catch(() => showToast('تعذّر نسخ النص', 'error'));
+            } else {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                    document.body.appendChild(ta); ta.select();
+                    document.execCommand('copy'); ta.remove();
+                    showToast('📋 تم نسخ النص', 'success');
+                } catch(e) { showToast('تعذّر نسخ النص', 'error'); }
+            }
+        }
+
+        // ── حذف رسالة: فتح نافذة اختيار طريقة الحذف ──
+        function deleteMessageDialog(msgId, isMine) {
+            closeMessageMenu();
+            const modal = document.getElementById('deleteMessageModal');
+            if (!modal) return;
+            modal.dataset.msgId = msgId;
+            const bothBtn = document.getElementById('deleteMsgBothBtn');
+            if (bothBtn) bothBtn.classList.toggle('hidden', !isMine);
+            modal.classList.remove('hidden');
+        }
+        function closeDeleteMessageModal() {
+            const modal = document.getElementById('deleteMessageModal');
+            if (modal) modal.classList.add('hidden');
+        }
+        // حذف الرسالة من عندي فقط (تُخفى عن المستخدم الحالي فقط)
+        async function deleteMessageForMe() {
+            const modal = document.getElementById('deleteMessageModal');
+            const msgId = modal?.dataset.msgId;
+            closeDeleteMessageModal();
+            if (!msgId || !activeChatConvId || !currentUser || !db) return;
+            try {
+                await db.collection('chats').doc(activeChatConvId).collection('messages').doc(msgId).update({
+                    deletedFor: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+                });
+                showToast('🗑️ تم حذف الرسالة من عندك', 'info');
+            } catch(e) { console.warn('delete msg for me error', e); showToast('فشل حذف الرسالة', 'error'); }
+        }
+        // حذف الرسالة من الطرفين (حذف نهائي من قاعدة البيانات)
+        async function deleteMessageForBoth() {
+            const modal = document.getElementById('deleteMessageModal');
+            const msgId = modal?.dataset.msgId;
+            closeDeleteMessageModal();
+            if (!msgId || !activeChatConvId || !currentUser || !db) return;
+            try {
+                await db.collection('chats').doc(activeChatConvId).collection('messages').doc(msgId).delete();
+                showToast('🗑️ تم حذف الرسالة من الطرفين', 'info');
+            } catch(e) { console.warn('delete msg for both error', e); showToast('فشل حذف الرسالة', 'error'); }
+        }
+
+        // ── إعادة توجيه رسالة ──
+        function forwardMessage(msgId) {
+            closeMessageMenu();
+            const msg = _getMsgById(msgId);
+            if (!msg) return;
+            _forwardMsgId = msgId;
+            const modal = document.getElementById('forwardMessageModal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            const preview = document.getElementById('forwardMsgPreview');
+            if (preview) preview.textContent = msg.type === 'voice' ? '🎤 رسالة صوتية' : (msg.text || '');
+            const searchInp = document.getElementById('forwardSearchInput');
+            if (searchInp) searchInp.value = '';
+            const newResultsBox = document.getElementById('forwardNewSearchResults');
+            if (newResultsBox) newResultsBox.innerHTML = '';
+            _buildForwardConvList('');
+        }
+        function closeForwardModal() {
+            const modal = document.getElementById('forwardMessageModal');
+            if (modal) modal.classList.add('hidden');
+            _forwardMsgId = null;
+        }
+        function _buildForwardConvList(filterText) {
+            const list = document.getElementById('forwardConvList');
+            if (!list) return;
+            const q = (filterText || '').trim().toLowerCase();
+            const sorted = sortChatConversations([...chatConversations]).filter(c =>
+                !q || (c.nameAr||'').toLowerCase().includes(q) || (c.nameEn||'').toLowerCase().includes(q)
+            );
+            if (sorted.length === 0) {
+                list.innerHTML = `<div class="text-center py-4 text-xs text-gray-400">لا توجد محادثات مطابقة</div>`;
+                return;
+            }
+            list.innerHTML = sorted.map(c => `
+                <button onclick="confirmForwardToConv('${c.id}', '${c.otherUid}')" class="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-primary/8 rounded-xl transition-colors text-right">
+                    <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><i class="ph ph-user text-sm"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-sm text-gray-800 truncate">${escapeHtml(c.nameAr || '—')}</p>
+                    </div>
+                </button>`).join('');
+        }
+        // بحث ضمن المحادثات الحالية + بحث عن مستخدمين جدد ليس لديهم محادثة بعد
+        function onForwardSearch(val) {
+            _buildForwardConvList(val);
+            const q = (val || '').trim();
+            const newResultsBox = document.getElementById('forwardNewSearchResults');
+            if (!newResultsBox) return;
+            if (!q) { newResultsBox.innerHTML = ''; return; }
+            clearTimeout(window._fwdSearchTimer);
+            window._fwdSearchTimer = setTimeout(async () => {
+                if (registryTrainers.length === 0) { try { await loadTrainersFromFirebase(); } catch(_){} }
+                if (registryTrainees.length === 0) { try { await loadTraineesFromFirebase(); } catch(_){} }
+                const lower = q.toLowerCase();
+                let results = [];
+                registryTrainers.forEach(t => { if ((t.nameAr||'').includes(q) || (t.nameEn||'').toLowerCase().includes(lower)) results.push({...t, _type:'trainer'}); });
+                registryTrainees.forEach(t => { if ((t.nameAr||'').includes(q) || (t.nameEn||'').toLowerCase().includes(lower)) results.push({...t, _type:'trainee'}); });
+                if (appUsersData.length > 0) appUsersData.forEach(u => { if ((u.email||'').toLowerCase().includes(lower) || (u.username||'').toLowerCase().includes(lower)) results.push({...u, nameAr: u.name || u.username || u.email, _type:'admin'}); });
+                const existingUids = chatConversations.map(c => c.otherUid);
+                results = results.filter(r => {
+                    const uid = r._type === 'admin' ? (r.uid||r.id) : r.authUid;
+                    return uid && !existingUids.includes(uid);
+                }).slice(0, 8);
+                window._fwdSearchResults = results;
+                newResultsBox.innerHTML = results.map((r, idx) => `
+                    <button onclick="confirmForwardToNewUser(${idx})" class="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-primary/8 rounded-xl transition-colors text-right">
+                        <div class="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 shrink-0"><i class="ph ph-user-plus text-sm"></i></div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-sm text-gray-800 truncate">${escapeHtml(r.nameAr || '—')}</p>
+                            <p class="text-[10px] text-gray-400">مستخدم جديد</p>
+                        </div>
+                    </button>`).join('');
+            }, 300);
+        }
+        async function confirmForwardToConv(convId, otherUid) {
+            const msg = _getMsgById(_forwardMsgId);
+            closeForwardModal();
+            if (!msg) return;
+            await _sendForwardedMessage(convId, otherUid, msg);
+        }
+        async function confirmForwardToNewUser(idx) {
+            const user = (window._fwdSearchResults || [])[idx];
+            const msg  = _getMsgById(_forwardMsgId);
+            closeForwardModal();
+            if (!msg || !user || !currentUser) return;
+            const myUid = currentUser.uid;
+            const otherUid = user._type === 'admin' ? (user.uid || user.id) : user.authUid;
+            if (!otherUid) { showToast('تعذّر تحديد هوية المستخدم', 'error'); return; }
+            const convId = buildConvId(myUid, otherUid);
+            const myName    = currentUser.displayName || currentUser.nameAr || currentUser.email || myUid;
+            const otherName = user.nameAr || user.name || user.email || otherUid;
+            try {
+                const convRef = db.collection('chats').doc(convId);
+                const snap = await convRef.get();
+                if (!snap.exists) {
+                    await convRef.set({
+                        participants: [myUid, otherUid].sort(),
+                        names: { [myUid]: { ar: myName, en: currentUser.email || '', code: '' }, [otherUid]: { ar: otherName, en: user.nameEn || '', code: user.code || '' } },
+                        lastMsg: '', lastTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        unread: { [myUid]: 0, [otherUid]: 0 }, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    const data = snap.data() || {};
+                    if (!(data.participants || []).includes(myUid)) {
+                        await convRef.update({ participants: firebase.firestore.FieldValue.arrayUnion(myUid) });
+                    }
+                }
+            } catch(e) { console.warn('create conv for forward error', e); }
+            if (!chatConversations.find(c => c.id === convId)) {
+                chatConversations.unshift({ id: convId, otherUid, nameAr: otherName, nameEn: user.nameEn || '', code: user.code || '', lastMsg: '', lastTimestamp: Date.now(), unread: 0 });
+                buildChatConversationsList();
+            }
+            await _sendForwardedMessage(convId, otherUid, msg);
+        }
+        async function _sendForwardedMessage(convId, otherUid, msg) {
+            if (!currentUser || !db || !convId) return;
+            const myUid = currentUser.uid;
+            const text  = msg.text || '';
+            try {
+                await db.collection('chats').doc(convId).collection('messages').add({
+                    senderUid: myUid,
+                    text,
+                    forwarded: true,
+                    ts: firebase.firestore.FieldValue.serverTimestamp(),
+                    localTs: Date.now()
+                });
+                const updateObj = { lastMsg: text, lastTimestamp: firebase.firestore.FieldValue.serverTimestamp() };
+                if (otherUid) updateObj[`unread.${otherUid}`] = firebase.firestore.FieldValue.increment(1);
+                await db.collection('chats').doc(convId).update(updateObj);
+                showToast('↪️ تم توجيه الرسالة', 'success');
+            } catch(e) { console.warn('forward message error', e); showToast('فشل توجيه الرسالة', 'error'); }
+        }
         window._startConversationsListener = _startConversationsListener;
 
         // ── إغلاق قائمة الفرز ونتائج البحث عند الضغط خارجها ──
@@ -15144,69 +15750,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
 
         // ══ الجلسات الافتراضية - Virtual Sessions ══
-        function toggleVirtualSessionsDropdown() {
-            const dd = document.getElementById('virtualSessionsDropdown');
-            if (!dd) return;
-            dd.classList.toggle('hidden');
-        }
-        function closeVirtualSessionsDropdown() {
-            const dd = document.getElementById('virtualSessionsDropdown');
-            if (dd) dd.classList.add('hidden');
-        }
-        function toggleVirtualSessionsMobileDropdown() {
-            const dd = document.getElementById('virtualSessionsMobileDropdown');
-            if (!dd) return;
-            if (dd.classList.contains('hidden')) {
-                dd.classList.remove('hidden');
-                _fixSimpleDropdownPosition(dd);
-            } else {
-                dd.classList.add('hidden');
-                _unfixSimpleDropdown(dd);
-            }
-        }
-        function closeVirtualSessionsMobileDropdown() {
-            const dd = document.getElementById('virtualSessionsMobileDropdown');
-            if (dd) { dd.classList.add('hidden'); _unfixSimpleDropdown(dd); }
-        }
-
-        // تثبيت القوائم البسيطة (غير login-dd) في منتصف الشاشة على الموبايل العمودي
-        function _fixSimpleDropdownPosition(dd) {
-            const isMobilePortrait = window.innerWidth <= 540 && window.innerHeight > window.innerWidth;
-            if (!isMobilePortrait) return; // شاشات كبيرة تبقى بـ CSS العادي
-            // أخرج من الـ relative parent وضعه في body بـ fixed
-            if (dd.parentElement !== document.body) {
-                dd._origParent = dd.parentElement;
-                dd._origNext   = dd.nextSibling;
-                document.body.appendChild(dd);
-            }
-            dd.style.position  = 'fixed';
-            dd.style.top       = '72px';
-            dd.style.left      = '50%';
-            dd.style.right     = 'auto';
-            dd.style.transform = 'translateX(-50%)';
-            dd.style.width     = 'calc(100vw - 32px)';
-            dd.style.maxWidth  = '320px';
-            dd.style.zIndex    = '9999';
-        }
-        function _unfixSimpleDropdown(dd) {
-            if (!dd) return;
-            dd.style.position  = '';
-            dd.style.top       = '';
-            dd.style.left      = '';
-            dd.style.right     = '';
-            dd.style.transform = '';
-            dd.style.width     = '';
-            dd.style.maxWidth  = '';
-            dd.style.zIndex    = '';
-            if (dd._origParent && dd.parentElement === document.body) {
-                if (dd._origNext && dd._origNext.parentElement === dd._origParent) {
-                    dd._origParent.insertBefore(dd, dd._origNext);
-                } else {
-                    dd._origParent.appendChild(dd);
-                }
-                dd._origParent = null;
-                dd._origNext   = null;
-            }
+        function showVirtualSessionsGrid() {
+            showView('virtualSessionsView');
+            exitSettingsSidebar();
+            closeSidebar();
         }
 
         // إغلاق القوائم المنسدلة عند الضغط خارجها
@@ -15217,12 +15764,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             // Academic Pedia Mobile
             const apMobileWrapper = document.getElementById('academicPediaMobileWrapper');
             if (apMobileWrapper && !apMobileWrapper.contains(e.target)) closeAcademicPediaMobileDropdown();
-            // Virtual Sessions Desktop
-            const vsWrapper = document.getElementById('virtualSessionsWrapper');
-            if (vsWrapper && !vsWrapper.contains(e.target)) closeVirtualSessionsDropdown();
-            // Virtual Sessions Mobile
-            const vsMobileWrapper = document.getElementById('virtualSessionsMobileWrapper');
-            if (vsMobileWrapper && !vsMobileWrapper.contains(e.target)) closeVirtualSessionsMobileDropdown();
         });
 
         function showComingSoon(title) {
@@ -19978,51 +20519,54 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             transition:     'all 0.2s ease',
         });
 
-        // ── تحديد الموضع حسب حجم الشاشة ──
-        // زر الإظهار يجلس في موضع تناظري تماماً مع زر الإخفاء داخل هيدر القائمة الجانبية
+        // ── تحديد الموضع: دائماً أسفل التول بار من الجانب الأيمن ──
+        // بدلاً من قيم top ثابتة (كانت تسبب تراكب الزر فوق التول بار في الوضع
+        // العمودي للشاشات الصغيرة، حيث يكون التول بار أطول بسبب التفاف صف
+        // الشعار/الدخول وظهور صف روابط الأقسام)، يتم قياس الارتفاع الفعلي
+        // المعروض للتول بار في كل مرة (getBoundingClientRect) ووضع الزر
+        // مباشرة تحته. هذا يتكيّف تلقائياً مع:
+        //  - عرض التول بار في الشاشات الصغيرة (الذي يتحكم بالتفاف العناصر)
+        //  - ارتفاع التول بار في الوضع الأفقي للشاشات الصغيرة
+        //  - ارتفاع التول بار في الشاشات المتوسطة والكبيرة (صف واحد فقط)
+        const _toolbarGap = 8; // مسافة بسيطة بين أسفل التول بار وأعلى الزر
+
         function _positionFloatBtn() {
-            const isPortraitMobile = window.innerWidth <= 480 && window.innerHeight > window.innerWidth;
-            if (isPortraitMobile) {
-                // موبايل عمودي: تحت التولبار من الجانب الأيمن (تناظري مع زر الإخفاء)
-                _floatBtn.style.bottom       = 'auto';
-                _floatBtn.style.top          = '96px';
-                _floatBtn.style.right        = '12px';
-                _floatBtn.style.left         = 'auto';
-                _floatBtn.style.transform    = 'none';
-                _floatBtn.style.width        = '36px';
-                _floatBtn.style.height       = '36px';
-                _floatBtn.style.borderRadius = '50%';
-                _floatBtn.title = 'إظهار القائمة';
-                // السهم يشير لليسار (نحو القائمة في RTL)
-                _floatBtn.innerHTML = `
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                         stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>`;
-            } else {
-                // شاشات كبيرة / لابتوب / تابلت / موبايل أفقي:
-                // موضع تناظري مع زر الإخفاء، أسفل التولبار مباشرة من الجانب الأيمن
-                _floatBtn.style.bottom       = 'auto';
-                _floatBtn.style.top          = '96px';
-                _floatBtn.style.right        = '16px';
-                _floatBtn.style.left         = 'auto';
-                _floatBtn.style.transform    = 'none';
-                _floatBtn.style.width        = '36px';
-                _floatBtn.style.height       = '36px';
-                _floatBtn.style.borderRadius = '50%';
-                _floatBtn.title = 'إظهار القائمة';
-                // السهم يشير لليسار (نحو القائمة في RTL — عكس زر الإخفاء caret-right)
-                _floatBtn.innerHTML = `
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                         stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>`;
-            }
+            const toolbar = document.getElementById('mainToolbar');
+            const toolbarRect = toolbar ? toolbar.getBoundingClientRect() : null;
+            const topPos = toolbarRect ? Math.round(toolbarRect.bottom + _toolbarGap) : 96;
+
+            // المسافة من اليمين تتبع نفس حشوة الحاوية المستخدمة في كل فئة شاشة
+            const isSmallScreen = window.innerWidth <= 480;
+            const rightOffset = isSmallScreen ? '12px' : '16px';
+
+            _floatBtn.style.bottom       = 'auto';
+            _floatBtn.style.top          = topPos + 'px';
+            _floatBtn.style.right        = rightOffset;
+            _floatBtn.style.left         = 'auto';
+            _floatBtn.style.transform    = 'none';
+            _floatBtn.style.width        = '36px';
+            _floatBtn.style.height       = '36px';
+            _floatBtn.style.borderRadius = '50%';
+            _floatBtn.title = 'إظهار القائمة';
+            // السهم يشير لليسار (نحو القائمة في RTL — عكس زر الإخفاء caret-right)
+            _floatBtn.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="#0790AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>`;
         }
 
         _positionFloatBtn();
         window.addEventListener('resize', () => { if (!isSidebarOpen) _positionFloatBtn(); });
         window.addEventListener('orientationchange', () => { setTimeout(_positionFloatBtn, 200); });
+
+        // مراقبة تغيّر ارتفاع التول بار نفسه (مثلاً ظهور/اختفاء شريط تنبيه
+        // Firebase أو التفاف العناصر داخل نفس حجم الشاشة) لإعادة وضع الزر
+        // فوراً دون انتظار حدث resize
+        const _toolbarEl = document.getElementById('mainToolbar');
+        if (_toolbarEl && window.ResizeObserver) {
+            new ResizeObserver(() => { if (!isSidebarOpen) _positionFloatBtn(); }).observe(_toolbarEl);
+        }
 
         _floatBtn.addEventListener('mouseenter', () => {
             const t = _floatBtn.style.transform;
@@ -20058,6 +20602,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             sidebar.style.opacity = '0';
             sidebar.style.pointerEvents = 'none';
             setTimeout(() => {
+                _positionFloatBtn();
                 showSidebarBtn.style.display = 'flex';
             }, 300);
             isSidebarOpen = false;
@@ -20091,10 +20636,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 searchInput.classList.add('active');
                 // تغيير placeholder حسب الوضع
                 searchInput.placeholder = (sidebarMode === 'chat')
-                    ? 'ابحث بالاسم، الرمز، الهاتف...'
+                    ? 'الهاتف / الإيميل / الرقم الوطني / المعرف ثم بحث'
                     : 'ابحث هنا...';
                 searchInput.focus();
                 isSearchExpanded = true;
+            } else if (sidebarMode === 'chat' && searchInput.value.trim() !== '') {
+                // في وضع المحادثة: الضغط على زر العدسة وحقل البحث ممتلئ ينفّذ البحث صراحةً
+                onChatSearchSubmit(searchInput.value.trim());
             } else {
                 if (searchInput.value.trim() === '') {
                     searchInput.classList.remove('active');
@@ -20120,7 +20668,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }
         }
 
-        // البحث الفوري عند الكتابة
+        // البحث في وضع المحادثة: فقط عند Enter (بعد اكتمال الكتابة) — بقية الأوضاع تبقى فورية
         searchInput.addEventListener('input', () => {
             const q = searchInput.value.trim();
             if (q.length === 0) {
@@ -20128,9 +20676,18 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 return;
             }
             if (sidebarMode === 'chat') {
-                onChatSearch(q);
+                // لا بحث فوري — ينتظر اكتمال الكتابة ثم Enter أو زر البحث
+                return;
             } else {
                 performSearch(q);
+            }
+        });
+
+        // الضغط على Enter في وضع المحادثة لتنفيذ البحث (بالهاتف/الإيميل/المعرف فقط)
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && sidebarMode === 'chat') {
+                e.preventDefault();
+                onChatSearchSubmit(searchInput.value.trim());
             }
         });
 
