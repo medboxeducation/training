@@ -10219,6 +10219,76 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             transform: translateY(0);
         }
 
+        /* ══════ نظام الجلسات المتزامنة ══════ */
+        .live-pulse-dot {
+            animation: livePulseDot 1.4s ease-in-out infinite;
+        }
+        @keyframes livePulseDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.4; transform: scale(0.8); }
+        }
+        .live-participant-card {
+            position: relative;
+            transition: all 0.25s ease;
+        }
+        .live-participant-card.is-speaking {
+            border-color: rgba(16, 185, 129, 0.9) !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35), 0 0 18px rgba(16, 185, 129, 0.45);
+            animation: liveSpeakingGlow 1.1s ease-in-out infinite;
+        }
+        @keyframes liveSpeakingGlow {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35), 0 0 14px rgba(16, 185, 129, 0.35); }
+            50%      { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.2), 0 0 22px rgba(16, 185, 129, 0.55); }
+        }
+        .live-participant-card.is-muted-off .live-mic-icon { color: #ef4444; }
+        .live-rec-active {
+            color: #ef4444 !important;
+            animation: liveRecPulse 1s ease-in-out infinite;
+        }
+        @keyframes liveRecPulse {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: 0.45; }
+        }
+        .live-toggle-active {
+            color: #0790AC !important;
+            background: rgba(7, 144, 172, 0.16) !important;
+            border-color: rgba(7, 144, 172, 0.5) !important;
+        }
+        /* شارة معلومات البث فوق منصة العرض */
+        #liveStageBadges {
+            position: absolute; top: 10px; right: 10px; z-index: 20;
+            display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+            pointer-events: none;
+        }
+        .live-stage-badge {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(17, 24, 39, 0.72); backdrop-filter: blur(6px);
+            color: #fff; font-size: 11px; font-weight: 700;
+            padding: 4px 10px; border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .live-stage-badge.rec-badge { color: #fff; background: rgba(220, 38, 38, 0.85); }
+        .live-stage-badge .rec-dot {
+            width: 7px; height: 7px; border-radius: 999px; background: #fff;
+            animation: liveRecPulse 1s ease-in-out infinite;
+        }
+        /* شريط أدوات السبورة البيضاء */
+        #liveWhiteboardToolbar {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 25; display: flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.92); backdrop-filter: blur(10px);
+            padding: 6px 10px; border-radius: 999px; box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+        .wb-color-dot {
+            width: 20px; height: 20px; border-radius: 999px; cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.9); box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+            transition: transform 0.15s ease; flex-shrink: 0;
+        }
+        .wb-color-dot.active { transform: scale(1.25); box-shadow: 0 0 0 2px #0790AC; }
+        #liveWhiteboardCanvas { touch-action: none; cursor: crosshair; }
+        #liveWhiteboardCanvas.wb-view-only { cursor: default; }
+
         /* Chat View — fixed header/footer layout */
         #chatView {
             height: 100%;
@@ -11706,7 +11776,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </div>
 
                     <!-- بطاقة: الجلسات المتزامنة -->
-                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="showComingSoon('الجلسات المتزامنة')">
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="openLiveSessionsPicker()">
                         <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
                             <i class="ph ph-monitor-play"></i>
                         </div>
@@ -11724,6 +11794,123 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         <p class="text-xs font-mono text-primary/70 mb-3" dir="ltr">Non Sync Sessions</p>
                         <p class="text-sm text-gray-500">محتوى تدريبي مسجل يمكن للمتدرب متابعته في الوقت الذي يناسبه</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 نظام الجلسات المتزامنة (Live Sync Sessions)
+            ══════════════════════════════════════════════════════════ -->
+            <div id="liveSessionView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <!-- هيدر الجلسة -->
+                <div class="glass-panel rounded-2xl p-3 md:p-4 mb-4 flex flex-wrap items-center gap-3">
+                    <button onclick="leaveLiveSession()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 shrink-0" title="خروج">
+                        <i class="ph ph-arrow-right text-lg"></i>
+                    </button>
+
+                    <div class="w-11 h-11 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl shrink-0 relative">
+                        <i class="ph ph-broadcast"></i>
+                        <span class="absolute -top-1 -left-1 w-3 h-3 rounded-full bg-red-500 live-pulse-dot"></span>
+                    </div>
+
+                    <!-- معلومات الدورة: للجميع -->
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <span id="liveSessionCourseCode" class="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">—</span>
+                            <span class="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                                <span class="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse-dot"></span> مباشر
+                            </span>
+                        </div>
+                        <p id="liveSessionProgramTitle" class="text-sm font-bold text-gray-800 truncate mt-0.5">اسم البرنامج</p>
+                    </div>
+
+                    <!-- عدد المشاركين: للجميع -->
+                    <div class="glass-element rounded-xl px-3 py-1.5 flex items-center gap-2 shrink-0">
+                        <i class="ph ph-users text-primary"></i>
+                        <span id="liveSessionParticipantsCount" class="text-sm font-bold text-gray-700">0</span>
+                    </div>
+
+                    <!-- أزرار الأدمن فقط -->
+                    <div class="admin-only flex items-center gap-1.5 flex-wrap shrink-0">
+                        <button id="liveMuteAllBtn" onclick="toggleMuteAll()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center" title="كتم صوت الجميع">
+                            <i class="ph ph-speaker-simple-slash text-lg"></i>
+                        </button>
+                        <button id="liveScreenShareBtn" onclick="toggleScreenShareLive()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center" title="مشاركة الشاشة">
+                            <i class="ph ph-monitor-arrow-up text-lg"></i>
+                        </button>
+                        <button id="liveVideoShareBtn" onclick="toggleVideoShareLive()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center" title="مشاركة فيديو">
+                            <i class="ph ph-video-camera text-lg"></i>
+                        </button>
+                        <button id="liveWhiteboardBtn" onclick="toggleWhiteboardLive()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center" title="السبورة البيضاء">
+                            <i class="ph ph-chalkboard text-lg"></i>
+                        </button>
+                        <button id="liveRecordBtn" onclick="toggleLiveRecording()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center" title="تسجيل الجلسة (محلياً)">
+                            <i class="ph ph-record text-lg"></i>
+                        </button>
+                        <button onclick="confirmEndLiveSession()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:!bg-red-50 hover:!border-red-300 hover:!text-red-600" title="إنهاء الجلسة">
+                            <i class="ph ph-phone-disconnect text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- جسم الجلسة: لوحة العرض + بطاقات المشاركين -->
+                <div class="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
+
+                    <!-- لوحة العرض الرئيسية -->
+                    <div class="flex-1 glass-panel rounded-2xl p-2 flex flex-col min-h-[300px] lg:min-h-0">
+                        <div id="liveStageArea" class="flex-1 rounded-xl bg-gray-900/90 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[300px]">
+                            <div id="liveStageEmptyState" class="flex flex-col items-center justify-center text-gray-400 p-6">
+                                <i class="ph ph-monitor-play text-5xl mb-3 opacity-60"></i>
+                                <p class="font-semibold text-sm">بانتظار بدء مشاركة الشاشة أو الفيديو</p>
+                                <p class="text-xs text-gray-500 mt-1">سيظهر العرض هنا فور تفعيله من قبل المدرب</p>
+                            </div>
+                            <video id="liveStageVideo" class="hidden w-full h-full object-contain" autoplay playsinline></video>
+                            <canvas id="liveWhiteboardCanvas" class="hidden absolute inset-0 w-full h-full bg-white"></canvas>
+
+                            <!-- شارات الحالة: مصدر البث الحالي + مؤشر التسجيل -->
+                            <div id="liveStageBadges">
+                                <span id="liveBroadcastBadge" class="hidden live-stage-badge">
+                                    <i class="ph ph-monitor-arrow-up"></i>
+                                    <span id="liveBroadcastBadgeText">مشاركة شاشة</span>
+                                </span>
+                                <span id="liveRecordBadge" class="hidden live-stage-badge rec-badge">
+                                    <span class="rec-dot"></span>
+                                    <span>تسجيل</span>
+                                    <span id="liveRecordBadgeTimer" class="font-mono">00:00</span>
+                                </span>
+                            </div>
+
+                            <!-- شريط أدوات السبورة البيضاء (يظهر فقط عند تفعيل السبورة، وللأدمن/المدرب فقط أدوات الرسم) -->
+                            <div id="liveWhiteboardToolbar" class="hidden admin-only">
+                                <span class="wb-color-dot active" data-color="#0f172a" style="background:#0f172a" onclick="setWhiteboardColor('#0f172a', this)"></span>
+                                <span class="wb-color-dot" data-color="#ef4444" style="background:#ef4444" onclick="setWhiteboardColor('#ef4444', this)"></span>
+                                <span class="wb-color-dot" data-color="#0790AC" style="background:#0790AC" onclick="setWhiteboardColor('#0790AC', this)"></span>
+                                <span class="wb-color-dot" data-color="#16a34a" style="background:#16a34a" onclick="setWhiteboardColor('#16a34a', this)"></span>
+                                <span class="wb-color-dot" data-color="#f59e0b" style="background:#f59e0b" onclick="setWhiteboardColor('#f59e0b', this)"></span>
+                                <span class="w-px h-5 bg-gray-300 mx-0.5"></span>
+                                <button onclick="setWhiteboardTool('pen')" id="wbToolPenBtn" class="w-7 h-7 rounded-full flex items-center justify-center text-gray-600 live-toggle-active" title="قلم">
+                                    <i class="ph ph-pencil-simple text-sm"></i>
+                                </button>
+                                <button onclick="setWhiteboardTool('eraser')" id="wbToolEraserBtn" class="w-7 h-7 rounded-full flex items-center justify-center text-gray-600" title="ممحاة">
+                                    <i class="ph ph-eraser text-sm"></i>
+                                </button>
+                                <button onclick="clearWhiteboardLive()" class="w-7 h-7 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50" title="مسح الكل">
+                                    <i class="ph ph-trash text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- بطاقات المشاركين -->
+                    <aside class="glass-panel w-full lg:w-80 rounded-2xl flex flex-col shrink-0 min-h-0">
+                        <div class="p-3 border-b border-white/40 flex items-center justify-between">
+                            <h3 class="font-bold text-sm text-gray-700 flex items-center gap-1.5">
+                                <i class="ph ph-users-three text-primary"></i> المشاركون
+                            </h3>
+                        </div>
+                        <div id="liveParticipantsGrid" class="flex-1 overflow-y-auto p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
+                            <!-- تُملأ ديناميكياً -->
+                        </div>
+                    </aside>
                 </div>
             </div>
 
@@ -12169,6 +12356,29 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     class="flex-1 glass-panel py-2.5 rounded-xl font-semibold hover:border-gray-400 transition-colors text-gray-600">
                     إلغاء
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         مودال اختيار / بدء / الانضمام لجلسة متزامنة
+    ══════════════════════════════════════════════════════════ -->
+    <div id="liveSessionPickerModal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="closeLiveSessionPicker()">
+        <div class="glass-panel bg-white/95 w-full max-w-md rounded-2xl p-5 shadow-2xl max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex items-center gap-3 mb-4 shrink-0">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-sky-200/40 flex items-center justify-center text-primary text-xl border border-primary/20">
+                    <i class="ph ph-broadcast"></i>
+                </div>
+                <div class="min-w-0">
+                    <h3 class="text-base font-bold text-gray-800">الجلسات المتزامنة</h3>
+                    <p class="text-xs text-gray-500">اختر الدورة لبدء أو الانضمام إلى جلسة مباشرة</p>
+                </div>
+                <button onclick="closeLiveSessionPicker()" class="glass-icon-btn w-8 h-8 rounded-full flex items-center justify-center mr-auto shrink-0">
+                    <i class="ph ph-x text-sm"></i>
+                </button>
+            </div>
+            <div id="liveSessionPickerBody" class="flex-1 overflow-y-auto space-y-2 -mx-1 px-1">
+                <!-- تُملأ ديناميكياً -->
             </div>
         </div>
     </div>
@@ -13764,7 +13974,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView'];
+        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -23685,6 +23895,28 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             match /settings/{doc=**} {
               allow read, write: if isAdmin();
             }
+
+            // ── الجلسات المتزامنة (Live Sync Sessions) ──
+            match /liveSessions/{sessionId} {
+              allow read: if isAuth();
+              allow create, update: if isAdmin() || isTrainer();
+              match /participants/{uid} {
+                allow read: if isAuth();
+                allow create, update: if isAuth() && (request.auth.uid == uid || isAdmin() || isTrainer());
+                allow delete: if isAuth() && (request.auth.uid == uid || isAdmin() || isTrainer());
+              }
+              // إشارة WebRTC للبث الحي (مشاركة شاشة/فيديو) — وثيقة واحدة لكل مُشاهد
+              match /broadcast/{viewerUid} {
+                allow read, write: if isAuth();
+                match /hostCandidates/{doc}   { allow read, write: if isAuth(); }
+                match /viewerCandidates/{doc} { allow read, write: if isAuth(); }
+              }
+              // أشواط السبورة البيضاء التفاعلية المتزامنة
+              match /whiteboardStrokes/{strokeId} {
+                allow read: if isAuth();
+                allow create, update, delete: if isAuth() && (isAdmin() || isTrainer());
+              }
+            }
           }
         }
         ═══════════════════════════════════════════════════════════════
@@ -28825,6 +29057,1209 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
          class="fixed bottom-4 right-4 z-[600] flex flex-col-reverse gap-2 pointer-events-none"
          style="max-width:320px;">
     </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         نظام الجلسات المتزامنة — Live Sync Sessions System
+         المرحلة ١: البنية، الاختيار/البدء/الانضمام، المشاركون، الهيدر
+    ══════════════════════════════════════════════════════════ -->
+    <script>
+    // ════════════════════════════════════════════════════
+    //  حالة الجلسة الحالية
+    // ════════════════════════════════════════════════════
+    let _liveSessionId       = null;   // معرف مستند الجلسة الحالية في liveSessions
+    let _liveSessionData     = null;   // آخر نسخة من بيانات مستند الجلسة
+    let _liveSessionUnsub    = null;   // إلغاء الاستماع لمستند الجلسة
+    let _liveParticipantsUnsub = null; // إلغاء الاستماع لمجموعة المشاركين
+    let _liveParticipants    = [];     // آخر نسخة من قائمة المشاركين
+    let _livePickerCourses   = [];     // قائمة الدورات المعروضة في مودال الاختيار (للنقر عليها بالفهرس)
+
+    function _liveGetDb()   { return (typeof db !== 'undefined' && db) ? db : (window._rtcGetDb ? window._rtcGetDb() : null); }
+    function _liveGetUser() { return (typeof currentUser !== 'undefined' && currentUser) ? currentUser : (window._rtcGetCurrentUser ? window._rtcGetCurrentUser() : null); }
+    function _liveIsAdmin() { const u = _liveGetUser(); return !!u && u.role === 'admin'; }
+
+    // ════════════════════════════════════════════════════
+    //  مودال اختيار / بدء / الانضمام إلى جلسة
+    // ════════════════════════════════════════════════════
+    async function openLiveSessionsPicker() {
+        const modal = document.getElementById('liveSessionPickerModal');
+        const body  = document.getElementById('liveSessionPickerBody');
+        if (!modal || !body) return;
+        modal.classList.remove('hidden');
+        body.innerHTML = `<div class="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                              <i class="ph ph-spinner-gap animate-spin text-lg"></i> جاري التحميل...
+                           </div>`;
+        await _renderLiveSessionsPickerContent();
+    }
+
+    function closeLiveSessionPicker() {
+        const modal = document.getElementById('liveSessionPickerModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // يجمع كل الدورات (مع اسم البرنامج) من programsData في مصفوفة مسطحة
+    function _liveGetAllCoursesFlat() {
+        const out = [];
+        Object.entries(programsData || {}).forEach(([programKey, program]) => {
+            (program.courses || []).forEach(course => {
+                out.push({ programKey, programTitle: program.title || programKey, course, courseKey: course.key || course.code });
+            });
+        });
+        return out;
+    }
+
+    async function _renderLiveSessionsPickerContent() {
+        const body = document.getElementById('liveSessionPickerBody');
+        const user = _liveGetUser();
+        const dbRef = _liveGetDb();
+        if (!body || !user || !dbRef) {
+            if (body) body.innerHTML = `<p class="text-center text-sm text-gray-400 py-8">تعذّر تحميل البيانات</p>`;
+            return;
+        }
+
+        // 1) حدد الدورات ذات الصلة حسب الدور
+        let relevant = _liveGetAllCoursesFlat();
+        if (user.role === 'trainer') {
+            const trainerName = user.displayName || user.nameAr || user.name || '';
+            relevant = relevant.filter(r => (r.course.mainTrainer || '').includes(trainerName));
+        } else if (user.role === 'trainee') {
+            const traineeName = user.displayName || user.nameAr || user.name || '';
+            relevant = relevant.filter(r => (r.course.traineesList || []).includes(traineeName));
+        }
+        // للأدمن: كل الدورات
+
+        // 2) اجلب الجلسات النشطة حالياً (status == active) لمطابقتها بالدورات
+        let activeSessions = [];
+        try {
+            const snap = await dbRef.collection('liveSessions').where('status', '==', 'active').get();
+            activeSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) { console.warn('تعذّر جلب الجلسات النشطة', e); }
+
+        const findActiveFor = (courseKey) => activeSessions.find(s => s.courseKey === courseKey);
+
+        // المتدرب: يرى فقط الدورات التي فيها جلسة نشطة حالياً
+        if (user.role === 'trainee') {
+            relevant = relevant.filter(r => findActiveFor(r.courseKey));
+        }
+
+        _livePickerCourses = relevant;
+
+        if (relevant.length === 0) {
+            body.innerHTML = `
+                <div class="flex flex-col items-center justify-center text-center py-10">
+                    <div class="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                        <i class="ph ph-broadcast text-3xl text-gray-300"></i>
+                    </div>
+                    <p class="text-sm font-semibold text-gray-400">لا توجد جلسات متزامنة متاحة حالياً</p>
+                    <p class="text-xs text-gray-300 mt-1">${user.role === 'trainee' ? 'سيتم إشعارك عند بدء المدرب لجلسة جديدة' : 'لا توجد دورات مرتبطة بحسابك'}</p>
+                </div>`;
+            return;
+        }
+
+        body.innerHTML = relevant.map((r, idx) => {
+            const active = findActiveFor(r.courseKey);
+            const canStart = user.role === 'admin' || user.role === 'trainer';
+            return `
+            <div class="glass-element rounded-xl p-3 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg glass-icon-tile flex items-center justify-center text-primary shrink-0">
+                    <i class="ph ph-graduation-cap"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="font-bold text-sm text-gray-800 truncate">${escapeHtml(r.course.code || r.courseKey)}</p>
+                    <p class="text-xs text-gray-400 truncate">${escapeHtml(r.programTitle)}</p>
+                </div>
+                ${active
+                    ? `<button onclick="joinLiveSessionById('${active.id}')" class="shrink-0 bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1">
+                           <span class="w-1.5 h-1.5 rounded-full bg-white live-pulse-dot"></span> انضمام
+                       </button>`
+                    : (canStart
+                        ? `<button onclick="startLiveSession(${idx})" class="shrink-0 bg-primary text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1">
+                               <i class="ph ph-play"></i> بدء جلسة
+                           </button>`
+                        : `<span class="shrink-0 text-[11px] text-gray-300 font-semibold px-2">لا توجد جلسة حالياً</span>`)
+                }
+            </div>`;
+        }).join('');
+    }
+
+    // ════════════════════════════════════════════════════
+    //  بدء / الانضمام / الخروج / إنهاء الجلسة
+    // ════════════════════════════════════════════════════
+    async function startLiveSession(idx) {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        const item  = _livePickerCourses[idx];
+        if (!dbRef || !user || !item) return;
+
+        try {
+            // تأكد أنه لا توجد جلسة نشطة لنفس الدورة (تفادي التكرار)
+            const existing = await dbRef.collection('liveSessions')
+                .where('status', '==', 'active')
+                .where('courseKey', '==', item.courseKey)
+                .limit(1).get();
+
+            if (!existing.empty) {
+                await joinLiveSessionById(existing.docs[0].id);
+                return;
+            }
+
+            const docRef = await dbRef.collection('liveSessions').add({
+                programKey:   item.programKey,
+                courseKey:    item.courseKey,
+                programTitle: item.programTitle,
+                courseCode:   item.course.code || item.courseKey,
+                status:       'active',
+                hostUid:      user.uid || user.appUid || '',
+                hostName:     user.displayName || user.nameAr || user.name || '',
+                muteAll:      false,
+                screenShare:  { active: false, by: null },
+                whiteboard:   { active: false },
+                videoShare:   { active: false, by: null },
+                recording:    false,
+                createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
+                endedAt:      null
+            });
+            await joinLiveSessionById(docRef.id);
+            showToast('✅ تم بدء الجلسة المتزامنة', 'success');
+        } catch (e) {
+            console.error('startLiveSession error', e);
+            showToast('⚠️ تعذّر بدء الجلسة', 'error');
+        }
+    }
+
+    async function joinLiveSessionById(sessionId) {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (!dbRef || !user || !sessionId) return;
+
+        try {
+            const snap = await dbRef.collection('liveSessions').doc(sessionId).get();
+            if (!snap.exists || snap.data().status !== 'active') {
+                showToast('⚠️ لم يعد بالإمكان الوصول لهذه الجلسة', 'error');
+                return;
+            }
+        } catch (e) { console.warn('join check error', e); }
+
+        closeLiveSessionPicker();
+        _liveSessionId = sessionId;
+
+        const myUid = user.uid || user.appUid || ('guest_' + Date.now());
+        const myName = user.displayName || user.nameAr || user.name || 'مستخدم';
+        const myCode = user.code || user.personalCode || '';
+
+        try {
+            await dbRef.collection('liveSessions').doc(sessionId)
+                .collection('participants').doc(myUid).set({
+                    uid: myUid,
+                    nameAr: myName,
+                    code: myCode,
+                    role: user.role || 'trainee',
+                    micEnabled: false,
+                    isSpeaking: false,
+                    kicked: false,
+                    joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+        } catch (e) { console.error('join participant write error', e); }
+
+        showView('liveSessionView');
+        closeSidebar();
+        _subscribeLiveSession(sessionId);
+        _subscribeLiveParticipants(sessionId);
+    }
+
+    function _subscribeLiveSession(sessionId) {
+        const dbRef = _liveGetDb();
+        if (_liveSessionUnsub) { _liveSessionUnsub(); _liveSessionUnsub = null; }
+        if (!dbRef) return;
+
+        _liveSessionUnsub = dbRef.collection('liveSessions').doc(sessionId)
+            .onSnapshot(snap => {
+                if (!snap.exists) { _forceLeaveLiveSession('تم حذف الجلسة'); return; }
+                const data = snap.data();
+                _liveSessionData = data;
+                if (data.status !== 'active') {
+                    _forceLeaveLiveSession('تم إنهاء الجلسة من قبل المدرب');
+                    return;
+                }
+                _renderLiveSessionHeader(data);
+                _applyLiveSessionMediaState(data);
+            }, err => console.warn('session listener error', err));
+    }
+
+    function _subscribeLiveParticipants(sessionId) {
+        const dbRef = _liveGetDb();
+        if (_liveParticipantsUnsub) { _liveParticipantsUnsub(); _liveParticipantsUnsub = null; }
+        if (!dbRef) return;
+
+        _liveParticipantsUnsub = dbRef.collection('liveSessions').doc(sessionId)
+            .collection('participants')
+            .onSnapshot(snap => {
+                _liveParticipants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                _renderLiveParticipantsGrid();
+                _checkIfIWasKicked();
+                _syncMyMicCaptureState();
+
+                // إن كنت أُذيع حالياً، اتصل تلقائياً بأي مشارك جديد وأغلق الاتصال مع من غادر/طُرد
+                if (_liveBroadcastStream) {
+                    const user = _liveGetUser();
+                    const myUid = user && (user.uid || user.appUid);
+                    const activeUids = new Set(_liveParticipants.filter(p => !p.kicked && p.uid !== myUid).map(p => p.uid));
+                    activeUids.forEach(uid => { if (!_liveBroadcastPeers[uid]) _hostConnectToViewer(uid); });
+                    Object.keys(_liveBroadcastPeers).forEach(uid => { if (!activeUids.has(uid)) _hostDisconnectViewer(uid); });
+                }
+            }, err => console.warn('participants listener error', err));
+    }
+
+    function _checkIfIWasKicked() {
+        const user = _liveGetUser();
+        if (!user) return;
+        const myUid = user.uid || user.appUid;
+        const me = _liveParticipants.find(p => p.uid === myUid);
+        if (me && me.kicked === true) {
+            _forceLeaveLiveSession('تم إخراجك من الجلسة بواسطة المدرب');
+        }
+    }
+
+    function _renderLiveSessionHeader(data) {
+        const codeEl  = document.getElementById('liveSessionCourseCode');
+        const progEl  = document.getElementById('liveSessionProgramTitle');
+        if (codeEl) codeEl.textContent = data.courseCode || '—';
+        if (progEl) progEl.textContent = data.programTitle || '—';
+
+        const recBtn = document.getElementById('liveRecordBtn');
+        if (recBtn) recBtn.classList.toggle('live-rec-active', !!data.recording);
+
+        const screenBtn = document.getElementById('liveScreenShareBtn');
+        if (screenBtn) screenBtn.classList.toggle('live-toggle-active', !!(data.screenShare && data.screenShare.active));
+        const videoBtn = document.getElementById('liveVideoShareBtn');
+        if (videoBtn) videoBtn.classList.toggle('live-toggle-active', !!(data.videoShare && data.videoShare.active));
+        const wbBtn = document.getElementById('liveWhiteboardBtn');
+        if (wbBtn) wbBtn.classList.toggle('live-toggle-active', !!(data.whiteboard && data.whiteboard.active));
+    }
+
+    function _renderLiveParticipantsGrid() {
+        const grid = document.getElementById('liveParticipantsGrid');
+        const countEl = document.getElementById('liveSessionParticipantsCount');
+        if (countEl) countEl.textContent = _liveParticipants.filter(p => !p.kicked).length;
+        if (!grid) return;
+
+        const isAdmin = _liveIsAdmin();
+        const list = _liveParticipants.filter(p => !p.kicked);
+
+        if (list.length === 0) {
+            grid.innerHTML = `<p class="text-xs text-gray-400 text-center py-6 col-span-full">لا يوجد مشاركون بعد</p>`;
+            return;
+        }
+
+        grid.innerHTML = list.map(p => {
+            const initial = (p.nameAr || '؟').charAt(0);
+            const speaking = !!p.isSpeaking;
+            const micOn = !!p.micEnabled;
+            return `
+            <div class="live-participant-card glass-element rounded-xl p-2.5 ${speaking ? 'is-speaking' : ''} ${!micOn ? 'is-muted-off' : ''}" data-uid="${escapeHtml(p.uid)}">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center shrink-0 text-sm">
+                        ${escapeHtml(initial)}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="font-semibold text-xs text-gray-800 truncate">${escapeHtml(p.nameAr || '—')}</p>
+                        <p class="text-[10px] font-mono text-gray-400 truncate">${escapeHtml(p.code || '—')}</p>
+                    </div>
+                    <i class="ph ${micOn ? 'ph-microphone' : 'ph-microphone-slash'} live-mic-icon text-sm ${micOn ? 'text-emerald-500' : 'text-gray-300'} shrink-0"></i>
+                </div>
+                <div class="admin-only flex items-center gap-1.5 mt-2 pt-2 border-t border-white/40">
+                    <button onclick="toggleParticipantMic('${escapeHtml(p.uid)}', ${!micOn})" class="flex-1 glass-icon-btn h-7 rounded-lg flex items-center justify-center text-[11px]" title="${micOn ? 'إغلاق المايك' : 'فتح المايك'}">
+                        <i class="ph ${micOn ? 'ph-microphone-slash' : 'ph-microphone'}"></i>
+                    </button>
+                    <button onclick="openPrivateMessageWithParticipant('${escapeHtml(p.uid)}')" class="flex-1 glass-icon-btn h-7 rounded-lg flex items-center justify-center text-[11px]" title="رسالة خاصة">
+                        <i class="ph ph-chat-circle-dots"></i>
+                    </button>
+                    <button onclick="kickParticipant('${escapeHtml(p.uid)}')" class="flex-1 glass-icon-btn h-7 rounded-lg flex items-center justify-center text-[11px] text-red-500 hover:!bg-red-50 hover:!border-red-300" title="طرد">
+                        <i class="ph ph-user-minus"></i>
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // خروج طوعي من الجلسة
+    async function leaveLiveSession() {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (dbRef && user && _liveSessionId) {
+            const myUid = user.uid || user.appUid;
+            try {
+                await dbRef.collection('liveSessions').doc(_liveSessionId)
+                    .collection('participants').doc(myUid).delete();
+            } catch (e) { console.warn('leave delete error', e); }
+        }
+        _cleanupLiveSessionState();
+        showView('virtualSessionsView');
+    }
+
+    // خروج قسري (انتهاء الجلسة / طرد) بدون حذف مستند آخرين
+    function _forceLeaveLiveSession(reason) {
+        _cleanupLiveSessionState();
+        showToast('ℹ️ ' + reason, 'info');
+        if (document.getElementById('liveSessionView') && !document.getElementById('liveSessionView').classList.contains('hidden')) {
+            showView('virtualSessionsView');
+        }
+    }
+
+    function _cleanupLiveSessionState() {
+        if (_liveSessionUnsub) { _liveSessionUnsub(); _liveSessionUnsub = null; }
+        if (_liveParticipantsUnsub) { _liveParticipantsUnsub(); _liveParticipantsUnsub = null; }
+        _stopSpeakingDetection();
+        _liveMyPrevMicState = null;
+
+        // أوقف البث/الاستقبال/السبورة/التسجيل قبل مغادرة الجلسة نهائياً
+        if (_liveBroadcastStream) _hostStopBroadcast(false);
+        if (_liveViewerPeer) _viewerStopReceiving();
+        _unsubscribeWhiteboardStrokes();
+        _liveWbActive = false;
+        _wbTeardownCanvas();
+        if (_liveRecorder && _liveRecorder.state === 'recording') _liveRecorder.stop();
+
+        _liveSessionId = null;
+        _liveSessionData = null;
+        _liveParticipants = [];
+    }
+
+    // إنهاء الجلسة (أدمن فقط)
+    function confirmEndLiveSession() {
+        if (!_liveIsAdmin()) return;
+        if (!confirm('هل أنت متأكد من إنهاء الجلسة المتزامنة؟ سيتم إخراج جميع المشاركين.')) return;
+        endLiveSessionNow();
+    }
+
+    async function endLiveSessionNow() {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !_liveSessionId) return;
+        try {
+            await dbRef.collection('liveSessions').doc(_liveSessionId).update({
+                status: 'ended',
+                endedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (e) {
+            console.error('endLiveSessionNow error', e);
+            showToast('⚠️ تعذّر إنهاء الجلسة', 'error');
+        }
+    }
+
+    // ════════════════════════════════════════════════════
+    //  وظائف الأدمن (سيتم تفعيلها بالكامل في المرحلة القادمة)
+    // ════════════════════════════════════════════════════
+    async function kickParticipant(uid) {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !_liveSessionId || !_liveIsAdmin()) return;
+        try {
+            await dbRef.collection('liveSessions').doc(_liveSessionId)
+                .collection('participants').doc(uid).update({ kicked: true });
+            showToast('تم طرد المشارك من الجلسة', 'success');
+        } catch (e) { console.error('kickParticipant error', e); showToast('⚠️ تعذّر الطرد', 'error'); }
+    }
+
+    async function toggleParticipantMic(uid, enable) {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !_liveSessionId || !_liveIsAdmin()) return;
+        try {
+            await dbRef.collection('liveSessions').doc(_liveSessionId)
+                .collection('participants').doc(uid).update({ micEnabled: !!enable });
+        } catch (e) { console.error('toggleParticipantMic error', e); }
+    }
+
+    async function openPrivateMessageWithParticipant(uid) {
+        const p = _liveParticipants.find(x => x.uid === uid);
+        const user = _liveGetUser();
+        if (!p || !user || !db) return;
+        const myUid = user.uid || user.appUid;
+        if (myUid === uid) return;
+        const convId = buildConvId(myUid, uid);
+        try {
+            const convRef = db.collection('chats').doc(convId);
+            const snap = await convRef.get();
+            const myName = user.displayName || user.nameAr || user.name || myUid;
+            if (!snap.exists) {
+                await convRef.set({
+                    participants: [myUid, uid].sort(),
+                    names: { [myUid]: { ar: myName, en: user.email || '', code: user.code || '' }, [uid]: { ar: p.nameAr || '—', en: '', code: p.code || '' } },
+                    lastMsg: '', lastTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    unread: { [myUid]: 0, [uid]: 0 }, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        } catch (e) { console.warn('open private chat error', e); }
+
+        if (typeof chatConversations !== 'undefined' && !chatConversations.find(c => c.id === convId)) {
+            chatConversations.unshift({ id: convId, otherUid: uid, nameAr: p.nameAr || '—', nameEn: '', code: p.code || '', lastMsg: '', lastTimestamp: Date.now(), unread: 0 });
+        }
+        openChatWindow(convId);
+    }
+
+    async function toggleMuteAll() {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !_liveSessionId || !_liveIsAdmin() || !_liveSessionData) return;
+        const newVal = !_liveSessionData.muteAll;
+        try {
+            await dbRef.collection('liveSessions').doc(_liveSessionId).update({ muteAll: newVal });
+            if (newVal) {
+                const batch = dbRef.batch();
+                _liveParticipants.forEach(p => {
+                    if (p.uid !== _liveSessionData.hostUid) {
+                        batch.update(dbRef.collection('liveSessions').doc(_liveSessionId).collection('participants').doc(p.uid), { micEnabled: false });
+                    }
+                });
+                await batch.commit();
+            }
+            showToast(newVal ? '🔇 تم كتم صوت الجميع' : '🔊 تم إلغاء الكتم العام', 'success');
+        } catch (e) { console.error('toggleMuteAll error', e); }
+    }
+
+    // ════════════════════════════════════════════════════
+    //  المرحلة ٣: البث الحي الفعلي عبر WebRTC (مشاركة شاشة/فيديو)
+    //  المضيف (Admin/Trainer) يفتح اتصال WebRTC منفصل مع كل مشاهد (نجمة Mesh)
+    //  والإشارة (Signaling) بالكامل عبر Firestore، بنفس نمط نظام المكالمات أعلاه
+    // ════════════════════════════════════════════════════
+    let _liveBroadcastStream      = null;  // MediaStream المحلي الذي يبثّه المضيف (شاشة أو كاميرا)
+    let _liveBroadcastKind        = null;  // 'screen' | 'camera'
+    let _liveBroadcastPeers       = {};    // { viewerUid: RTCPeerConnection } — لدى المضيف فقط
+    let _liveBroadcastUnsubs      = {};    // { viewerUid: [unsub,...] }
+    let _liveBroadcastPendingCand = {};    // { viewerUid: RTCIceCandidate[] } تخزين مؤقت قبل ضبط remoteDescription
+
+    let _liveViewerPeer        = null;     // RTCPeerConnection لدى المُشاهد
+    let _liveViewerFrom        = null;     // uid المضيف الذي أستقبل بثه حالياً
+    let _liveViewerUnsubs      = [];
+    let _liveViewerPendingCand = [];
+
+    function _liveBroadcastCollRef(sessionId) {
+        return _liveGetDb().collection('liveSessions').doc(sessionId).collection('broadcast');
+    }
+
+    async function _liveDeleteCollectionDocs(collRef) {
+        try {
+            const snap = await collRef.get();
+            if (snap.empty) return;
+            const batch = collRef.firestore.batch();
+            snap.docs.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+        } catch (e) { /* تنظيف غير حرج — يتجاهل الخطأ */ }
+    }
+
+    // ─── جهة المضيف: بدء البث ──────────────────────────────────
+    async function _hostStartBroadcast(kind) {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (!dbRef || !user || !_liveSessionId || !_liveIsAdmin()) return;
+
+        if (_liveBroadcastStream) await _hostStopBroadcast(false); // أوقف أي بث سابق أولاً
+
+        let stream;
+        try {
+            stream = kind === 'screen'
+                ? await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 24 }, audio: true })
+                : await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
+        } catch (e) {
+            console.warn('_hostStartBroadcast getMedia error', e);
+            showToast('⚠️ تعذّر الوصول إلى ' + (kind === 'screen' ? 'الشاشة' : 'الكاميرا'), 'error');
+            return;
+        }
+
+        _liveBroadcastStream = stream;
+        _liveBroadcastKind   = kind;
+
+        // إن أوقف المستخدم المشاركة من شريط المتصفح مباشرة ("Stop sharing")
+        stream.getVideoTracks().forEach(t => {
+            t.onended = () => { if (_liveBroadcastStream === stream) _hostStopBroadcast(true); };
+        });
+
+        _showLiveStageStream(stream, kind === 'screen' ? 'مشاركة شاشة (أنت)' : 'مشاركة فيديو (أنت)');
+
+        try {
+            const field = kind === 'screen' ? 'screenShare' : 'videoShare';
+            const other = kind === 'screen' ? 'videoShare' : 'screenShare';
+            await dbRef.collection('liveSessions').doc(_liveSessionId).update({
+                [field]: { active: true, by: user.uid || user.appUid },
+                [other]: { active: false, by: null }
+            });
+        } catch (e) { console.warn('update broadcast state error', e); }
+
+        const myUid = user.uid || user.appUid;
+        _liveParticipants.filter(p => p.uid !== myUid && !p.kicked).forEach(p => _hostConnectToViewer(p.uid));
+
+        const btn = document.getElementById(kind === 'screen' ? 'liveScreenShareBtn' : 'liveVideoShareBtn');
+        if (btn) btn.classList.add('live-toggle-active');
+        showToast('🟢 بدأ البث المباشر', 'success');
+    }
+
+    // ─── جهة المضيف: إيقاف البث ─────────────────────────────────
+    async function _hostStopBroadcast(notifyToast) {
+        const dbRef = _liveGetDb();
+        const kind  = _liveBroadcastKind;
+
+        Object.keys(_liveBroadcastPeers).forEach(uid => _hostDisconnectViewer(uid));
+        _liveBroadcastPeers = {};
+
+        if (_liveBroadcastStream) _liveBroadcastStream.getTracks().forEach(t => t.stop());
+        _liveBroadcastStream = null;
+        _liveBroadcastKind   = null;
+
+        _hideLiveStageStream();
+
+        if (dbRef && _liveSessionId && kind) {
+            const field = kind === 'screen' ? 'screenShare' : 'videoShare';
+            try { await dbRef.collection('liveSessions').doc(_liveSessionId).update({ [field]: { active: false, by: null } }); }
+            catch (e) { console.warn('clear broadcast state error', e); }
+        }
+
+        const screenBtn = document.getElementById('liveScreenShareBtn');
+        const videoBtn  = document.getElementById('liveVideoShareBtn');
+        if (screenBtn) screenBtn.classList.remove('live-toggle-active');
+        if (videoBtn)  videoBtn.classList.remove('live-toggle-active');
+
+        if (notifyToast) showToast('⏹️ تم إيقاف البث', 'info');
+    }
+
+    function toggleScreenShareLive() {
+        if (!_liveIsAdmin()) return;
+        if (_liveBroadcastStream && _liveBroadcastKind === 'screen') { _hostStopBroadcast(true); return; }
+        _hostStartBroadcast('screen');
+    }
+    function toggleVideoShareLive() {
+        if (!_liveIsAdmin()) return;
+        if (_liveBroadcastStream && _liveBroadcastKind === 'camera') { _hostStopBroadcast(true); return; }
+        _hostStartBroadcast('camera');
+    }
+
+    // ─── جهة المضيف: فتح اتصال WebRTC مع مشاهد واحد ────────────
+    async function _hostConnectToViewer(viewerUid) {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !_liveSessionId || !_liveBroadcastStream || _liveBroadcastPeers[viewerUid]) return;
+
+        const docRef = _liveBroadcastCollRef(_liveSessionId).doc(viewerUid);
+        const pc = new RTCPeerConnection(RTC_CONFIG);
+        _liveBroadcastPeers[viewerUid] = pc;
+        _liveBroadcastPendingCand[viewerUid] = [];
+
+        _liveBroadcastStream.getTracks().forEach(t => pc.addTrack(t, _liveBroadcastStream));
+
+        pc.onicecandidate = e => {
+            if (e.candidate) docRef.collection('hostCandidates').add(e.candidate.toJSON()).catch(() => {});
+        };
+
+        try {
+            const user = _liveGetUser();
+            await docRef.set({
+                hostUid: user ? (user.uid || user.appUid) : null,
+                kind: _liveBroadcastKind,
+                offer: null, answer: null,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await docRef.update({ offer: { type: offer.type, sdp: offer.sdp } });
+
+            const unsubDoc = docRef.onSnapshot(async snap => {
+                const data = snap.data();
+                if (data && data.answer && !pc.currentRemoteDescription) {
+                    try {
+                        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                        (_liveBroadcastPendingCand[viewerUid] || []).forEach(c => pc.addIceCandidate(c).catch(() => {}));
+                        _liveBroadcastPendingCand[viewerUid] = [];
+                    } catch (e) { console.warn('host setRemoteDescription error', e); }
+                }
+            });
+
+            const unsubCand = docRef.collection('viewerCandidates').onSnapshot(snap => {
+                snap.docChanges().forEach(ch => {
+                    if (ch.type !== 'added') return;
+                    const cand = new RTCIceCandidate(ch.doc.data());
+                    if (pc.remoteDescription) pc.addIceCandidate(cand).catch(() => {});
+                    else (_liveBroadcastPendingCand[viewerUid] = _liveBroadcastPendingCand[viewerUid] || []).push(cand);
+                });
+            });
+
+            _liveBroadcastUnsubs[viewerUid] = [unsubDoc, unsubCand];
+        } catch (e) { console.error('_hostConnectToViewer error', e); }
+    }
+
+    function _hostDisconnectViewer(viewerUid) {
+        const pc = _liveBroadcastPeers[viewerUid];
+        if (pc) { try { pc.close(); } catch (e) {} }
+        delete _liveBroadcastPeers[viewerUid];
+        delete _liveBroadcastPendingCand[viewerUid];
+        (_liveBroadcastUnsubs[viewerUid] || []).forEach(u => u && u());
+        delete _liveBroadcastUnsubs[viewerUid];
+        if (_liveSessionId) {
+            const docRef = _liveBroadcastCollRef(_liveSessionId).doc(viewerUid);
+            _liveDeleteCollectionDocs(docRef.collection('hostCandidates'));
+            _liveDeleteCollectionDocs(docRef.collection('viewerCandidates'));
+            docRef.delete().catch(() => {});
+        }
+    }
+
+    // ─── جهة المُشاهد: استقبال البث ─────────────────────────────
+    async function _viewerStartReceiving(hostUid, kind) {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (!dbRef || !user || !_liveSessionId) return;
+        if (_liveViewerFrom === hostUid && _liveViewerPeer) return; // متصل بالفعل بنفس المضيف
+        if (_liveViewerPeer) _viewerStopReceiving();
+
+        const myUid = user.uid || user.appUid;
+        _liveViewerFrom = hostUid;
+        const docRef = _liveBroadcastCollRef(_liveSessionId).doc(myUid);
+
+        const pc = new RTCPeerConnection(RTC_CONFIG);
+        _liveViewerPeer = pc;
+
+        pc.ontrack = e => _showLiveStageStream(e.streams[0], kind === 'screen' ? 'مشاركة شاشة' : 'مشاركة فيديو');
+        pc.onicecandidate = e => {
+            if (e.candidate) docRef.collection('viewerCandidates').add(e.candidate.toJSON()).catch(() => {});
+        };
+
+        const unsubDoc = docRef.onSnapshot(async snap => {
+            const data = snap.data();
+            if (!data || !data.offer || pc.currentRemoteDescription) return;
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                _liveViewerPendingCand.forEach(c => pc.addIceCandidate(c).catch(() => {}));
+                _liveViewerPendingCand = [];
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                await docRef.update({ answer: { type: answer.type, sdp: answer.sdp } });
+            } catch (e) { console.warn('viewer answer error', e); }
+        });
+
+        const unsubCand = docRef.collection('hostCandidates').onSnapshot(snap => {
+            snap.docChanges().forEach(ch => {
+                if (ch.type !== 'added') return;
+                const cand = new RTCIceCandidate(ch.doc.data());
+                if (pc.remoteDescription) pc.addIceCandidate(cand).catch(() => {});
+                else _liveViewerPendingCand.push(cand);
+            });
+        });
+
+        _liveViewerUnsubs = [unsubDoc, unsubCand];
+    }
+
+    function _viewerStopReceiving() {
+        if (_liveViewerPeer) { try { _liveViewerPeer.close(); } catch (e) {} }
+        _liveViewerPeer = null;
+        _liveViewerFrom = null;
+        _liveViewerPendingCand = [];
+        _liveViewerUnsubs.forEach(u => u && u());
+        _liveViewerUnsubs = [];
+        _hideLiveStageStream();
+    }
+
+    // ─── عرض/إخفاء المصدر الحالي على منصة العرض ──────────────────
+    function _showLiveStageStream(stream, label) {
+        const video = document.getElementById('liveStageVideo');
+        const empty = document.getElementById('liveStageEmptyState');
+        const badge = document.getElementById('liveBroadcastBadge');
+        const badgeText = document.getElementById('liveBroadcastBadgeText');
+        if (!video) return;
+        if (video.srcObject !== stream) video.srcObject = stream;
+        if (!_liveWbActive) video.classList.remove('hidden');
+        if (empty) empty.classList.add('hidden');
+        if (badge) badge.classList.remove('hidden');
+        if (badgeText) badgeText.textContent = label || 'بث مباشر';
+    }
+
+    function _hideLiveStageStream() {
+        const video = document.getElementById('liveStageVideo');
+        const empty = document.getElementById('liveStageEmptyState');
+        const badge = document.getElementById('liveBroadcastBadge');
+        if (video) { video.classList.add('hidden'); video.srcObject = null; }
+        if (badge) badge.classList.add('hidden');
+        if (empty && !_liveWbActive) empty.classList.remove('hidden');
+    }
+
+    // ─── يُستدعى عند كل تحديث لمستند الجلسة: يزامن حالة العرض والسبورة ──
+    function _applyLiveSessionMediaState(data) {
+        const user = _liveGetUser();
+        if (!user || !data) return;
+        const myUid = user.uid || user.appUid;
+
+        const screenActive = !!(data.screenShare && data.screenShare.active);
+        const videoActive  = !!(data.videoShare && data.videoShare.active);
+        const screenBy = data.screenShare && data.screenShare.by;
+        const videoBy  = data.videoShare && data.videoShare.by;
+
+        if (screenBy === myUid || videoBy === myUid) {
+            // أنا المضيف — المعاينة المحلية تُدار مباشرة في _hostStartBroadcast
+        } else if (screenActive && screenBy) {
+            _viewerStartReceiving(screenBy, 'screen');
+        } else if (videoActive && videoBy) {
+            _viewerStartReceiving(videoBy, 'camera');
+        } else if (_liveViewerPeer) {
+            _viewerStopReceiving();
+        }
+
+        // مزامنة ظهور/اختفاء السبورة البيضاء لدى الجميع
+        const wbActive = !!(data.whiteboard && data.whiteboard.active);
+        if (wbActive !== _liveWbActive) {
+            _liveWbActive = wbActive;
+            _applyWhiteboardVisibility();
+            if (wbActive) _subscribeWhiteboardStrokes(); else _unsubscribeWhiteboardStrokes();
+        }
+    }
+
+    // ════════════════════════════════════════════════════
+    //  المرحلة ٣: السبورة البيضاء التفاعلية المتزامنة
+    //  كل الأشواط (Strokes) تُخزَّن كنقاط نسبية (0..1) في Firestore
+    //  ويعاد رسمها لحظياً لدى جميع المشاركين عبر onSnapshot
+    // ════════════════════════════════════════════════════
+    let _liveWbActive      = false;
+    let _liveWbUnsub        = null;
+    let _liveWbStrokes      = new Map();  // strokeId -> {uid,color,tool,width,points:[{x,y}...]}
+    let _wbColor            = '#0f172a';
+    let _wbTool             = 'pen';
+    let _wbDrawing          = false;
+    let _wbCurrentStrokeId  = null;
+    let _wbCurrentPoints    = [];
+    let _wbLastWrite        = 0;
+    let _wbResizeObserver   = null;
+
+    function _wbCanvas() { return document.getElementById('liveWhiteboardCanvas'); }
+
+    function _applyWhiteboardVisibility() {
+        const canvas  = _wbCanvas();
+        const toolbar = document.getElementById('liveWhiteboardToolbar');
+        const video   = document.getElementById('liveStageVideo');
+        const empty   = document.getElementById('liveStageEmptyState');
+        if (!canvas) return;
+
+        if (_liveWbActive) {
+            canvas.classList.remove('hidden');
+            if (video) video.classList.add('hidden');
+            if (empty) empty.classList.add('hidden');
+            if (toolbar) toolbar.classList.toggle('hidden', !_liveIsAdmin());
+            canvas.classList.toggle('wb-view-only', !_liveIsAdmin());
+            _wbSetupCanvas();
+        } else {
+            canvas.classList.add('hidden');
+            if (toolbar) toolbar.classList.add('hidden');
+            _wbTeardownCanvas();
+            if (_liveBroadcastStream || _liveViewerPeer) { if (video) video.classList.remove('hidden'); }
+            else if (empty) empty.classList.remove('hidden');
+        }
+    }
+
+    function _wbSetupCanvas() {
+        const canvas = _wbCanvas();
+        const area = document.getElementById('liveStageArea');
+        if (!canvas || !area) return;
+
+        const resize = () => {
+            const rect = area.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width  = Math.max(1, Math.round(rect.width * dpr));
+            canvas.height = Math.max(1, Math.round(rect.height * dpr));
+            canvas.style.width  = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            _wbRedrawAll();
+        };
+        resize();
+
+        if (_wbResizeObserver) _wbResizeObserver.disconnect();
+        _wbResizeObserver = new ResizeObserver(resize);
+        _wbResizeObserver.observe(area);
+
+        if (_liveIsAdmin()) {
+            canvas.onpointerdown   = _wbPointerDown;
+            canvas.onpointermove   = _wbPointerMove;
+            canvas.onpointerup     = _wbPointerUp;
+            canvas.onpointerleave  = _wbPointerUp;
+            canvas.onpointercancel = _wbPointerUp;
+        }
+    }
+
+    function _wbTeardownCanvas() {
+        if (_wbResizeObserver) { _wbResizeObserver.disconnect(); _wbResizeObserver = null; }
+        const canvas = _wbCanvas();
+        if (canvas) canvas.onpointerdown = canvas.onpointermove = canvas.onpointerup = canvas.onpointerleave = canvas.onpointercancel = null;
+        _wbDrawing = false;
+        _wbCurrentStrokeId = null;
+        _wbCurrentPoints = [];
+    }
+
+    function setWhiteboardColor(color, el) {
+        _wbColor = color;
+        document.querySelectorAll('.wb-color-dot').forEach(d => d.classList.remove('active'));
+        if (el) el.classList.add('active');
+        setWhiteboardTool('pen');
+    }
+
+    function setWhiteboardTool(tool) {
+        _wbTool = tool;
+        const penBtn = document.getElementById('wbToolPenBtn');
+        const eraserBtn = document.getElementById('wbToolEraserBtn');
+        if (penBtn) penBtn.classList.toggle('live-toggle-active', tool === 'pen');
+        if (eraserBtn) eraserBtn.classList.toggle('live-toggle-active', tool === 'eraser');
+    }
+
+    function _wbPointFromEvent(e) {
+        const canvas = _wbCanvas();
+        const rect = canvas.getBoundingClientRect();
+        return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
+    }
+
+    function _wbPointerDown(e) {
+        if (!_liveIsAdmin() || !_liveWbActive) return;
+        e.preventDefault();
+        const dbRef = _liveGetDb();
+        const user = _liveGetUser();
+        if (!dbRef || !user || !_liveSessionId) return;
+
+        _wbDrawing = true;
+        const docRef = dbRef.collection('liveSessions').doc(_liveSessionId).collection('whiteboardStrokes').doc();
+        _wbCurrentStrokeId = docRef.id;
+        _wbCurrentPoints = [_wbPointFromEvent(e)];
+        docRef.set({
+            uid: user.uid || user.appUid,
+            color: _wbColor, tool: _wbTool,
+            width: _wbTool === 'eraser' ? 26 : 3,
+            points: _wbCurrentPoints,
+            ts: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(e => console.warn('wb stroke start error', e));
+    }
+
+    function _wbPointerMove(e) {
+        if (!_wbDrawing || !_wbCurrentStrokeId) return;
+        e.preventDefault();
+        _wbCurrentPoints.push(_wbPointFromEvent(e));
+        _wbRedrawAll(); // رسم فوري محلي لسلاسة أكبر لدى الراسم نفسه
+        const now = Date.now();
+        if (now - _wbLastWrite > 90) {
+            _wbLastWrite = now;
+            _liveGetDb().collection('liveSessions').doc(_liveSessionId)
+                .collection('whiteboardStrokes').doc(_wbCurrentStrokeId)
+                .update({ points: _wbCurrentPoints }).catch(() => {});
+        }
+    }
+
+    function _wbPointerUp() {
+        if (!_wbDrawing) return;
+        _wbDrawing = false;
+        if (_wbCurrentStrokeId && _liveSessionId) {
+            _liveGetDb().collection('liveSessions').doc(_liveSessionId)
+                .collection('whiteboardStrokes').doc(_wbCurrentStrokeId)
+                .update({ points: _wbCurrentPoints }).catch(() => {});
+        }
+        _wbCurrentStrokeId = null;
+        _wbCurrentPoints = [];
+    }
+
+    function _subscribeWhiteboardStrokes() {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !_liveSessionId) return;
+        _unsubscribeWhiteboardStrokes();
+        _liveWbUnsub = dbRef.collection('liveSessions').doc(_liveSessionId)
+            .collection('whiteboardStrokes')
+            .onSnapshot(snap => {
+                snap.docChanges().forEach(ch => {
+                    if (ch.type === 'removed') _liveWbStrokes.delete(ch.doc.id);
+                    else _liveWbStrokes.set(ch.doc.id, ch.doc.data());
+                });
+                _wbRedrawAll();
+            }, err => console.warn('whiteboard listener error', err));
+    }
+
+    function _unsubscribeWhiteboardStrokes() {
+        if (_liveWbUnsub) { _liveWbUnsub(); _liveWbUnsub = null; }
+        _liveWbStrokes.clear();
+    }
+
+    function _wbRedrawAll() {
+        const canvas = _wbCanvas();
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const drawStroke = (stroke) => {
+            const pts = stroke.points || [];
+            if (pts.length < 1) return;
+            ctx.lineJoin = 'round';
+            ctx.lineCap  = 'round';
+            ctx.globalCompositeOperation = stroke.tool === 'eraser' ? 'destination-out' : 'source-over';
+            ctx.strokeStyle = stroke.color || '#0f172a';
+            ctx.lineWidth = (stroke.width || 3) * (window.devicePixelRatio || 1);
+            ctx.beginPath();
+            pts.forEach((p, i) => {
+                const px = p.x * canvas.width, py = p.y * canvas.height;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+        };
+
+        _liveWbStrokes.forEach(drawStroke);
+        if (_wbDrawing && _wbCurrentPoints.length) {
+            drawStroke({ color: _wbColor, tool: _wbTool, width: _wbTool === 'eraser' ? 26 : 3, points: _wbCurrentPoints });
+        }
+        ctx.globalCompositeOperation = 'source-over';
+    }
+
+    function toggleWhiteboardLive() {
+        const dbRef = _liveGetDb();
+        const user = _liveGetUser();
+        if (!dbRef || !user || !_liveSessionId || !_liveIsAdmin()) return;
+        const newVal = !_liveWbActive;
+        dbRef.collection('liveSessions').doc(_liveSessionId).update({
+            whiteboard: { active: newVal, by: newVal ? (user.uid || user.appUid) : null }
+        }).catch(e => { console.error('toggleWhiteboardLive error', e); showToast('⚠️ تعذّر تفعيل السبورة', 'error'); });
+    }
+
+    async function clearWhiteboardLive() {
+        if (!_liveIsAdmin() || !_liveSessionId) return;
+        try {
+            await _liveDeleteCollectionDocs(_liveGetDb().collection('liveSessions').doc(_liveSessionId).collection('whiteboardStrokes'));
+            _liveWbStrokes.clear();
+            _wbRedrawAll();
+            showToast('🧹 تم مسح السبورة', 'success');
+        } catch (e) { console.error('clearWhiteboardLive error', e); }
+    }
+
+    // ════════════════════════════════════════════════════
+    //  المرحلة ٣: التسجيل المحلي الفعلي للجلسة (MediaRecorder)
+    //  يُسجَّل الفيديو/الصوت على جهاز المستخدم نفسه فقط ويُنزَّل تلقائياً
+    //  كملف .webm — لا يُرفع أي شيء لأي خادم
+    // ════════════════════════════════════════════════════
+    let _liveRecorder   = null;
+    let _liveRecChunks  = [];
+    let _liveRecTimer   = null;
+    let _liveRecSeconds = 0;
+
+    function _liveGetRecordableStream() {
+        const tracks = [];
+        if (_liveWbActive) {
+            const canvas = _wbCanvas();
+            if (canvas && canvas.captureStream) tracks.push(...canvas.captureStream(25).getVideoTracks());
+        } else if (_liveBroadcastStream) {
+            tracks.push(..._liveBroadcastStream.getVideoTracks());
+        } else {
+            const video = document.getElementById('liveStageVideo');
+            if (video && video.srcObject && !video.classList.contains('hidden')) {
+                const cap = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null);
+                if (cap) tracks.push(...cap.getVideoTracks());
+            }
+        }
+
+        if (_liveBroadcastStream && _liveBroadcastStream.getAudioTracks().length) {
+            tracks.push(..._liveBroadcastStream.getAudioTracks());
+        } else if (typeof _liveMicStream !== 'undefined' && _liveMicStream && _liveMicStream.getAudioTracks().length) {
+            tracks.push(..._liveMicStream.getAudioTracks());
+        }
+
+        return tracks.length ? new MediaStream(tracks) : null;
+    }
+
+    async function toggleLiveRecording() {
+        if (!_liveIsAdmin()) return;
+        if (_liveRecorder && _liveRecorder.state === 'recording') { _liveRecorder.stop(); return; }
+
+        let combined = _liveGetRecordableStream();
+        if (!combined) {
+            try {
+                combined = await navigator.mediaDevices.getUserMedia({ audio: true });
+                showToast('ℹ️ لا يوجد عرض نشط — سيتم تسجيل الصوت فقط', 'info');
+            } catch (e) {
+                showToast('⚠️ لا يوجد ما يمكن تسجيله حالياً', 'error');
+                return;
+            }
+        }
+
+        const hasVideo = combined.getVideoTracks().length > 0;
+        const mimeCandidates = hasVideo
+            ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+            : ['audio/webm;codecs=opus', 'audio/webm'];
+        const mimeType = mimeCandidates.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+
+        try {
+            _liveRecorder = mimeType ? new MediaRecorder(combined, { mimeType }) : new MediaRecorder(combined);
+        } catch (e) {
+            console.error('MediaRecorder init error', e);
+            showToast('⚠️ تعذّر بدء التسجيل على هذا المتصفح', 'error');
+            return;
+        }
+
+        _liveRecChunks = [];
+        _liveRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) _liveRecChunks.push(e.data); };
+        _liveRecorder.onstop = () => _finishLiveRecording(hasVideo);
+        _liveRecorder.start(1000);
+
+        _liveRecSeconds = 0;
+        _updateRecordBadge();
+        _liveRecTimer = setInterval(() => { _liveRecSeconds++; _updateRecordBadge(); }, 1000);
+
+        const btn = document.getElementById('liveRecordBtn');
+        if (btn) btn.classList.add('live-rec-active');
+        const badge = document.getElementById('liveRecordBadge');
+        if (badge) badge.classList.remove('hidden');
+
+        if (_liveSessionId) _liveGetDb().collection('liveSessions').doc(_liveSessionId).update({ recording: true }).catch(() => {});
+        showToast('⏺️ بدأ التسجيل المحلي', 'success');
+    }
+
+    function _updateRecordBadge() {
+        const el = document.getElementById('liveRecordBadgeTimer');
+        if (!el) return;
+        const m = String(Math.floor(_liveRecSeconds / 60)).padStart(2, '0');
+        const s = String(_liveRecSeconds % 60).padStart(2, '0');
+        el.textContent = `${m}:${s}`;
+    }
+
+    function _finishLiveRecording(hasVideo) {
+        if (_liveRecTimer) { clearInterval(_liveRecTimer); _liveRecTimer = null; }
+
+        const btn = document.getElementById('liveRecordBtn');
+        if (btn) btn.classList.remove('live-rec-active');
+        const badge = document.getElementById('liveRecordBadge');
+        if (badge) badge.classList.add('hidden');
+
+        if (_liveSessionId) _liveGetDb().collection('liveSessions').doc(_liveSessionId).update({ recording: false }).catch(() => {});
+
+        const blob = new Blob(_liveRecChunks, { type: hasVideo ? 'video/webm' : 'audio/webm' });
+        _liveRecChunks = [];
+        if (blob.size === 0) { showToast('⚠️ لم يتم تسجيل أي محتوى', 'error'); _liveRecorder = null; return; }
+
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        const courseCode = (_liveSessionData && _liveSessionData.courseCode) || 'جلسة';
+        const filename = `${courseCode}_${stamp}.webm`;
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+
+        showToast('✅ تم حفظ التسجيل محلياً: ' + filename, 'success');
+        _liveRecorder = null;
+    }
+
+    // ════════════════════════════════════════════════════
+    //  المرحلة ٢: كشف التحدث الفعلي عبر الميكروفون + وميض بطاقة المتحدث
+    // ════════════════════════════════════════════════════
+    let _liveMicStream        = null;  // MediaStream الخاص بميكروفوني
+    let _liveAudioCtx         = null;  // AudioContext لتحليل مستوى الصوت
+    let _liveAnalyser         = null;  // AnalyserNode
+    let _liveSpeakingRAF      = null;  // requestAnimationFrame handle
+    let _liveSpeakingState    = false; // آخر حالة "أتحدث" تم إرسالها لـ Firestore
+    let _liveLastSpeakWrite   = 0;     // آخر توقيت كتابة (لتفادي إغراق Firestore)
+    let _liveMicCaptureActive = false; // هل التقاط الصوت شغّال حالياً لدي
+    let _liveMyPrevMicState   = null;  // آخر حالة معروفة لمايكي (لعرض إشعار عند تغييرها من الأدمن)
+
+    // يُستدعى بعد كل تحديث لقائمة المشاركين: يبدأ أو يوقف التقاط
+    // الصوت لدي تبعاً لحالة micEnabled الخاصة بمشاركتي في الجلسة
+    function _syncMyMicCaptureState() {
+        const user = _liveGetUser();
+        if (!user) return;
+        const myUid = user.uid || user.appUid;
+        const me = _liveParticipants.find(p => p.uid === myUid);
+        const shouldCapture = !!(me && me.micEnabled && !me.kicked);
+
+        // إشعار عند تغيير حالة المايك من قبل الأدمن
+        if (me && _liveMyPrevMicState !== null && _liveMyPrevMicState !== !!me.micEnabled) {
+            showToast(me.micEnabled ? '🎙️ تم فتح ميكروفونك من قبل المدرب' : '🔇 تم إغلاق ميكروفونك', me.micEnabled ? 'success' : 'info');
+        }
+        if (me) _liveMyPrevMicState = !!me.micEnabled;
+
+        if (shouldCapture && !_liveMicCaptureActive) {
+            _startSpeakingDetection();
+        } else if (!shouldCapture && _liveMicCaptureActive) {
+            _stopSpeakingDetection();
+        }
+    }
+
+    // يفتح الميكروفون فعلياً ويحلل مستوى الصوت لحظياً لتحديد من يتحدث الآن
+    async function _startSpeakingDetection() {
+        if (_liveMicCaptureActive) return;
+        _liveMicCaptureActive = true;
+        try {
+            _liveMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+            console.warn('تعذّر الوصول للميكروفون', e);
+            _liveMicCaptureActive = false;
+            showToast('⚠️ تعذّر الوصول للميكروفون — تحقق من أذونات المتصفح', 'error');
+            _writeMyMicState(false); // نعيد ضبط الحالة حتى لا تبقى الواجهة تعرض المايك مفتوحاً بالخطأ
+            return;
+        }
+
+        try {
+            _liveAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source  = _liveAudioCtx.createMediaStreamSource(_liveMicStream);
+            _liveAnalyser = _liveAudioCtx.createAnalyser();
+            _liveAnalyser.fftSize = 512;
+            _liveAnalyser.smoothingTimeConstant = 0.6;
+            source.connect(_liveAnalyser);
+
+            const buffer = new Uint8Array(_liveAnalyser.frequencyBinCount);
+            const SPEAK_ON_THRESHOLD  = 22;  // حد بدء اعتبار المستخدم "متحدث"
+            const SPEAK_OFF_THRESHOLD = 12;  // حد التوقف (هيستيريسس لتفادي رفرفة الوميض)
+            const MIN_WRITE_INTERVAL  = 350; // ms — حد أدنى بين كتابتين لـ Firestore
+
+            const loop = () => {
+                if (!_liveMicCaptureActive) return;
+                _liveAnalyser.getByteFrequencyData(buffer);
+                let sum = 0;
+                for (let i = 0; i < buffer.length; i++) sum += buffer[i];
+                const avg = sum / buffer.length;
+
+                const wantSpeaking = _liveSpeakingState
+                    ? avg > SPEAK_OFF_THRESHOLD
+                    : avg > SPEAK_ON_THRESHOLD;
+
+                const now = Date.now();
+                if (wantSpeaking !== _liveSpeakingState && (now - _liveLastSpeakWrite) > MIN_WRITE_INTERVAL) {
+                    _liveSpeakingState  = wantSpeaking;
+                    _liveLastSpeakWrite = now;
+                    _writeMySpeakingState(wantSpeaking);
+                }
+                _liveSpeakingRAF = requestAnimationFrame(loop);
+            };
+            loop();
+        } catch (e) {
+            console.warn('تعذّر تحليل مستوى الصوت', e);
+        }
+    }
+
+    // يوقف التقاط الصوت ويحرر الميكروفون بالكامل
+    function _stopSpeakingDetection() {
+        _liveMicCaptureActive = false;
+        if (_liveSpeakingRAF) { cancelAnimationFrame(_liveSpeakingRAF); _liveSpeakingRAF = null; }
+        if (_liveMicStream) { _liveMicStream.getTracks().forEach(t => t.stop()); _liveMicStream = null; }
+        if (_liveAudioCtx) { _liveAudioCtx.close().catch(() => {}); _liveAudioCtx = null; }
+        _liveAnalyser = null;
+        if (_liveSpeakingState) { _liveSpeakingState = false; _writeMySpeakingState(false); }
+    }
+
+    function _writeMySpeakingState(isSpeaking) {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (!dbRef || !user || !_liveSessionId) return;
+        const myUid = user.uid || user.appUid;
+        dbRef.collection('liveSessions').doc(_liveSessionId)
+            .collection('participants').doc(myUid)
+            .update({ isSpeaking: !!isSpeaking }).catch(() => {});
+    }
+
+    function _writeMyMicState(enabled) {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (!dbRef || !user || !_liveSessionId) return;
+        const myUid = user.uid || user.appUid;
+        dbRef.collection('liveSessions').doc(_liveSessionId)
+            .collection('participants').doc(myUid)
+            .update({ micEnabled: !!enabled }).catch(() => {});
+    }
+
+    // تنظيف عند إغلاق الصفحة
+    window.addEventListener('beforeunload', () => {
+        if (_liveSessionId) { leaveLiveSession(); }
+    });
+    </script>
 
 </body>
 </html>
