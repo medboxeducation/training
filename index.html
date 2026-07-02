@@ -11143,11 +11143,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                            oninput="onUnifiedSidebarSearch(this.value)">
                 </div>
 
-                <!-- زرا إنشاء جلسة متزامنة (أدمن فقط) -->
-                <button onclick="_sidebarQuickCreateNewSession()" class="admin-only glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary shrink-0" title="إنشاء جلسة متزامنة جديدة">
+                <!-- زرا إنشاء جلسة متزامنة (أدمن فقط) — تظهران فقط عند الدخول إلى قسم الجلسات المتزامنة -->
+                <button id="sidebarQuickCreateSessionBtn" onclick="_sidebarQuickCreateNewSession()" class="hidden admin-only glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary shrink-0" title="إنشاء جلسة متزامنة جديدة">
                     <i class="ph ph-plus-circle text-lg"></i>
                 </button>
-                <button onclick="_sidebarQuickCreateSessionFromCourse()" class="admin-only glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary shrink-0" title="إنشاء جلسة بناء على البرامج والدورات المسجلة">
+                <button id="sidebarQuickCreateFromCourseBtn" onclick="_sidebarQuickCreateSessionFromCourse()" class="hidden admin-only glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary shrink-0" title="إنشاء جلسة بناء على البرامج والدورات المسجلة">
                     <i class="ph ph-graduation-cap text-lg"></i>
                 </button>
 
@@ -14641,7 +14641,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function openChatSidebar() {
             if (!currentUser) { showToast('يجب تسجيل الدخول أولاً لاستخدام المحادثات', 'error'); return; }
             sidebarMode = 'chat';
-            ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel']
+            ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarLiveSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const chatList = document.getElementById('sidebarChatList');
             if (chatList) chatList.classList.remove('hidden');
@@ -14650,6 +14650,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const qrBtn  = document.getElementById('chatQRBtn');
             if (addBtn) addBtn.classList.add('hidden');
             if (qrBtn)  qrBtn.classList.remove('hidden');
+            const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+            const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+            if (quickNewBtn)    quickNewBtn.classList.add('hidden');
+            if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
 
             syncChatSortIcon();
             showView('chatView');
@@ -16419,6 +16423,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             document.getElementById('sidebarRegistryList').classList.add('hidden');
             document.getElementById('sidebarUsersList').classList.add('hidden');
             document.getElementById('sidebarSettingsList').classList.remove('hidden');
+            const liveListEl = document.getElementById('sidebarLiveSessionsList');
+            if (liveListEl) liveListEl.classList.add('hidden');
+            const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+            const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+            if (quickNewBtn)    quickNewBtn.classList.add('hidden');
+            if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
             openSidebar();
         }
 
@@ -16472,6 +16482,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (liveListEl) liveListEl.classList.add('hidden');
             const addBtn = document.getElementById('sidebarAddBtn');
             if (addBtn) addBtn.classList.remove('hidden');
+            // إخفاء زرا الإنشاء السريع للجلسات عند الخروج من قسم الجلسات المتزامنة
+            const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+            const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+            if (quickNewBtn)    quickNewBtn.classList.add('hidden');
+            if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
             document.getElementById('sidebarProgramList').classList.remove('hidden');
         }
 
@@ -16487,6 +16502,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             document.getElementById('sidebarSettingsList').classList.add('hidden');
             document.getElementById('sidebarRegistryList').classList.add('hidden');
             document.getElementById('sidebarUsersList').classList.remove('hidden');
+            const liveListEl = document.getElementById('sidebarLiveSessionsList');
+            if (liveListEl) liveListEl.classList.add('hidden');
+            const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+            const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+            if (quickNewBtn)    quickNewBtn.classList.add('hidden');
+            if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
             openSidebar();
             showView('usersView');
             // إخفاء تفاصيل المستخدم وإظهار التلميح
@@ -17025,6 +17046,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             document.getElementById('sidebarSettingsList').classList.add('hidden');
             document.getElementById('sidebarUsersList').classList.add('hidden');
             document.getElementById('sidebarRegistryList').classList.remove('hidden');
+            const liveListEl = document.getElementById('sidebarLiveSessionsList');
+            if (liveListEl) liveListEl.classList.add('hidden');
+            const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+            const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+            if (quickNewBtn)    quickNewBtn.classList.add('hidden');
+            if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
             // إخفاء زر + عند الدخول لقسم السجلات
             updateRegistryAddButton();
             openSidebar();
@@ -29528,6 +29555,12 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         if (addBtn) addBtn.classList.add('hidden');
         if (qrBtn)  qrBtn.classList.add('hidden');
 
+        // زرا الإنشاء السريع للجلسات: يظهران فقط طالما نحن داخل قسم الجلسات المتزامنة
+        const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+        const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+        if (quickNewBtn)    quickNewBtn.classList.remove('hidden');
+        if (quickCourseBtn) quickCourseBtn.classList.remove('hidden');
+
         openSidebar();
         return true;
     }
@@ -29556,6 +29589,11 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         if (mainList) mainList.classList.remove('hidden');
         const addBtn = document.getElementById('sidebarAddBtn');
         if (addBtn) addBtn.classList.remove('hidden');
+        // إخفاء زرا الإنشاء السريع للجلسات عند الخروج من قسم الجلسات المتزامنة
+        const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+        const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+        if (quickNewBtn)    quickNewBtn.classList.add('hidden');
+        if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
     }
 
     // يضبط عنوان/عنوان فرعي اللوحة الجانبية ويُظهر/يُخفي زر الرجوع
@@ -30395,11 +30433,21 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             await dbRef.collection('liveSessions').doc(sessionId).delete();
             await _renderIndependentLiveSessionCards();
             await _renderCourseLinkedLiveSessionCards();
+            _removeSessionFromTimeline(sessionId);
             if (_sessionLobbyId === sessionId) closeSessionLobby();
             showToast('✅ تم حذف الجلسة', 'success');
         } catch (e) {
             console.error('deleteLiveSession error', e);
             showToast('⚠️ تعذّر حذف الجلسة', 'error');
+        }
+    }
+
+    // يزيل جلسة محذوفة من كاش الخط الزمني، ويعيد رسمه فوراً إن كان معروضاً حالياً
+    function _removeSessionFromTimeline(sessionId) {
+        _liveTimelineSessions = _liveTimelineSessions.filter(s => s.id !== sessionId);
+        const timelineView = document.getElementById('liveSessionsTimelineView');
+        if (timelineView && !timelineView.classList.contains('hidden')) {
+            _renderLiveSessionsTimelineContent(_liveTimelineSessions);
         }
     }
 
