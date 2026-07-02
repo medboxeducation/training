@@ -12876,18 +12876,42 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 <!-- الرسالة -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">الرسالة</label>
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <button type="button" onclick="insertListMarker('programMessageInput','bullet')" class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                            <i class="ph ph-list-bullets text-xs"></i> نقطة
+                        </button>
+                        <button type="button" onclick="insertListMarker('programMessageInput','number')" class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                            <i class="ph ph-list-numbers text-xs"></i> ترقيم
+                        </button>
+                    </div>
                     <textarea id="programMessageInput" rows="2" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" placeholder="رسالة البرنامج"></textarea>
                 </div>
 
                 <!-- الرؤية -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">الرؤية</label>
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <button type="button" onclick="insertListMarker('programVisionInput','bullet')" class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                            <i class="ph ph-list-bullets text-xs"></i> نقطة
+                        </button>
+                        <button type="button" onclick="insertListMarker('programVisionInput','number')" class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                            <i class="ph ph-list-numbers text-xs"></i> ترقيم
+                        </button>
+                    </div>
                     <textarea id="programVisionInput" rows="2" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" placeholder="رؤية البرنامج"></textarea>
                 </div>
 
                 <!-- الهدف العام -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">الهدف العام</label>
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <button type="button" onclick="insertListMarker('programGoalInput','bullet')" class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                            <i class="ph ph-list-bullets text-xs"></i> نقطة
+                        </button>
+                        <button type="button" onclick="insertListMarker('programGoalInput','number')" class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                            <i class="ph ph-list-numbers text-xs"></i> ترقيم
+                        </button>
+                    </div>
                     <textarea id="programGoalInput" rows="2" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" placeholder="الهدف العام للبرنامج"></textarea>
                 </div>
             </div>
@@ -12974,6 +12998,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 <!-- أهداف الجلسة -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">أهداف الجلسة</label>
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <button type="button" onclick="insertListMarker('liveSessionObjectivesInput','bullet')" class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                            <i class="ph ph-list-bullets text-xs"></i> نقطة
+                        </button>
+                        <button type="button" onclick="insertListMarker('liveSessionObjectivesInput','number')" class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                            <i class="ph ph-list-numbers text-xs"></i> ترقيم
+                        </button>
+                    </div>
                     <textarea id="liveSessionObjectivesInput" rows="3" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="اكتب أهداف الجلسة..."></textarea>
                 </div>
             </div>
@@ -13527,6 +13559,51 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 // لا نقاطع تدفق العملية الأساسية في حال فشل التسجيل — فقط نسجل الخطأ في الكونسول
                 console.error('logActivity error:', err);
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // أداة تعداد نقطي/رقمي لحقول النصوص الطويلة (textarea)
+        // تُدرج نقطة "• " أو رقماً متسلسلاً "1. " في بداية سطر جديد عند مكان المؤشر،
+        // ليتمكن المستخدم من كتابة قوائم منظمة أثناء الإدخال
+        // ─────────────────────────────────────────────────────────────────
+        function insertListMarker(textareaId, type) {
+            const ta = document.getElementById(textareaId);
+            if (!ta) return;
+            ta.focus();
+            const start = ta.selectionStart ?? ta.value.length;
+            const end   = ta.selectionEnd   ?? ta.value.length;
+            const value = ta.value;
+            const beforeCursor = value.slice(0, start);
+            const atLineStart  = beforeCursor.length === 0 || beforeCursor.endsWith('\n');
+
+            let marker;
+            if (type === 'number') {
+                // نحسب عدد الأسطر المرقّمة سابقاً (بالنمط "رقم. ") قبل موضع المؤشر لتحديد الرقم التالي
+                const priorNumbered = beforeCursor.match(/^\s*\d+\.\s/gm) || [];
+                marker = (priorNumbered.length + 1) + '. ';
+            } else {
+                marker = '• ';
+            }
+
+            const insertion = (atLineStart ? '' : '\n') + marker;
+            ta.value = value.slice(0, start) + insertion + value.slice(end);
+            const newPos = start + insertion.length;
+            ta.setSelectionRange(newPos, newPos);
+        }
+
+        // يبني HTML لشريط أدوات صغير (نقطة / ترقيم) يوضع أعلى textarea معيّن
+        function listToolbarHTML(textareaId) {
+            return `
+            <div class="flex items-center gap-1.5 mb-1">
+                <button type="button" onclick="insertListMarker('${textareaId}','bullet')"
+                    class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                    <i class="ph ph-list-bullets text-xs"></i> نقطة
+                </button>
+                <button type="button" onclick="insertListMarker('${textareaId}','number')"
+                    class="text-[11px] font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1 transition-colors">
+                    <i class="ph ph-list-numbers text-xs"></i> ترقيم
+                </button>
+            </div>`;
         }
 
         function togglePasswordVisibility(inputId, eyeId) {
@@ -20388,15 +20465,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             </div>
                             ${program.message ? `<div class="glass-panel p-3.5 rounded-lg col-span-2">
                                 <p class="text-[10px] text-gray-400 mb-1">الرسالة</p>
-                                <p class="text-sm text-gray-700">${program.message}</p>
+                                <p class="text-sm text-gray-700 whitespace-pre-line">${program.message}</p>
                             </div>` : ''}
                             ${program.vision ? `<div class="glass-panel p-3.5 rounded-lg col-span-2">
                                 <p class="text-[10px] text-gray-400 mb-1">الرؤية</p>
-                                <p class="text-sm text-gray-700">${program.vision}</p>
+                                <p class="text-sm text-gray-700 whitespace-pre-line">${program.vision}</p>
                             </div>` : ''}
                             ${program.goal ? `<div class="glass-panel p-3.5 rounded-lg col-span-2">
                                 <p class="text-[10px] text-gray-400 mb-1">الهدف العام</p>
-                                <p class="text-sm text-gray-700">${program.goal}</p>
+                                <p class="text-sm text-gray-700 whitespace-pre-line">${program.goal}</p>
                             </div>` : ''}
                         </div>
                         <!-- QR Code سريع للبرنامج -->
@@ -22159,9 +22236,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${trainer.telegram}</p>
                         </div>` : ''}
                     </div>
-                    ${trainer.experience  ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700">${trainer.experience}</p></div>` : ''}
-                    ${trainer.interests   ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700">${trainer.interests}</p></div>` : ''}
-                    ${trainer.otherCerts  ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700">${trainer.otherCerts}</p></div>` : ''}
+                    ${trainer.experience  ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainer.experience}</p></div>` : ''}
+                    ${trainer.interests   ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainer.interests}</p></div>` : ''}
+                    ${trainer.otherCerts  ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainer.otherCerts}</p></div>` : ''}
                 </div>
 
                 <!-- دوراتي كمدرب -->
@@ -22272,9 +22349,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${trainee.telegram}</p>
                         </div>` : ''}
                     </div>
-                    ${trainee.experience ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700">${trainee.experience}</p></div>` : ''}
-                    ${trainee.interests   ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700">${trainee.interests}</p></div>` : ''}
-                    ${trainee.otherCerts  ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700">${trainee.otherCerts}</p></div>` : ''}
+                    ${trainee.experience ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainee.experience}</p></div>` : ''}
+                    ${trainee.interests   ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainee.interests}</p></div>` : ''}
+                    ${trainee.otherCerts  ? `<div class="glass-panel rounded-xl p-3 mt-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainee.otherCerts}</p></div>` : ''}
                 </div>
 
                 <!-- دوراتي -->
@@ -22595,9 +22672,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             }).join('')}
                         </div>`}
                     </div>
-                    ${trainee.otherCerts ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700">${trainee.otherCerts}</p></div>` : ''}
-                    ${trainee.experience ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700">${trainee.experience}</p></div>` : ''}
-                    ${trainee.interests ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700">${trainee.interests}</p></div>` : ''}
+                    ${trainee.otherCerts ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainee.otherCerts}</p></div>` : ''}
+                    ${trainee.experience ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainee.experience}</p></div>` : ''}
+                    ${trainee.interests ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainee.interests}</p></div>` : ''}
                 </div>
             `;
 
@@ -23037,18 +23114,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">شهادات أخرى</label>
+                            ${listToolbarHTML('rtOtherCerts')}
                             <textarea id="rtOtherCerts" rows="2"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
                                 placeholder="شهادات وحدات التخصص...">${isEdit ? (editData.otherCerts||'') : ''}</textarea>
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">الخبرات السابقة</label>
+                            ${listToolbarHTML('rtExperience')}
                             <textarea id="rtExperience" rows="2"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
                                 placeholder="الخبرات العملية السابقة...">${isEdit ? (editData.experience||'') : ''}</textarea>
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">الاهتمامات</label>
+                            ${listToolbarHTML('rtInterests')}
                             <textarea id="rtInterests" rows="2"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
                                 placeholder="المجالات التي يهتم بها...">${isEdit ? (editData.interests||'') : ''}</textarea>
@@ -23404,9 +23484,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <p class="font-semibold text-xs text-gray-700">${trainer.degree || '—'}</p>
                         </div>
                     </div>
-                    ${trainer.otherCerts ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700">${trainer.otherCerts}</p></div>` : ''}
-                    ${trainer.experience ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700">${trainer.experience}</p></div>` : ''}
-                    ${trainer.interests ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700">${trainer.interests}</p></div>` : ''}
+                    ${trainer.otherCerts ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainer.otherCerts}</p></div>` : ''}
+                    ${trainer.experience ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainer.experience}</p></div>` : ''}
+                    ${trainer.interests ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700 whitespace-pre-line">${trainer.interests}</p></div>` : ''}
                     ${certImgsHtml}
                     ${cvFilesHtml}
                     <!-- QR Code سريع -->
@@ -23585,18 +23665,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">شهادات أخرى</label>
+                            ${listToolbarHTML('rtrOtherCerts')}
                             <textarea id="rtrOtherCerts" rows="2"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
                                 placeholder="شهادات وحدات التخصص...">${isEdit ? (editData.otherCerts||'') : ''}</textarea>
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">الخبرات السابقة</label>
+                            ${listToolbarHTML('rtrExperience')}
                             <textarea id="rtrExperience" rows="2"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
                                 placeholder="الخبرات العملية السابقة...">${isEdit ? (editData.experience||'') : ''}</textarea>
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">الاهتمامات</label>
+                            ${listToolbarHTML('rtrInterests')}
                             <textarea id="rtrInterests" rows="2"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
                                 placeholder="المجالات التي يهتم بها...">${isEdit ? (editData.interests||'') : ''}</textarea>
