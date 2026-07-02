@@ -10536,6 +10536,32 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         body.trainee-mode .trainee-edit-btn  { display: none !important; }
         body.trainee-mode .trainee-del-btn   { display: none !important; }
 
+        /* ====== Session Lobby: ملاحظة تظهر لغير الأدمن فقط (عكس admin-only) ====== */
+        .non-admin-note { display: none; }
+        body.guest-mode .non-admin-note,
+        body.trainee-mode .non-admin-note,
+        body.trainer-mode .non-admin-note { display: flex !important; }
+
+        /* ====== زر الخروج من الجلسة المتزامنة: يظهر لغير الأدمن فقط (عكس admin-only) ====== */
+        .non-admin-only { display: none; }
+        body.guest-mode .non-admin-only,
+        body.trainee-mode .non-admin-only,
+        body.trainer-mode .non-admin-only { display: flex !important; }
+
+        /* نسخة الشاشات الكبيرة من زر الخروج (ضمن صف الهيدر) */
+        .non-admin-only-desktop { display: none; }
+        @media (min-width: 1024px) {
+            body.guest-mode .non-admin-only-desktop,
+            body.trainee-mode .non-admin-only-desktop,
+            body.trainer-mode .non-admin-only-desktop { display: flex !important; }
+        }
+
+        /* نسخة الشاشات الصغيرة من زر الخروج (داخل الصف الرابع بالهيدر، أقصى اليسار) */
+        .non-admin-only-mobile { display: none; }
+        body.guest-mode .non-admin-only-mobile,
+        body.trainee-mode .non-admin-only-mobile,
+        body.trainer-mode .non-admin-only-mobile { display: flex !important; }
+
         /* ====== Trainer Mode Styles ====== */
         body.trainer-mode .admin-only            { display: none !important; }
         body.trainer-mode .trainer-hide          { display: none !important; }
@@ -11108,7 +11134,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         <aside id="sidebar" class="glass-panel w-80 rounded-2xl flex flex-col shrink-0 transition-transform duration-300 relative z-40">
             <!-- هيدر القائمة الجانبية -->
             <div class="p-4 border-b border-white/40 flex items-center justify-between gap-2">
-                <!-- اليمين: زر البحث (يتمدد) -->
+                <!-- أقصى اليمين: زر البحث (يتمدد) -->
                 <div class="relative flex items-center flex-1">
                     <button id="searchBtn" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center absolute right-0 z-10" onclick="toggleSearch()">
                         <i class="ph ph-magnifying-glass text-lg"></i>
@@ -11117,7 +11143,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                            oninput="onUnifiedSidebarSearch(this.value)">
                 </div>
 
-                <!-- اليسار: الإضافة، QR للمحادثة، الفرز، الإغلاق -->
+                <!-- زرا إنشاء جلسة متزامنة (أدمن فقط) -->
+                <button onclick="_sidebarQuickCreateNewSession()" class="admin-only glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary shrink-0" title="إنشاء جلسة متزامنة جديدة">
+                    <i class="ph ph-plus-circle text-lg"></i>
+                </button>
+                <button onclick="_sidebarQuickCreateSessionFromCourse()" class="admin-only glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary shrink-0" title="إنشاء جلسة بناء على البرامج والدورات المسجلة">
+                    <i class="ph ph-graduation-cap text-lg"></i>
+                </button>
+
+                <!-- أقصى اليسار: الإنشاء، الترتيب، إغلاق القائمة (وبينهما QR للمحادثة عند وضع المحادثة) -->
                 <div class="flex items-center gap-1 shrink-0">
                     <button id="sidebarAddBtn" class="admin-only glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary" title="إضافة جديد" onclick="handleSidebarAddClick()">
                         <i class="ph ph-plus text-lg"></i>
@@ -11207,6 +11241,26 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
                 <!-- قائمة المحادثات -->
                 <div id="chatConversationsList" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+            </div>
+
+            <!-- لوحة الجلسات المتزامنة الجانبية — تظهر عند الضغط على بطاقة "الجلسات المتزامنة" -->
+            <div id="sidebarLiveSessionsList" class="hidden flex-1 overflow-y-auto p-3 space-y-3">
+                <!-- هيدر اللوحة: رجوع + عنوان/عنوان فرعي -->
+                <div class="flex items-center gap-2 pb-2 mb-1 border-b border-white/30">
+                    <button id="sidebarLiveBackBtn" onclick="_liveSessionPickerGoMenu()" class="hidden w-7 h-7 rounded-full glass-icon-btn flex items-center justify-center text-primary flex-shrink-0 hover:bg-primary/10" title="رجوع">
+                        <i class="ph ph-arrow-right text-sm"></i>
+                    </button>
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-sky-200/40 flex items-center justify-center text-primary text-base border border-primary/20 shrink-0">
+                        <i class="ph ph-broadcast"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h3 id="sidebarLiveTitle" class="text-sm font-bold text-gray-800 truncate">الجلسات المتزامنة</h3>
+                        <p id="sidebarLiveSubtitle" class="text-[11px] text-gray-500 truncate">اختر طريقة بدء الجلسة</p>
+                    </div>
+                </div>
+                <div id="sidebarLiveBody" class="space-y-2">
+                    <!-- تُملأ ديناميكياً -->
+                </div>
             </div>
 
         </aside>
@@ -11776,7 +11830,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </div>
 
                     <!-- بطاقة: الجلسات المتزامنة -->
-                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="openLiveSessionsPicker()">
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="openLiveSessionsSidebarPanel()">
                         <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
                             <i class="ph ph-monitor-play"></i>
                         </div>
@@ -11802,11 +11856,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             ══════════════════════════════════════════════════════════ -->
             <div id="liveSessionView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <!-- هيدر الجلسة -->
-                <div class="glass-panel rounded-2xl p-3 md:p-4 mb-4 flex flex-wrap items-center gap-3">
-                    <button onclick="leaveLiveSession()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 shrink-0" title="خروج">
-                        <i class="ph ph-arrow-right text-lg"></i>
-                    </button>
-
+                <div class="glass-panel rounded-2xl p-3 md:p-4 mb-4 flex flex-wrap items-center gap-3 relative">
                     <div class="w-11 h-11 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl shrink-0 relative">
                         <i class="ph ph-broadcast"></i>
                         <span class="absolute -top-1 -left-1 w-3 h-3 rounded-full bg-red-500 live-pulse-dot"></span>
@@ -11814,23 +11864,52 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
                     <!-- معلومات الدورة: للجميع -->
                     <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-2">
+                        <!-- عنوان الجلسة: على الشاشات الصغيرة يظهر أولاً، أعلى رمز الجلسة -->
+                        <p id="liveSessionTitleMobile" class="lg:hidden text-sm font-bold text-gray-800 truncate">—</p>
+
+                        <div class="flex items-center gap-2 mt-0.5 lg:mt-0">
                             <span id="liveSessionCourseCode" class="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">—</span>
-                            <span class="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                            <!-- شارة "مباشر": بجانب رمز الجلسة على الشاشات الكبيرة فقط؛ على الصغيرة تنتقل أسفل اسم البرنامج -->
+                            <span class="hidden lg:flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
                                 <span class="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse-dot"></span> مباشر
                             </span>
                         </div>
                         <p id="liveSessionProgramTitle" class="text-sm font-bold text-gray-800 truncate mt-0.5">اسم البرنامج</p>
+
+                        <!-- على الشاشات الصغيرة: شارة "مباشر" + عدد المشاركين + زر الخروج (لغير الأدمن) أقصى يسار الصف -->
+                        <div class="lg:hidden flex items-center gap-2 mt-1.5">
+                            <span class="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                                <span class="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse-dot"></span> مباشر
+                            </span>
+                            <div class="glass-element rounded-xl px-2.5 py-1 flex items-center gap-1.5 shrink-0">
+                                <i class="ph ph-users text-primary text-sm"></i>
+                                <span id="liveSessionParticipantsCountMobile" class="text-xs font-bold text-gray-700">0</span>
+                            </div>
+                            <!-- زر الخروج من الجلسة لغير الأدمن: أقصى يسار الصف الرابع (الشاشات الصغيرة) -->
+                            <button onclick="confirmLeaveLiveSession()" class="non-admin-only-mobile mr-auto w-8 h-8 rounded-full items-center justify-center text-red-500 bg-red-50 border border-red-200 hover:bg-red-100 shrink-0" title="الخروج من الجلسة">
+                                <i class="ph ph-sign-out text-base"></i>
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- عدد المشاركين: للجميع -->
-                    <div class="glass-element rounded-xl px-3 py-1.5 flex items-center gap-2 shrink-0">
+                    <!-- عنوان الجلسة: يتمركز في منتصف الهيدر على الشاشات الكبيرة فقط -->
+                    <p id="liveSessionTitleDesktop" class="hidden lg:block lg:absolute lg:left-1/2 lg:-translate-x-1/2 text-sm font-bold text-gray-800 max-w-[38%] truncate text-center">—</p>
+
+                    <!-- عدد المشاركين: يظهر في الهيدر على الشاشات الكبيرة فقط (على الصغيرة ينتقل أسفل اسم البرنامج) -->
+                    <div class="hidden lg:flex glass-element rounded-xl px-3 py-1.5 items-center gap-2 shrink-0">
                         <i class="ph ph-users text-primary"></i>
                         <span id="liveSessionParticipantsCount" class="text-sm font-bold text-gray-700">0</span>
                     </div>
 
-                    <!-- أزرار الأدمن فقط -->
-                    <div class="admin-only flex items-center gap-1.5 flex-wrap shrink-0">
+                    <!-- زر الخروج من الجلسة (نسخة الشاشات الكبيرة): ضمن صف الهيدر — يظهر لغير الأدمن (متدرب / مدرب / ضيف) -->
+                    <div class="non-admin-only-desktop items-center shrink-0">
+                        <button onclick="confirmLeaveLiveSession()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:!bg-red-50 hover:!border-red-300 hover:!text-red-600" title="الخروج من الجلسة">
+                            <i class="ph ph-sign-out text-lg"></i>
+                        </button>
+                    </div>
+
+                    <!-- أزرار الأدمن فقط: على الشاشات الصغيرة تنزل كصف مستقل أسفل عنوان الجلسة، وعلى الشاشات الكبيرة تبقى ضمن الهيدر -->
+                    <div class="admin-only w-full lg:w-auto order-3 lg:order-none flex items-center justify-center lg:justify-start gap-1.5 flex-wrap shrink-0 pt-2 mt-1 border-t border-white/40 lg:border-0 lg:pt-0 lg:mt-0">
                         <button id="liveMuteAllBtn" onclick="toggleMuteAll()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center" title="كتم صوت الجميع">
                             <i class="ph ph-speaker-simple-slash text-lg"></i>
                         </button>
@@ -11852,11 +11931,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </div>
                 </div>
 
-                <!-- جسم الجلسة: لوحة العرض + بطاقات المشاركين -->
+                <!-- جسم الجلسة: بطاقات المشاركون + مقبض تعريض/تضييق + لوحة العرض + مقبض تعريض/تضييق + قسم الدردشة الجماعية -->
                 <div class="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
 
                     <!-- لوحة العرض الرئيسية -->
-                    <div class="flex-1 glass-panel rounded-2xl p-2 flex flex-col min-h-[300px] lg:min-h-0">
+                    <div class="flex-1 glass-panel rounded-2xl p-2 flex flex-col min-h-[300px] lg:min-h-0 lg:order-3">
                         <div id="liveStageArea" class="flex-1 rounded-xl bg-gray-900/90 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[300px]">
                             <div id="liveStageEmptyState" class="flex flex-col items-center justify-center text-gray-400 p-6">
                                 <i class="ph ph-monitor-play text-5xl mb-3 opacity-60"></i>
@@ -11897,20 +11976,186 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                     <i class="ph ph-trash text-sm"></i>
                                 </button>
                             </div>
+
+                            <!-- زر رفع اليد: أسفل يمين شاشة المشاركة (لجميع المشاركين) -->
+                            <button id="liveRaiseHandBtn" onclick="toggleRaiseHandLive()" class="absolute bottom-3 right-14 z-20 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-colors" title="رفع اليد">
+                                <i class="ph ph-hand-palm text-lg"></i>
+                            </button>
+
+                            <!-- زر ملء الشاشة: أسفل يمين شاشة المشاركة -->
+                            <button id="liveStageFullscreenBtn" onclick="toggleStageFullscreen()" class="absolute bottom-3 right-3 z-20 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-colors" title="ملء الشاشة">
+                                <i class="ph ph-arrows-out text-lg"></i>
+                            </button>
                         </div>
                     </div>
 
-                    <!-- بطاقات المشاركين -->
-                    <aside class="glass-panel w-full lg:w-80 rounded-2xl flex flex-col shrink-0 min-h-0">
+                    <!-- مقبض تعريض/تضييق قسم الدردشة (بين لوحة العرض وقسم الدردشة) — للشاشات الكبيرة فقط -->
+                    <div id="liveChatResizeHandle" class="hidden lg:flex lg:order-4 w-2.5 shrink-0 items-center justify-center cursor-col-resize group" title="اسحب لتعريض/تضييق الدردشة">
+                        <span class="w-1 h-10 rounded-full bg-gray-300 group-hover:bg-primary/60 transition-colors"></span>
+                    </div>
+
+                    <!-- قسم الرسائل النصية الجماعية: يظهر يمين شاشة المشاركة على الشاشات الكبيرة — تواصل كتابي فقط بين جميع المشاركين، وقابل للتعريض/التضييق -->
+                    <section id="liveGroupChatSection" class="glass-panel w-full lg:w-72 rounded-2xl flex flex-col shrink-0 min-h-[260px] lg:min-h-0 lg:order-5">
+                        <div class="p-3 border-b border-white/40 flex items-center justify-between">
+                            <h3 class="font-bold text-sm text-gray-700 flex items-center gap-1.5">
+                                <i class="ph ph-chats-teardrop text-primary"></i> الدردشة الجماعية
+                            </h3>
+                        </div>
+                        <div id="liveChatMessagesList" class="flex-1 overflow-y-auto content-start p-3 flex flex-col gap-2.5">
+                            <p class="text-xs text-gray-400 text-center py-6">لا توجد رسائل بعد</p>
+                        </div>
+                        <div class="p-2.5 border-t border-white/40 flex items-center gap-2">
+                            <input id="liveChatInput" type="text" placeholder="اكتب رسالة..." maxlength="500"
+                                   onkeydown="if(event.key==='Enter'){event.preventDefault(); sendLiveChatMessage();}"
+                                   class="flex-1 min-w-0 text-sm bg-white/70 border border-gray-200 rounded-full px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                            <button onclick="sendLiveChatMessage()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary shrink-0" title="إرسال">
+                                <i class="ph ph-paper-plane-tilt text-lg"></i>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- بطاقات المشاركين: قابلة للتعريض/التضييق على الشاشات الكبيرة -->
+                    <aside id="liveParticipantsAside" class="glass-panel w-full lg:w-40 rounded-2xl flex flex-col shrink-0 min-h-0 lg:order-1">
                         <div class="p-3 border-b border-white/40 flex items-center justify-between">
                             <h3 class="font-bold text-sm text-gray-700 flex items-center gap-1.5">
                                 <i class="ph ph-users-three text-primary"></i> المشاركون
                             </h3>
                         </div>
-                        <div id="liveParticipantsGrid" class="flex-1 overflow-y-auto p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
+                        <div id="liveParticipantsGrid" class="flex-1 overflow-y-auto content-start p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
                             <!-- تُملأ ديناميكياً -->
                         </div>
                     </aside>
+
+                    <!-- مقبض تعريض/تضييق بطاقات المشاركين (بين البطاقات ولوحة العرض) — للشاشات الكبيرة فقط -->
+                    <div id="liveParticipantsResizeHandle" class="hidden lg:flex lg:order-2 w-2.5 shrink-0 items-center justify-center cursor-col-resize group" title="اسحب لتعريض/تضييق قائمة المشاركين">
+                        <span class="w-1 h-10 rounded-full bg-gray-300 group-hover:bg-primary/60 transition-colors"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 لوحة عرض بيانات الجلسة (Session Lobby) - المرحلة ١
+                 تُعرض عند الضغط على بطاقة جلسة متزامنة، قبل الدخول الفعلي إليها
+            ══════════════════════════════════════════════════════════ -->
+            <div id="sessionLobbyView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <div class="flex items-center gap-3 mb-5">
+                    <h2 class="text-xl font-bold text-gray-800">بيانات الجلسة</h2>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-5 md:p-6 flex-1 flex flex-col">
+                    <!-- هيدر لوحة الجلسة: رمز الجلسة المولّد تلقائياً + QR / تعديل وحذف / زر الدخول -->
+                    <div class="flex flex-wrap items-start justify-between gap-6 pb-6 mb-6 border-b border-white/40">
+
+                        <!-- يمين الهيدر: QR + رمز الجلسة + اسم البرنامج -->
+                        <div class="flex items-start gap-3 order-1">
+                            <div id="sessionLobbyQRContainer" class="w-16 h-16 rounded-xl bg-white shadow-inner border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                <i class="ph ph-qr-code text-3xl text-gray-300"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p id="sessionLobbySessionCode" class="font-mono text-sm font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg inline-block mb-1.5">—</p>
+                                <p id="sessionLobbyProgramTitle" class="text-sm font-bold text-gray-800 truncate">—</p>
+                            </div>
+                        </div>
+
+                        <!-- أقصى اليسار: تعديل/حذف (أدمن فقط - مقابل رمز الجلسة) + زر الدخول إلى الجلسة -->
+                        <div class="order-2 w-full sm:w-auto sm:mr-auto flex flex-col items-center sm:items-end gap-2">
+                            <div class="admin-only flex items-center gap-2">
+                                <button onclick="editLiveSession(_sessionLobbyId)" class="glass-icon-btn px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-primary flex items-center gap-1 hover:bg-primary/10 transition-colors" title="تعديل الجلسة">
+                                    <i class="ph ph-pencil-simple text-xs"></i> تعديل
+                                </button>
+                                <button onclick="deleteLiveSession(_sessionLobbyId)" class="glass-icon-btn px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-red-500 flex items-center gap-1 hover:bg-red-50 hover:border-red-300 transition-colors" title="حذف الجلسة">
+                                    <i class="ph ph-trash text-xs"></i> حذف
+                                </button>
+                            </div>
+                            <button id="sessionLobbyEnterBtn" onclick="_sessionLobbyEnter()" class="bg-primary text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-2">
+                                <i class="ph ph-sign-in"></i> الدخول إلى الجلسة
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- بيانات الجلسة: العنوان بالعربي والانجليزي، المحاضر، التاريخ، الوقت، المدة -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div class="glass-element rounded-xl p-3.5">
+                            <p class="text-[11px] text-gray-400 mb-1">عنوان الجلسة (عربي)</p>
+                            <p id="sessionLobbyTitleAr" class="text-sm font-bold text-gray-800">—</p>
+                        </div>
+                        <div class="glass-element rounded-xl p-3.5">
+                            <p class="text-[11px] text-gray-400 mb-1">Session Title (English)</p>
+                            <p id="sessionLobbyTitleEn" class="text-sm font-bold text-gray-800" dir="ltr">—</p>
+                        </div>
+                        <div class="glass-element rounded-xl p-3.5">
+                            <p class="text-[11px] text-gray-400 mb-1"><i class="ph ph-chalkboard-teacher"></i> اسم المحاضر</p>
+                            <p id="sessionLobbyLecturerText" class="text-sm font-bold text-gray-800">—</p>
+                        </div>
+                        <div class="glass-element rounded-xl p-3.5">
+                            <p class="text-[11px] text-gray-400 mb-1"><i class="ph ph-calendar-blank"></i> تاريخ الجلسة</p>
+                            <p id="sessionLobbyDate" class="text-sm font-bold text-gray-800">—</p>
+                        </div>
+                        <div class="glass-element rounded-xl p-3.5">
+                            <p class="text-[11px] text-gray-400 mb-1"><i class="ph ph-clock"></i> وقت الجلسة</p>
+                            <p id="sessionLobbyTime" class="text-sm font-bold text-gray-800">—</p>
+                        </div>
+                        <div class="glass-element rounded-xl p-3.5">
+                            <p class="text-[11px] text-gray-400 mb-1"><i class="ph ph-hourglass"></i> مدة الجلسة</p>
+                            <p id="sessionLobbyDuration" class="text-sm font-bold text-gray-800">—</p>
+                        </div>
+                    </div>
+
+                    <!-- أهداف الجلسة: تُعرض قبل بطاقة رمز المرور، وفقط إن وُجدت -->
+                    <div id="sessionLobbyObjectivesBox" class="hidden glass-element rounded-xl p-3.5 mb-4">
+                        <p class="text-[11px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-target"></i> أهداف الجلسة</p>
+                        <p id="sessionLobbyObjectives" class="text-sm font-bold text-gray-800 whitespace-pre-line">—</p>
+                    </div>
+
+                    <!-- تحكم الأدمن: تفعيل/تعطيل رمز المرور وعرضه -->
+                    <div class="admin-only glass-element rounded-xl p-4 flex flex-wrap items-center gap-4 mb-4">
+                        <div class="flex items-center gap-3 flex-1 min-w-[220px]">
+                            <div class="w-10 h-10 rounded-lg glass-icon-tile flex items-center justify-center text-primary text-lg shrink-0">
+                                <i class="ph ph-key"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-bold text-sm text-gray-800">رمز مرور الجلسة</p>
+                                <p id="sessionLobbyEntryStatusText" class="text-xs text-gray-400">غير مفعّل — لا يمكن للمشاركين الدخول عبر الرمز حالياً</p>
+                            </div>
+                        </div>
+                        <p id="sessionLobbyPasswordCode" class="hidden font-mono text-base font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-lg shrink-0">—</p>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input id="sessionLobbyEntryToggle" type="checkbox" class="sr-only peer" onchange="toggleSessionEntryCode(this.checked)">
+                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary transition-colors relative">
+                                <span class="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:-translate-x-5"></span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- ملاحظة للمشاركين (تُعرض بدل لوحة التحكم لغير الأدمن) -->
+                    <div class="non-admin-note flex-1 items-center justify-center">
+                        <p class="text-sm text-gray-400 text-center max-w-xs">
+                            <i class="ph ph-info text-2xl block mb-2 mx-auto text-gray-300"></i>
+                            استخدم رمز المرور أعلاه أو امسح رمز QR للانضمام إلى هذه الجلسة
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودال إدخال رمز المرور لدخول الجلسة (لغير الأدمن) -->
+            <div id="sessionEnterCodeModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeSessionEnterCodeModal()">
+                <div class="glass-panel bg-white/90 w-full max-w-sm rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                            <i class="ph ph-key text-primary"></i> رمز مرور الجلسة
+                        </h3>
+                        <button class="glass-icon-btn w-8 h-8 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeSessionEnterCodeModal()">
+                            <i class="ph ph-x text-base"></i>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">أدخل رمز المرور الذي شاركه معك المسؤول للانضمام إلى هذه الجلسة</p>
+                    <input id="sessionEnterCodeInput" type="text" maxlength="6" autocomplete="off"
+                        class="w-full text-center tracking-[0.3em] font-mono text-lg font-bold uppercase glass-panel rounded-lg px-3 py-2.5 mb-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        placeholder="——————" onkeydown="if(event.key==='Enter') submitSessionEnterCode()">
+                    <p id="sessionEnterCodeError" class="hidden text-xs text-red-500 mb-2">⚠️ رمز غير صحيح أو غير مفعّل، حاول مجدداً</p>
+                    <button onclick="submitSessionEnterCode()" class="w-full bg-primary text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+                        <i class="ph ph-sign-in"></i> دخول
+                    </button>
                 </div>
             </div>
 
@@ -12360,29 +12605,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════
-         مودال اختيار / بدء / الانضمام لجلسة متزامنة
-    ══════════════════════════════════════════════════════════ -->
-    <div id="liveSessionPickerModal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="closeLiveSessionPicker()">
-        <div class="glass-panel bg-white/95 w-full max-w-md rounded-2xl p-5 shadow-2xl max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
-            <div class="flex items-center gap-3 mb-4 shrink-0">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-sky-200/40 flex items-center justify-center text-primary text-xl border border-primary/20">
-                    <i class="ph ph-broadcast"></i>
-                </div>
-                <div class="min-w-0">
-                    <h3 class="text-base font-bold text-gray-800">الجلسات المتزامنة</h3>
-                    <p class="text-xs text-gray-500">اختر الدورة لبدء أو الانضمام إلى جلسة مباشرة</p>
-                </div>
-                <button onclick="closeLiveSessionPicker()" class="glass-icon-btn w-8 h-8 rounded-full flex items-center justify-center mr-auto shrink-0">
-                    <i class="ph ph-x text-sm"></i>
-                </button>
-            </div>
-            <div id="liveSessionPickerBody" class="flex-1 overflow-y-auto space-y-2 -mx-1 px-1">
-                <!-- تُملأ ديناميكياً -->
-            </div>
-        </div>
-    </div>
-
     <!-- ===== نافذة: الامتحان المتاح للطالب (بطاقة عرض) ===== -->
     <div id="traineeExamListModal" class="hidden fixed inset-0 z-[190] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onclick="if(event.target===this) document.getElementById('traineeExamListModal').classList.add('hidden')">
         <div class="glass-panel bg-white/95 w-full max-w-md rounded-2xl p-6 shadow-2xl max-h-[80vh] overflow-y-auto" onclick="event.stopPropagation()">
@@ -12492,6 +12714,89 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <i class="ph ph-check-circle"></i> حفظ
                 </button>
                 <button class="flex-1 glass-panel py-2.5 rounded-lg font-semibold hover:border-gray-400 transition-colors" onclick="closeProgramModal()">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة منبثقة: إنشاء جلسة متزامنة جديدة -->
+    <div id="newLiveSessionModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeNewLiveSessionModal()">
+        <div class="glass-panel bg-white/90 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/40">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-broadcast text-primary"></i> إنشاء جلسة متزامنة جديدة
+                </h2>
+                <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeNewLiveSessionModal()">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- اسم البرنامج -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم البرنامج <span class="text-red-500">*</span></label>
+                    <select id="liveSessionProgramSelect" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" onchange="generateLiveSessionCode()">
+                        <option value="" disabled selected>اختر البرنامج</option>
+                    </select>
+                </div>
+
+                <!-- عنوان الجلسة (عربي / انجليزي) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">عنوان الجلسة (عربي) <span class="text-red-500">*</span></label>
+                        <input id="liveSessionTitleArInput" type="text" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="مثال: مراجعة عامة" oninput="generateLiveSessionCode()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">عنوان الجلسة (إنجليزي) <span class="text-red-500">*</span></label>
+                        <input id="liveSessionTitleEnInput" type="text" dir="ltr" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="e.g. General Review" oninput="generateLiveSessionCode()">
+                    </div>
+                </div>
+
+                <!-- رمز الجلسة -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">رمز الجلسة</label>
+                    <input id="liveSessionCodeInput" type="text" dir="ltr" readonly class="w-full glass-panel rounded-lg px-3 py-2 text-sm bg-gray-100/60 text-gray-600 text-left" placeholder="يُولّد تلقائياً">
+                </div>
+
+                <!-- تاريخ الجلسة / توقيت الجلسة -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">تاريخ الجلسة <span class="text-red-500">*</span></label>
+                        <input id="liveSessionDateInput" type="date" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" onchange="generateLiveSessionCode()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">توقيت الجلسة <span class="text-red-500">*</span></label>
+                        <input id="liveSessionTimeInput" type="time" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                    </div>
+                </div>
+
+                <!-- مدة الجلسة / اسم المحاضر -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">مدة الجلسة (بالدقائق) <span class="text-red-500">*</span></label>
+                        <input id="liveSessionDurationInput" type="number" min="1" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="مثال: 60">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم المحاضر <span class="text-red-500">*</span></label>
+                        <select id="liveSessionLecturerSelect" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            <option value="" disabled selected>اختر المحاضر</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- أهداف الجلسة -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">أهداف الجلسة</label>
+                    <textarea id="liveSessionObjectivesInput" rows="3" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="اكتب أهداف الجلسة..."></textarea>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 mt-6 pt-4 border-t border-white/40">
+                <button class="flex-1 bg-primary text-white py-2.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2" onclick="saveNewLiveSessionModal()">
+                    <i class="ph ph-check-circle"></i> حفظ
+                </button>
+                <button class="flex-1 glass-panel py-2.5 rounded-lg font-semibold hover:border-gray-400 transition-colors" onclick="closeNewLiveSessionModal()">
                     إلغاء
                 </button>
             </div>
@@ -13974,7 +14279,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView'];
+        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -16054,6 +16359,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             document.getElementById('sidebarUsersList').classList.add('hidden');
             const chatListEl = document.getElementById('sidebarChatList');
             if (chatListEl) chatListEl.classList.add('hidden');
+            const liveListEl = document.getElementById('sidebarLiveSessionsList');
+            if (liveListEl) liveListEl.classList.add('hidden');
+            const addBtn = document.getElementById('sidebarAddBtn');
+            if (addBtn) addBtn.classList.remove('hidden');
             document.getElementById('sidebarProgramList').classList.remove('hidden');
         }
 
@@ -20822,7 +21131,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (isSidebarOpen) {
                 closeSidebar();
             } else {
-                openSidebar();
+                if (typeof _liveSessionId !== 'undefined' && _liveSessionId && typeof openLiveSessionsSidebarPanel === 'function') {
+                    openLiveSessionsSidebarPanel();
+                } else {
+                    openSidebar();
+                }
             }
         }
 
@@ -29070,6 +29383,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
     let _liveSessionData     = null;   // آخر نسخة من بيانات مستند الجلسة
     let _liveSessionUnsub    = null;   // إلغاء الاستماع لمستند الجلسة
     let _liveParticipantsUnsub = null; // إلغاء الاستماع لمجموعة المشاركين
+    let _liveChatUnsub       = null;   // إلغاء الاستماع للرسائل النصية الجماعية
     let _liveParticipants    = [];     // آخر نسخة من قائمة المشاركين
     let _livePickerCourses   = [];     // قائمة الدورات المعروضة في مودال الاختيار (للنقر عليها بالفهرس)
 
@@ -29078,22 +29392,623 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
     function _liveIsAdmin() { const u = _liveGetUser(); return !!u && u.role === 'admin'; }
 
     // ════════════════════════════════════════════════════
-    //  مودال اختيار / بدء / الانضمام إلى جلسة
+    //  لوحة اختيار / بدء / الانضمام إلى جلسة — في القائمة الجانبية
     // ════════════════════════════════════════════════════
-    async function openLiveSessionsPicker() {
-        const modal = document.getElementById('liveSessionPickerModal');
-        const body  = document.getElementById('liveSessionPickerBody');
-        if (!modal || !body) return;
-        modal.classList.remove('hidden');
+    // يُظهر لوحة الجلسات المتزامنة الجانبية دون تحديد محتواها (يُستخدم داخلياً)
+    function _sidebarShowLivePanel() {
+        const panel = document.getElementById('sidebarLiveSessionsList');
+        if (!panel) return false;
+        sidebarMode = 'liveSessions';
+        ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarChatList']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+        panel.classList.remove('hidden');
+
+        const addBtn = document.getElementById('sidebarAddBtn');
+        const qrBtn  = document.getElementById('chatQRBtn');
+        if (addBtn) addBtn.classList.add('hidden');
+        if (qrBtn)  qrBtn.classList.add('hidden');
+
+        openSidebar();
+        return true;
+    }
+
+    function openLiveSessionsSidebarPanel() {
+        if (_sidebarShowLivePanel()) _renderLiveSessionsPickerMenu();
+    }
+
+    // زر الهيدر السريع: إنشاء جلسة متزامنة جديدة مباشرة
+    function _sidebarQuickCreateNewSession() {
+        if (_sidebarShowLivePanel()) _renderLiveSessionsPickerMenu();
+        openNewLiveSessionModal();
+    }
+
+    // زر الهيدر السريع: إنشاء جلسة بناء على البرامج والدورات المسجلة مباشرة
+    function _sidebarQuickCreateSessionFromCourse() {
+        if (_sidebarShowLivePanel()) _liveSessionPickerShowCourseList();
+    }
+
+    // يُغلق لوحة الجلسات المتزامنة ويعيد القائمة الرئيسية للبرامج
+    function closeLiveSessionsSidebarPanel() {
+        sidebarMode = 'programs';
+        const panel = document.getElementById('sidebarLiveSessionsList');
+        if (panel) panel.classList.add('hidden');
+        const mainList = document.getElementById('sidebarProgramList');
+        if (mainList) mainList.classList.remove('hidden');
+        const addBtn = document.getElementById('sidebarAddBtn');
+        if (addBtn) addBtn.classList.remove('hidden');
+    }
+
+    // يضبط عنوان/عنوان فرعي اللوحة الجانبية ويُظهر/يُخفي زر الرجوع
+    function _liveSessionPickerSetHeader(title, subtitle, showBack) {
+        const titleEl = document.getElementById('sidebarLiveTitle');
+        const subEl   = document.getElementById('sidebarLiveSubtitle');
+        const backBtn = document.getElementById('sidebarLiveBackBtn');
+        if (titleEl) titleEl.textContent = title;
+        if (subEl)   subEl.textContent   = subtitle;
+        if (backBtn) backBtn.classList.toggle('hidden', !showBack);
+    }
+
+    // ════════════════════════════════════════════════════
+    //  القائمة الرئيسية: إنشاء جلسة جديدة / جلسة من دورة مسجلة
+    // ════════════════════════════════════════════════════
+    async function _renderLiveSessionsPickerMenu() {
+        const body = document.getElementById('sidebarLiveBody');
+        if (!body) return;
+        _liveSessionPickerSetHeader('الجلسات المتزامنة', 'اختر طريقة بدء الجلسة', false);
+
+        body.innerHTML = `
+            <div id="liveIndependentSessionsSection" class="pt-2">
+                <div class="flex items-center gap-2 px-1 mb-2">
+                    <span class="text-[11px] font-bold text-gray-400">الجلسات المستقلة الحالية</span>
+                </div>
+                <div id="liveIndependentSessionsList" class="space-y-2">
+                    <div class="flex items-center justify-center py-6 text-gray-400 text-xs gap-2">
+                        <i class="ph ph-spinner-gap animate-spin"></i> جاري التحميل...
+                    </div>
+                </div>
+            </div>`;
+
+        await _renderIndependentLiveSessionCards();
+    }
+
+    // يعرض بطاقات الجلسات المتزامنة المستقلة (غير المرتبطة بدورة) والنشطة حالياً
+    // كل بطاقة تعرض: عنوان الجلسة، تاريخ الجلسة، اسم المحاضر
+    async function _renderIndependentLiveSessionCards() {
+        const listEl = document.getElementById('liveIndependentSessionsList');
+        const dbRef  = _liveGetDb();
+        if (!listEl || !dbRef) return;
+
+        let sessions = [];
+        try {
+            const snap = await dbRef.collection('liveSessions')
+                .where('status', '==', 'active')
+                .where('isFreeSession', '==', true)
+                .get();
+            sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.warn('تعذّر جلب الجلسات المستقلة', e);
+            listEl.innerHTML = `<p class="text-center text-xs text-gray-400 py-4">تعذّر تحميل الجلسات</p>`;
+            return;
+        }
+
+        if (sessions.length === 0) {
+            listEl.innerHTML = `<p class="text-center text-xs text-gray-300 py-4">لا توجد جلسات مستقلة نشطة حالياً</p>`;
+            return;
+        }
+
+        listEl.innerHTML = sessions.map(s => {
+            const title    = escapeHtml(s.sessionTitleAr || s.courseCode || 'جلسة بدون عنوان');
+            const dateText = escapeHtml(s.sessionDate || '—');
+            const lecturer = escapeHtml(s.lecturerName || s.hostName || '—');
+            return `
+            <div class="glass-element rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:border-primary/50 hover:-translate-y-0.5 transition-all" onclick="openSessionLobby('${s.id}')">
+                <div class="w-10 h-10 rounded-lg glass-icon-tile flex items-center justify-center text-primary shrink-0">
+                    <i class="ph ph-broadcast"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="font-bold text-sm text-gray-800 truncate">${title}</p>
+                    <p class="text-[11px] text-gray-400 truncate"><i class="ph ph-chalkboard-teacher"></i> ${lecturer}</p>
+                    <p class="text-[11px] text-gray-400 truncate"><i class="ph ph-calendar-blank"></i> ${dateText}</p>
+                </div>
+                <div class="admin-only flex items-center gap-1 shrink-0">
+                    <button onclick="event.stopPropagation(); editLiveSession('${s.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل الجلسة">
+                        <i class="ph ph-pencil-simple text-xs"></i>
+                    </button>
+                    <button onclick="event.stopPropagation(); deleteLiveSession('${s.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف الجلسة">
+                        <i class="ph ph-trash text-xs"></i>
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function _liveSessionPickerGoMenu() {
+        _renderLiveSessionsPickerMenu();
+    }
+
+    // ════════════════════════════════════════════════════
+    //  لوحة عرض بيانات الجلسة (Session Lobby) — المرحلة ١
+    //  تُفتح عند الضغط على بطاقة جلسة متزامنة، وتعرض كامل بيانات
+    //  الجلسة (رمز الدخول + QR، عنوان الجلسة، البرنامج، المحاضر)
+    //  قبل الدخول الفعلي إليها. الأدمن وحده يدخل تلقائياً دون رمز.
+    // ════════════════════════════════════════════════════
+    let _sessionLobbyId = null;
+    let _sessionLobbyData = null;
+    let _sessionLobbyUnsub = null;
+
+    // يفتح لوحة عرض بيانات الجلسة لجلسة محددة عبر معرّفها
+    async function openSessionLobby(sessionId) {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !sessionId) return;
+
+        if (window.innerWidth < 768) closeSidebar();
+        _sessionLobbyId = sessionId;
+        showView('sessionLobbyView');
+
+        if (_sessionLobbyUnsub) { _sessionLobbyUnsub(); _sessionLobbyUnsub = null; }
+        _sessionLobbyUnsub = dbRef.collection('liveSessions').doc(sessionId)
+            .onSnapshot(snap => {
+                if (!snap.exists) { closeSessionLobby(); return; }
+                _renderSessionLobby({ id: snap.id, ...snap.data() });
+            }, err => console.warn('session lobby listener error', err));
+    }
+
+    // يغلق لوحة عرض بيانات الجلسة ويعيد فتح شبكة الجلسات الافتراضية
+    function closeSessionLobby() {
+        if (_sessionLobbyUnsub) { _sessionLobbyUnsub(); _sessionLobbyUnsub = null; }
+        _sessionLobbyId = null;
+        _sessionLobbyData = null;
+        showView('virtualSessionsView');
+    }
+
+    // يبني رابط عام لفتح لوحة بيانات الجلسة (يُستخدم داخل QR الهيدر - لا يحمل رمز المرور)
+    function getSessionJoinURL(sessionId) {
+        const base = window.location.href.split('?')[0].split('#')[0];
+        return `${base}?liveSessionJoin=${encodeURIComponent(sessionId)}`;
+    }
+
+    // يولّد رمز مرور عشوائي (٦ محارف: أحرف كبيرة + أرقام)
+    function _generateSessionEntryCode() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // بدون محارف متشابهة (I, O, 0, 1)
+        let code = '';
+        for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+        return code;
+    }
+
+    // يهيّئ عرض مدة الجلسة بالدقائق كنص مقروء
+    function _formatSessionDuration(minutes) {
+        const m = Number(minutes) || 0;
+        if (!m) return '—';
+        if (m < 60) return `${m} دقيقة`;
+        const h = Math.floor(m / 60), rem = m % 60;
+        return rem ? `${h} ساعة ${rem} دقيقة` : `${h} ساعة`;
+    }
+
+    // يرسم بيانات الجلسة في لوحة العرض الرئيسية
+    function _renderSessionLobby(data) {
+        _sessionLobbyData = data;
+        const progEl      = document.getElementById('sessionLobbyProgramTitle');
+        const sessCodeEl  = document.getElementById('sessionLobbySessionCode');
+        const lectEl      = document.getElementById('sessionLobbyLecturerText');
+        const titleArEl   = document.getElementById('sessionLobbyTitleAr');
+        const titleEnEl   = document.getElementById('sessionLobbyTitleEn');
+        const dateEl      = document.getElementById('sessionLobbyDate');
+        const timeEl      = document.getElementById('sessionLobbyTime');
+        const durationEl  = document.getElementById('sessionLobbyDuration');
+        const pwdEl       = document.getElementById('sessionLobbyPasswordCode');
+        const toggleEl    = document.getElementById('sessionLobbyEntryToggle');
+        const statusEl    = document.getElementById('sessionLobbyEntryStatusText');
+        const qrContainer = document.getElementById('sessionLobbyQRContainer');
+
+        // رمز الجلسة المولّد تلقائياً عند التسجيل (وليس رمز المرور)
+        const sessionCode = data.sessionCode || data.courseCode || '—';
+        if (sessCodeEl) sessCodeEl.textContent = sessionCode;
+        if (progEl)     progEl.textContent     = data.programTitle || 'جلسة مستقلة';
+
+        if (lectEl)     lectEl.textContent     = data.lecturerName || data.hostName || '—';
+        if (titleArEl)  titleArEl.textContent  = data.sessionTitleAr || data.courseCode || 'جلسة بدون عنوان';
+        if (titleEnEl)  titleEnEl.textContent  = data.sessionTitleEn || '—';
+        if (dateEl)     dateEl.textContent     = data.sessionDate || '—';
+        if (timeEl)     timeEl.textContent     = data.sessionTime || '—';
+        if (durationEl) durationEl.textContent = _formatSessionDuration(data.durationMinutes);
+
+        // أهداف الجلسة: تُعرض فقط إن وُجدت، قبل بطاقة رمز المرور
+        const objEl  = document.getElementById('sessionLobbyObjectives');
+        const objBox = document.getElementById('sessionLobbyObjectivesBox');
+        if (objBox && objEl) {
+            const objectives = (data.objectives || '').trim();
+            if (objectives) {
+                objEl.textContent = objectives;
+                objBox.classList.remove('hidden');
+            } else {
+                objBox.classList.add('hidden');
+            }
+        }
+
+        // QR الهيدر: رابط عام لفتح بيانات الجلسة (لا يحمل رمز المرور)
+        if (qrContainer && typeof QRCode !== 'undefined') {
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: getSessionJoinURL(data.id),
+                width: 64,
+                height: 64,
+                colorDark: '#0790AC',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        // رمز المرور: يُعرض داخل بيانات عرض الجلسة (بطاقة التحكم) وليس في الهيدر
+        const entryCode = data.entryCode || { active: false, code: '' };
+        if (toggleEl) toggleEl.checked = !!entryCode.active;
+        if (statusEl) {
+            statusEl.textContent = entryCode.active
+                ? 'مفعّل — يمكن للمشاركين الدخول باستخدام رمز المرور'
+                : 'غير مفعّل — لا يمكن للمشاركين الدخول عبر الرمز حالياً';
+        }
+        if (pwdEl) {
+            if (entryCode.active && entryCode.code) {
+                pwdEl.textContent = entryCode.code;
+                pwdEl.classList.remove('hidden');
+            } else {
+                pwdEl.classList.add('hidden');
+            }
+        }
+    }
+
+    // تفعيل/تعطيل رمز دخول الجلسة (أدمن فقط) — عند التفعيل يُولَّد رمز جديد تلقائياً
+    async function toggleSessionEntryCode(activate) {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !_sessionLobbyId) return;
+
+        try {
+            const entryCode = activate
+                ? { active: true, code: _generateSessionEntryCode(), generatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+                : { active: false, code: '' };
+
+            await dbRef.collection('liveSessions').doc(_sessionLobbyId).set({ entryCode }, { merge: true });
+            showToast(activate ? '✅ تم تفعيل رمز الدخول' : 'تم تعطيل رمز الدخول', 'success');
+        } catch (e) {
+            console.error('toggleSessionEntryCode error', e);
+            showToast('⚠️ تعذّر تحديث رمز الدخول', 'error');
+        }
+    }
+
+    // زر "المشاركة والدخول": يدخل الأدمن مباشرة إلى الجلسة الفعلية بدون الحاجة لرمز الدخول
+    function _sessionLobbyAdminJoin() {
+        if (!_sessionLobbyId) return;
+        if (_sessionLobbyUnsub) { _sessionLobbyUnsub(); _sessionLobbyUnsub = null; }
+        joinLiveSessionById(_sessionLobbyId);
+    }
+
+    // زر "الدخول إلى الجلسة" الموحّد لجميع الصفات: نفس الاسم للجميع، لكن السلوك يختلف —
+    // الأدمن يدخل تلقائياً بدون رمز، وباقي الصفات (طالب/مدرب/ضيف) تُطالَب برمز المرور
+    function _sessionLobbyEnter() {
+        if (_liveIsAdmin()) {
+            _sessionLobbyAdminJoin();
+        } else {
+            openSessionEnterCodeModal();
+        }
+    }
+
+    // زر "الدخول إلى الجلسة" (لغير الأدمن): يفتح مودال إدخال رمز المرور
+    function openSessionEnterCodeModal() {
+        const errEl   = document.getElementById('sessionEnterCodeError');
+        const inputEl = document.getElementById('sessionEnterCodeInput');
+        if (errEl) errEl.classList.add('hidden');
+        if (inputEl) inputEl.value = '';
+        document.getElementById('sessionEnterCodeModal')?.classList.remove('hidden');
+        setTimeout(() => inputEl?.focus(), 50);
+    }
+
+    function closeSessionEnterCodeModal() {
+        document.getElementById('sessionEnterCodeModal')?.classList.add('hidden');
+    }
+
+    // يتحقق من رمز المرور المُدخل، وإن كان صحيحاً ومفعّلاً يدخل المستخدم إلى الجلسة الفعلية
+    function submitSessionEnterCode() {
+        const inputEl = document.getElementById('sessionEnterCodeInput');
+        const errEl   = document.getElementById('sessionEnterCodeError');
+        const entered = (inputEl?.value || '').trim().toUpperCase();
+        const entryCode = _sessionLobbyData?.entryCode || { active: false, code: '' };
+
+        const isValid = entryCode.active && entryCode.code && entered === String(entryCode.code).toUpperCase();
+
+        if (!isValid) {
+            if (errEl) errEl.classList.remove('hidden');
+            return;
+        }
+
+        closeSessionEnterCodeModal();
+        if (!_sessionLobbyId) return;
+        if (_sessionLobbyUnsub) { _sessionLobbyUnsub(); _sessionLobbyUnsub = null; }
+        joinLiveSessionById(_sessionLobbyId);
+    }
+
+    // ════════════════════════════════════════════════════
+    //  خيار ٢: إنشاء جلسة بناء على البرامج والدورات المسجلة
+    //  (يعيد استخدام منطق startLiveSession الحالي)
+    // ════════════════════════════════════════════════════
+    async function _liveSessionPickerShowCourseList() {
+        const body = document.getElementById('sidebarLiveBody');
+        if (!body) return;
+        _liveSessionPickerSetHeader('اختيار الدورة', 'اختر الدورة لبدء أو الانضمام إلى جلسة مباشرة', true);
         body.innerHTML = `<div class="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
                               <i class="ph ph-spinner-gap animate-spin text-lg"></i> جاري التحميل...
                            </div>`;
         await _renderLiveSessionsPickerContent();
     }
 
-    function closeLiveSessionPicker() {
-        const modal = document.getElementById('liveSessionPickerModal');
+    // ════════════════════════════════════════════════════
+    //  خيار ١: إنشاء جلسة متزامنة جديدة (مستقلة)
+    // ════════════════════════════════════════════════════
+    function _liveSessionPickerShowNewForm() {
+        const body = document.getElementById('sidebarLiveBody');
+        if (!body) return;
+        _liveSessionPickerSetHeader('جلسة متزامنة جديدة', 'أدخل عنوان الجلسة ثم ابدأها', true);
+        body.innerHTML = `
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">عنوان الجلسة <span class="text-red-500">*</span></label>
+                    <input id="newLiveSessionTitleInput" type="text" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="مثال: جلسة مراجعة عامة">
+                </div>
+                <button onclick="startNewFreeLiveSession()" class="w-full bg-primary text-white text-sm font-bold py-2.5 rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+                    <i class="ph ph-play"></i> بدء الجلسة
+                </button>
+            </div>`;
+        const input = document.getElementById('newLiveSessionTitleInput');
+        if (input) {
+            input.focus();
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') startNewFreeLiveSession(); });
+        }
+    }
+
+    // ════════════════════════════════════════════════════
+    //  نافذة منبثقة: إنشاء جلسة متزامنة جديدة (بديل النموذج المصغر)
+    // ════════════════════════════════════════════════════
+    let _editingLiveSessionId = null;
+
+    async function openNewLiveSessionModal() {
+        const modal = document.getElementById('newLiveSessionModal');
+        if (!modal) return;
+
+        _editingLiveSessionId = null;
+        const titleEl = modal.querySelector('h2');
+        if (titleEl) titleEl.innerHTML = '<i class="ph ph-broadcast text-primary"></i> إنشاء جلسة متزامنة جديدة';
+
+        // تعبئة قائمة البرامج
+        const programSelect = document.getElementById('liveSessionProgramSelect');
+        if (programSelect) {
+            programSelect.innerHTML = '<option value="" disabled selected>اختر البرنامج</option>' +
+                Object.entries(programsData || {}).map(([key, p]) =>
+                    `<option value="${key}">${escapeHtml(p.title || key)}</option>`
+                ).join('');
+        }
+
+        // تعبئة قائمة المدربين المسجلين
+        if (typeof registryTrainers !== 'undefined' && registryTrainers.length === 0 && typeof loadTrainersFromFirebase === 'function') {
+            try { await loadTrainersFromFirebase(); } catch (e) { console.warn('تعذّر تحميل المدربين', e); }
+        }
+        const lecturerSelect = document.getElementById('liveSessionLecturerSelect');
+        if (lecturerSelect) {
+            const trainers = (typeof registryTrainers !== 'undefined') ? registryTrainers : [];
+            lecturerSelect.innerHTML = '<option value="" disabled selected>اختر المحاضر</option>' +
+                trainers.map(t => `<option value="${escapeHtml(t.nameAr || '')}" data-name-en="${escapeHtml(t.nameEn || '')}">${escapeHtml(t.nameAr || '—')}</option>`).join('');
+        }
+
+        // إعادة ضبط الحقول
+        ['liveSessionTitleArInput','liveSessionTitleEnInput','liveSessionCodeInput','liveSessionDateInput','liveSessionTimeInput','liveSessionDurationInput','liveSessionObjectivesInput']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        if (programSelect) programSelect.selectedIndex = 0;
+        if (lecturerSelect) lecturerSelect.selectedIndex = 0;
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeNewLiveSessionModal() {
+        const modal = document.getElementById('newLiveSessionModal');
         if (modal) modal.classList.add('hidden');
+    }
+
+    // يستخرج أول حرف من كل كلمة إنجليزية (حتى 4 كلمات لتفادي رمز طويل جداً)
+    function _liveFirstLettersOfWords(text, maxWords) {
+        if (!text) return '';
+        const words = text.trim().split(/\s+/).filter(w => /[a-zA-Z]/.test(w));
+        const limited = maxWords ? words.slice(0, maxWords) : words;
+        return limited.map(w => w.replace(/[^a-zA-Z]/g, '').charAt(0).toUpperCase()).join('');
+    }
+
+    // توليد رمز الجلسة تلقائياً:
+    // أول حرف من كل كلمة من اسم البرنامج (EN) + "_" + أول حرف من أول كلمتين من عنوان الجلسة (EN) + "_" + التاريخ
+    function generateLiveSessionCode() {
+        const codeInput = document.getElementById('liveSessionCodeInput');
+        if (!codeInput) return;
+
+        const programKey = document.getElementById('liveSessionProgramSelect')?.value || '';
+        const titleEn     = document.getElementById('liveSessionTitleEnInput')?.value || '';
+        const dateVal     = document.getElementById('liveSessionDateInput')?.value || '';
+
+        const program = programKey ? programsData[programKey] : null;
+        if (!program || !titleEn.trim() || !dateVal) { codeInput.value = ''; return; }
+
+        const programPart = _liveFirstLettersOfWords(program.titleEn || program.title || '');
+        const titlePart   = _liveFirstLettersOfWords(titleEn, 2);
+        const datePart    = dateVal.replace(/-/g, '');
+
+        if (!programPart || !titlePart) { codeInput.value = ''; return; }
+
+        codeInput.value = `${programPart}_${titlePart}_${datePart}`;
+    }
+
+    // التحقق من الحقول ثم حفظ الجلسة المتزامنة الجديدة في Firestore
+    async function saveNewLiveSessionModal() {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (!dbRef || !user) return;
+
+        const programKey  = document.getElementById('liveSessionProgramSelect')?.value || '';
+        const titleAr      = (document.getElementById('liveSessionTitleArInput')?.value || '').trim();
+        const titleEn       = (document.getElementById('liveSessionTitleEnInput')?.value || '').trim();
+        const sessionCode  = document.getElementById('liveSessionCodeInput')?.value || '';
+        const sessionDate  = document.getElementById('liveSessionDateInput')?.value || '';
+        const sessionTime  = document.getElementById('liveSessionTimeInput')?.value || '';
+        const duration     = document.getElementById('liveSessionDurationInput')?.value || '';
+        const lecturerSelect = document.getElementById('liveSessionLecturerSelect');
+        const lecturerName = lecturerSelect?.value || '';
+        const lecturerNameEn = lecturerSelect?.selectedOptions?.[0]?.dataset?.nameEn || '';
+        const objectives    = (document.getElementById('liveSessionObjectivesInput')?.value || '').trim();
+
+        // التحقق من الحقول المطلوبة
+        if (!programKey) { showToast('⚠️ يرجى اختيار اسم البرنامج', 'error'); return; }
+        if (!titleAr)     { showToast('⚠️ يرجى إدخال عنوان الجلسة بالعربي', 'error'); return; }
+        if (!titleEn)     { showToast('⚠️ يرجى إدخال عنوان الجلسة بالإنجليزي', 'error'); return; }
+        if (!sessionDate) { showToast('⚠️ يرجى إدخال تاريخ الجلسة', 'error'); return; }
+        if (!sessionTime) { showToast('⚠️ يرجى إدخال توقيت الجلسة', 'error'); return; }
+        if (!duration)    { showToast('⚠️ يرجى إدخال مدة الجلسة', 'error'); return; }
+        if (!lecturerName){ showToast('⚠️ يرجى اختيار اسم المحاضر', 'error'); return; }
+
+        const program = programsData[programKey];
+
+        const sessionPayload = {
+            programKey:       programKey,
+            courseKey:        null,
+            programTitle:     program?.title || '',
+            isFreeSession:    true,
+            sessionTitleAr:   titleAr,
+            sessionTitleEn:   titleEn,
+            courseCode:       sessionCode || titleAr,
+            sessionCode:      sessionCode || '',
+            sessionDate:      sessionDate,
+            sessionTime:      sessionTime,
+            durationMinutes:  Number(duration) || 0,
+            lecturerName:     lecturerName,
+            lecturerNameEn:   lecturerNameEn,
+            objectives:       objectives
+        };
+
+        try {
+            if (_editingLiveSessionId) {
+                // وضع التعديل: تحديث بيانات جلسة موجودة بدون المساس بحالتها أو الدخول إليها
+                await dbRef.collection('liveSessions').doc(_editingLiveSessionId).set(sessionPayload, { merge: true });
+                closeNewLiveSessionModal();
+                _editingLiveSessionId = null;
+                await _renderIndependentLiveSessionCards();
+                showToast('✅ تم تحديث بيانات الجلسة', 'success');
+            } else {
+                // وضع الإنشاء: جلسة جديدة يدخلها منشئها فوراً
+                const docRef = await dbRef.collection('liveSessions').add({
+                    ...sessionPayload,
+                    status:           'active',
+                    hostUid:          user.uid || user.appUid || '',
+                    hostName:         user.displayName || user.nameAr || user.name || '',
+                    muteAll:          false,
+                    screenShare:      { active: false, by: null },
+                    whiteboard:       { active: false },
+                    videoShare:       { active: false, by: null },
+                    recording:        false,
+                    createdAt:        firebase.firestore.FieldValue.serverTimestamp(),
+                    endedAt:          null
+                });
+
+                closeNewLiveSessionModal();
+                await joinLiveSessionById(docRef.id);
+                showToast('✅ تم إنشاء وبدء الجلسة المتزامنة', 'success');
+            }
+        } catch (e) {
+            console.error('saveNewLiveSessionModal error', e);
+            showToast('⚠️ تعذّر حفظ بيانات الجلسة', 'error');
+        }
+    }
+
+    // يفتح نافذة تعديل الجلسة المتزامنة مع تعبئة الحقول ببياناتها الحالية
+    async function editLiveSession(sessionId) {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !sessionId) return;
+
+        try {
+            const doc = await dbRef.collection('liveSessions').doc(sessionId).get();
+            if (!doc.exists) { showToast('⚠️ الجلسة غير موجودة', 'error'); return; }
+            const data = doc.data();
+
+            await openNewLiveSessionModal(); // يهيّئ القوائم ويصفّر الحقول
+            _editingLiveSessionId = sessionId;
+
+            const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
+            const programSelect = document.getElementById('liveSessionProgramSelect');
+            if (programSelect) programSelect.value = data.programKey || '';
+            setVal('liveSessionTitleArInput', data.sessionTitleAr);
+            setVal('liveSessionTitleEnInput', data.sessionTitleEn);
+            setVal('liveSessionCodeInput', data.sessionCode || data.courseCode);
+            setVal('liveSessionDateInput', data.sessionDate);
+            setVal('liveSessionTimeInput', data.sessionTime);
+            setVal('liveSessionDurationInput', data.durationMinutes);
+            const lecturerSelect = document.getElementById('liveSessionLecturerSelect');
+            if (lecturerSelect) lecturerSelect.value = data.lecturerName || '';
+            setVal('liveSessionObjectivesInput', data.objectives);
+
+            const titleEl = document.querySelector('#newLiveSessionModal h2');
+            if (titleEl) titleEl.innerHTML = '<i class="ph ph-pencil-simple text-primary"></i> تعديل الجلسة المتزامنة';
+        } catch (e) {
+            console.error('editLiveSession error', e);
+            showToast('⚠️ تعذّر تحميل بيانات الجلسة', 'error');
+        }
+    }
+
+    // يحذف جلسة متزامنة مستقلة نهائياً بعد التأكيد
+    async function deleteLiveSession(sessionId) {
+        const dbRef = _liveGetDb();
+        if (!dbRef || !sessionId) return;
+
+        const confirmed = confirm('هل أنت متأكد من حذف هذه الجلسة؟ لا يمكن التراجع عن هذا الإجراء.');
+        if (!confirmed) return;
+
+        try {
+            await dbRef.collection('liveSessions').doc(sessionId).delete();
+            await _renderIndependentLiveSessionCards();
+            if (_sessionLobbyId === sessionId) closeSessionLobby();
+            showToast('✅ تم حذف الجلسة', 'success');
+        } catch (e) {
+            console.error('deleteLiveSession error', e);
+            showToast('⚠️ تعذّر حذف الجلسة', 'error');
+        }
+    }
+
+    async function startNewFreeLiveSession() {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        const input = document.getElementById('newLiveSessionTitleInput');
+        const title = (input && input.value || '').trim();
+        if (!dbRef || !user) return;
+        if (!title) {
+            showToast('⚠️ يرجى إدخال عنوان الجلسة', 'error');
+            if (input) input.focus();
+            return;
+        }
+
+        try {
+            const docRef = await dbRef.collection('liveSessions').add({
+                programKey:   null,
+                courseKey:    null,
+                programTitle: '',
+                courseCode:   title,
+                isFreeSession: true,
+                status:       'active',
+                hostUid:      user.uid || user.appUid || '',
+                hostName:     user.displayName || user.nameAr || user.name || '',
+                muteAll:      false,
+                screenShare:  { active: false, by: null },
+                whiteboard:   { active: false },
+                videoShare:   { active: false, by: null },
+                recording:    false,
+                createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
+                endedAt:      null
+            });
+            await joinLiveSessionById(docRef.id);
+            showToast('✅ تم بدء الجلسة المتزامنة', 'success');
+        } catch (e) {
+            console.error('startNewFreeLiveSession error', e);
+            showToast('⚠️ تعذّر بدء الجلسة', 'error');
+        }
     }
 
     // يجمع كل الدورات (مع اسم البرنامج) من programsData في مصفوفة مسطحة
@@ -29108,7 +30023,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
     }
 
     async function _renderLiveSessionsPickerContent() {
-        const body = document.getElementById('liveSessionPickerBody');
+        const body = document.getElementById('sidebarLiveBody');
         const user = _liveGetUser();
         const dbRef = _liveGetDb();
         if (!body || !user || !dbRef) {
@@ -29239,7 +30154,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             }
         } catch (e) { console.warn('join check error', e); }
 
-        closeLiveSessionPicker();
+        closeLiveSessionsSidebarPanel();
         _liveSessionId = sessionId;
 
         const myUid = user.uid || user.appUid || ('guest_' + Date.now());
@@ -29255,6 +30170,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                     role: user.role || 'trainee',
                     micEnabled: false,
                     isSpeaking: false,
+                    handRaised: false,
                     kicked: false,
                     joinedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
@@ -29264,6 +30180,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         closeSidebar();
         _subscribeLiveSession(sessionId);
         _subscribeLiveParticipants(sessionId);
+        _subscribeLiveChat(sessionId);
     }
 
     function _subscribeLiveSession(sessionId) {
@@ -29297,6 +30214,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 _renderLiveParticipantsGrid();
                 _checkIfIWasKicked();
                 _syncMyMicCaptureState();
+                _syncMyRaiseHandBtnState();
 
                 // إن كنت أُذيع حالياً، اتصل تلقائياً بأي مشارك جديد وأغلق الاتصال مع من غادر/طُرد
                 if (_liveBroadcastStream) {
@@ -29319,11 +30237,86 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         }
     }
 
+    // ── الدردشة الجماعية النصية للجلسة المتزامنة ─────────────────────
+    function _subscribeLiveChat(sessionId) {
+        const dbRef = _liveGetDb();
+        if (_liveChatUnsub) { _liveChatUnsub(); _liveChatUnsub = null; }
+        if (!dbRef) return;
+
+        _liveChatUnsub = dbRef.collection('liveSessions').doc(sessionId)
+            .collection('chatMessages')
+            .orderBy('createdAt', 'asc')
+            .limitToLast(200)
+            .onSnapshot(snap => {
+                const messages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                _renderLiveChatMessages(messages);
+            }, err => console.warn('live chat listener error', err));
+    }
+
+    function _renderLiveChatMessages(messages) {
+        const box = document.getElementById('liveChatMessagesList');
+        if (!box) return;
+        const user  = _liveGetUser();
+        const myUid = user && (user.uid || user.appUid);
+
+        if (!messages.length) {
+            box.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">لا توجد رسائل بعد</p>`;
+            return;
+        }
+
+        box.innerHTML = messages.map(m => {
+            const mine = m.senderUid === myUid;
+            const time = (m.createdAt && m.createdAt.toDate)
+                ? m.createdAt.toDate().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })
+                : '';
+            return `
+                <div class="flex flex-col ${mine ? 'items-end' : 'items-start'}">
+                    ${!mine ? `<span class="text-[10px] font-bold text-primary/80 px-1">${escapeHtml(m.senderName || 'مشارك')}</span>` : ''}
+                    <div class="max-w-[85%] rounded-2xl px-3 py-1.5 text-xs leading-relaxed break-words ${mine ? 'bg-primary text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}">${escapeHtml(m.text || '')}</div>
+                    <span class="text-[9px] text-gray-400 px-1 mt-0.5">${time}</span>
+                </div>`;
+        }).join('');
+
+        box.scrollTop = box.scrollHeight;
+    }
+
+    async function sendLiveChatMessage() {
+        const input = document.getElementById('liveChatInput');
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text || !_liveSessionId) return;
+
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (!dbRef || !user) return;
+
+        const myName = user.displayName || user.nameAr || user.name || 'مستخدم';
+        input.value = '';
+        try {
+            await dbRef.collection('liveSessions').doc(_liveSessionId)
+                .collection('chatMessages').add({
+                    text: text.slice(0, 500),
+                    senderUid:  user.uid || user.appUid || '',
+                    senderName: myName,
+                    senderRole: user.role || 'trainee',
+                    createdAt:  firebase.firestore.FieldValue.serverTimestamp()
+                });
+        } catch (e) {
+            console.error('sendLiveChatMessage error', e);
+            showToast('⚠️ تعذّر إرسال الرسالة', 'error');
+        }
+    }
+
     function _renderLiveSessionHeader(data) {
         const codeEl  = document.getElementById('liveSessionCourseCode');
         const progEl  = document.getElementById('liveSessionProgramTitle');
+        const titleDesktopEl = document.getElementById('liveSessionTitleDesktop');
+        const titleMobileEl  = document.getElementById('liveSessionTitleMobile');
         if (codeEl) codeEl.textContent = data.courseCode || '—';
         if (progEl) progEl.textContent = data.programTitle || '—';
+        const sessionTitle = data.sessionTitleAr || '—';
+        if (titleDesktopEl) titleDesktopEl.textContent = sessionTitle;
+        if (titleMobileEl)  titleMobileEl.textContent  = sessionTitle;
 
         const recBtn = document.getElementById('liveRecordBtn');
         if (recBtn) recBtn.classList.toggle('live-rec-active', !!data.recording);
@@ -29339,7 +30332,10 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
     function _renderLiveParticipantsGrid() {
         const grid = document.getElementById('liveParticipantsGrid');
         const countEl = document.getElementById('liveSessionParticipantsCount');
-        if (countEl) countEl.textContent = _liveParticipants.filter(p => !p.kicked).length;
+        const countElMobile = document.getElementById('liveSessionParticipantsCountMobile');
+        const activeCount = _liveParticipants.filter(p => !p.kicked).length;
+        if (countEl) countEl.textContent = activeCount;
+        if (countElMobile) countElMobile.textContent = activeCount;
         if (!grid) return;
 
         const isAdmin = _liveIsAdmin();
@@ -29354,6 +30350,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             const initial = (p.nameAr || '؟').charAt(0);
             const speaking = !!p.isSpeaking;
             const micOn = !!p.micEnabled;
+            const handUp = !!p.handRaised;
             return `
             <div class="live-participant-card glass-element rounded-xl p-2.5 ${speaking ? 'is-speaking' : ''} ${!micOn ? 'is-muted-off' : ''}" data-uid="${escapeHtml(p.uid)}">
                 <div class="flex items-center gap-2.5">
@@ -29364,6 +30361,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                         <p class="font-semibold text-xs text-gray-800 truncate">${escapeHtml(p.nameAr || '—')}</p>
                         <p class="text-[10px] font-mono text-gray-400 truncate">${escapeHtml(p.code || '—')}</p>
                     </div>
+                    ${handUp ? '<i class="ph ph-hand-palm text-sm text-amber-500 shrink-0" title="رافع يده"></i>' : ''}
                     <i class="ph ${micOn ? 'ph-microphone' : 'ph-microphone-slash'} live-mic-icon text-sm ${micOn ? 'text-emerald-500' : 'text-gray-300'} shrink-0"></i>
                 </div>
                 <div class="admin-only flex items-center gap-1.5 mt-2 pt-2 border-t border-white/40">
@@ -29379,6 +30377,58 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 </div>
             </div>`;
         }).join('');
+    }
+
+    // ── تعريض/تضييق لوحتي المشاركين والدردشة الجماعية (الشاشات الكبيرة فقط) ─────
+    function _liveInitPanelResize() {
+        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+        function makeResizable(handle, panel, { min, max, invert }) {
+            if (!handle || !panel) return;
+            let dragging = false, startX = 0, startWidth = 0;
+
+            function onMove(e) {
+                if (!dragging) return;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const delta = clientX - startX;
+                const applied = invert ? -delta : delta;
+                panel.style.width = clamp(startWidth + applied, min, max) + 'px';
+            }
+            function onUp() {
+                dragging = false;
+                document.body.classList.remove('select-none');
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+            }
+            handle.addEventListener('pointerdown', (e) => {
+                if (window.innerWidth < 1024) return; // فعّال على الشاشات الكبيرة فقط
+                dragging = true;
+                startX = e.clientX;
+                startWidth = panel.getBoundingClientRect().width;
+                document.body.classList.add('select-none');
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+                e.preventDefault();
+            });
+        }
+
+        makeResizable(
+            document.getElementById('liveParticipantsResizeHandle'),
+            document.getElementById('liveParticipantsAside'),
+            { min: 140, max: 320, invert: false }
+        );
+        makeResizable(
+            document.getElementById('liveChatResizeHandle'),
+            document.getElementById('liveGroupChatSection'),
+            { min: 220, max: 480, invert: true }
+        );
+    }
+    document.addEventListener('DOMContentLoaded', _liveInitPanelResize);
+
+    // تأكيد الخروج الطوعي من الجلسة (للمتدرب/المدرب/الضيف عبر زر الهيدر)
+    function confirmLeaveLiveSession() {
+        if (!confirm('هل تريد الخروج من الجلسة؟')) return;
+        leaveLiveSession();
     }
 
     // خروج طوعي من الجلسة
@@ -29408,6 +30458,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
     function _cleanupLiveSessionState() {
         if (_liveSessionUnsub) { _liveSessionUnsub(); _liveSessionUnsub = null; }
         if (_liveParticipantsUnsub) { _liveParticipantsUnsub(); _liveParticipantsUnsub = null; }
+        if (_liveChatUnsub) { _liveChatUnsub(); _liveChatUnsub = null; }
         _stopSpeakingDetection();
         _liveMyPrevMicState = null;
 
@@ -29418,10 +30469,16 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         _liveWbActive = false;
         _wbTeardownCanvas();
         if (_liveRecorder && _liveRecorder.state === 'recording') _liveRecorder.stop();
+        if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
 
         _liveSessionId = null;
         _liveSessionData = null;
         _liveParticipants = [];
+
+        const chatBox = document.getElementById('liveChatMessagesList');
+        if (chatBox) chatBox.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">لا توجد رسائل بعد</p>`;
+        const chatInput = document.getElementById('liveChatInput');
+        if (chatInput) chatInput.value = '';
     }
 
     // إنهاء الجلسة (أدمن فقط)
@@ -30000,6 +31057,60 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             drawStroke({ color: _wbColor, tool: _wbTool, width: _wbTool === 'eraser' ? 26 : 3, points: _wbCurrentPoints });
         }
         ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // ── ملء الشاشة للوحة العرض (شاشة المشاركة) ─────────────────────
+    function toggleStageFullscreen() {
+        const area = document.getElementById('liveStageArea');
+        if (!area) return;
+        if (!document.fullscreenElement) {
+            (area.requestFullscreen ? area.requestFullscreen() : Promise.reject())
+                .catch(() => showToast('⚠️ تعذّر تفعيل ملء الشاشة', 'error'));
+        } else {
+            document.exitFullscreen().catch(() => {});
+        }
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+        const btn = document.getElementById('liveStageFullscreenBtn');
+        if (!btn) return;
+        const icon = btn.querySelector('i');
+        const isStageFullscreen = document.fullscreenElement && document.fullscreenElement.id === 'liveStageArea';
+        if (icon) icon.className = isStageFullscreen ? 'ph ph-arrows-in text-lg' : 'ph ph-arrows-out text-lg';
+        btn.title = isStageFullscreen ? 'إنهاء ملء الشاشة' : 'ملء الشاشة';
+    });
+
+    // ── رفع/خفض اليد: متاح لجميع المشاركين للفت انتباه المدرب ─────
+    async function toggleRaiseHandLive() {
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (!dbRef || !user || !_liveSessionId) return;
+        const myUid = user.uid || user.appUid;
+        if (!myUid) return;
+
+        const me = _liveParticipants.find(p => p.uid === myUid);
+        const newVal = !(me && me.handRaised);
+        try {
+            await dbRef.collection('liveSessions').doc(_liveSessionId)
+                .collection('participants').doc(myUid)
+                .update({ handRaised: newVal });
+            showToast(newVal ? '✋ تم رفع يدك' : 'تم خفض يدك', 'success');
+        } catch (e) {
+            console.error('toggleRaiseHandLive error', e);
+            showToast('⚠️ تعذّر تحديث حالة رفع اليد', 'error');
+        }
+    }
+
+    function _syncMyRaiseHandBtnState() {
+        const btn = document.getElementById('liveRaiseHandBtn');
+        if (!btn) return;
+        const user = _liveGetUser();
+        const myUid = user && (user.uid || user.appUid);
+        const me = _liveParticipants.find(p => p.uid === myUid);
+        const handUp = !!(me && me.handRaised);
+        btn.classList.toggle('!bg-amber-500', handUp);
+        btn.classList.toggle('!text-white', handUp);
+        btn.title = handUp ? 'خفض اليد' : 'رفع اليد';
     }
 
     function toggleWhiteboardLive() {
