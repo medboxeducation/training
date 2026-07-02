@@ -11881,7 +11881,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
 
                 <!-- شريط الإحصائيات -->
-                <div id="auditLogStatsBar" class="grid grid-cols-3 gap-3 mb-5">
+                <div id="auditLogStatsBar" class="grid grid-cols-3 gap-3 mb-4">
                     <div class="glass-element rounded-xl p-3 text-center">
                         <p id="statAuditAdd" class="text-2xl font-bold text-green-600">—</p>
                         <p class="text-xs text-gray-500 mt-0.5">إضافة</p>
@@ -11893,6 +11893,42 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <div class="glass-element rounded-xl p-3 text-center">
                         <p id="statAuditDelete" class="text-2xl font-bold text-red-500">—</p>
                         <p class="text-xs text-gray-500 mt-0.5">حذف</p>
+                    </div>
+                </div>
+
+                <!-- شريط الفلترة -->
+                <div class="glass-element rounded-xl p-3 mb-5">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                        <div>
+                            <label class="text-[11px] font-semibold text-gray-500 mb-1 block">نوع البيانات</label>
+                            <select id="auditFilterEntityType" onchange="applyAuditLogFilters()"
+                                class="w-full text-xs bg-white/70 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary/50">
+                                <option value="">كل الأنواع</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-semibold text-gray-500 mb-1 block">المستخدم</label>
+                            <select id="auditFilterUser" onchange="applyAuditLogFilters()"
+                                class="w-full text-xs bg-white/70 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary/50">
+                                <option value="">كل المستخدمين</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-semibold text-gray-500 mb-1 block">من تاريخ</label>
+                            <input type="date" id="auditFilterDateFrom" onchange="applyAuditLogFilters()"
+                                class="w-full text-xs bg-white/70 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary/50">
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-semibold text-gray-500 mb-1 block">إلى تاريخ</label>
+                            <input type="date" id="auditFilterDateTo" onchange="applyAuditLogFilters()"
+                                class="w-full text-xs bg-white/70 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-primary/50">
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mt-2.5">
+                        <p id="auditFilterActiveLabel" class="text-[11px] text-gray-400"></p>
+                        <button onclick="clearAuditLogFilters()" class="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1">
+                            <i class="ph ph-x-circle"></i> إلغاء الفلترة
+                        </button>
                     </div>
                 </div>
 
@@ -17070,6 +17106,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     updateUsersStats();
                     showUserDetail(userModalEditUid); // تحديث لوحة العرض
                     showToast('✅ تم تحديث بيانات المستخدم', 'success');
+                    logActivity('edit', 'user', fullName, userModalEditUid, `تم تعديل بيانات المستخدم (${username})`);
 
                 } else {
                     // ── إضافة مستخدم جديد ──
@@ -17088,6 +17125,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     updateUsersStats();
                     showUserDetail(docRef.id); // عرض المستخدم الجديد فوراً
                     showToast('✅ تم إضافة المستخدم بنجاح', 'success');
+                    logActivity('add', 'user', fullName, docRef.id, `تمت إضافة مستخدم جديد بصفة (${role})`);
                 }
             } catch (err) {
                 console.error('saveUserModal error:', err);
@@ -17112,6 +17150,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 buildSidebarUsers();
                 updateUsersStats();
                 showToast('🗑️ تم حذف المستخدم', 'info');
+                logActivity('delete', 'user', user.fullName, uid);
             } catch (err) {
                 console.error('deleteUser error:', err);
                 showToast('❌ فشل حذف المستخدم', 'error');
@@ -17245,7 +17284,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         // ======== عرض سجل التدقيق (Audit Log View) ========
         let auditLogUnsubscribe = null; // دالة إلغاء الاشتراك بالمستمع اللحظي الحالي
-        let auditLogCache = [];         // آخر دفعة من عناصر السجل تم تحميلها
+        let auditLogCache = [];         // آخر دفعة من عناصر السجل تم تحميلها (غير مُفلترة)
+        let auditEntityFilterOptionsBuilt = false; // هل تم بناء قائمة "نوع البيانات" في الفلتر؟
 
         function showAuditLogView() {
             if (!canViewAuditLog()) {
@@ -17254,7 +17294,34 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }
             closeSidebar();
             showView('auditLogView');
+            buildAuditEntityFilterOptions();
             loadAuditLog();
+        }
+
+        // يبني خيارات فلتر "نوع البيانات" مرة واحدة من AUDIT_ENTITY_LABELS
+        function buildAuditEntityFilterOptions() {
+            if (auditEntityFilterOptionsBuilt) return;
+            const sel = document.getElementById('auditFilterEntityType');
+            if (!sel) return;
+            Object.keys(AUDIT_ENTITY_LABELS).forEach(key => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = AUDIT_ENTITY_LABELS[key].label;
+                sel.appendChild(opt);
+            });
+            auditEntityFilterOptionsBuilt = true;
+        }
+
+        // يحدّث قائمة فلتر "المستخدم" بأسماء المستخدمين الفريدة الموجودة في الدفعة الحالية
+        // مع الحفاظ على الاختيار الحالي إن كان لا يزال متاحاً
+        function updateAuditUserFilterOptions(entries) {
+            const sel = document.getElementById('auditFilterUser');
+            if (!sel) return;
+            const current = sel.value;
+            const names = Array.from(new Set(entries.map(e => e.userName).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ar'));
+            sel.innerHTML = '<option value="">كل المستخدمين</option>' +
+                names.map(n => `<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('');
+            if (current && names.includes(current)) sel.value = current;
         }
 
         // تحميل سجل التدقيق (مع اشتراك لحظي لآخر 100 عملية) — forceRefresh لإعادة الربط يدوياً
@@ -17278,7 +17345,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     .limit(100)
                     .onSnapshot(snap => {
                         auditLogCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                        renderAuditLogEntries(auditLogCache);
+                        updateAuditUserFilterOptions(auditLogCache);
+                        applyAuditLogFilters();
                     }, err => {
                         console.error('loadAuditLog listener error:', err);
                         if (listEl) listEl.innerHTML = '<p class="text-xs text-red-400 italic text-center py-8">تعذّر تحميل سجل التدقيق.</p>';
@@ -17293,15 +17361,72 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (auditLogUnsubscribe) { auditLogUnsubscribe(); auditLogUnsubscribe = null; }
         }
 
+        // يطبّق فلاتر (النوع / المستخدم / التاريخ من-إلى) على الدفعة المحمّلة ويعيد الرسم
+        function applyAuditLogFilters() {
+            const entityType = document.getElementById('auditFilterEntityType')?.value || '';
+            const userName    = document.getElementById('auditFilterUser')?.value || '';
+            const dateFromStr = document.getElementById('auditFilterDateFrom')?.value || '';
+            const dateToStr   = document.getElementById('auditFilterDateTo')?.value || '';
+            const dateFrom    = dateFromStr ? new Date(dateFromStr + 'T00:00:00') : null;
+            const dateTo      = dateToStr   ? new Date(dateToStr   + 'T23:59:59') : null;
+
+            const getEntryDate = (entry) => {
+                try {
+                    return entry.timestamp && entry.timestamp.toDate ? entry.timestamp.toDate() : (entry.clientTime ? new Date(entry.clientTime) : null);
+                } catch (e) { return null; }
+            };
+
+            const filtered = auditLogCache.filter(entry => {
+                if (entityType && entry.entityType !== entityType) return false;
+                if (userName && entry.userName !== userName) return false;
+                if (dateFrom || dateTo) {
+                    const d = getEntryDate(entry);
+                    if (!d) return false;
+                    if (dateFrom && d < dateFrom) return false;
+                    if (dateTo && d > dateTo) return false;
+                }
+                return true;
+            });
+
+            const activeCount = [entityType, userName, dateFromStr, dateToStr].filter(Boolean).length;
+            const activeLabelEl = document.getElementById('auditFilterActiveLabel');
+            if (activeLabelEl) {
+                activeLabelEl.textContent = activeCount > 0
+                    ? `الفلترة مُفعّلة (${activeCount}) — عرض ${filtered.length} من أصل ${auditLogCache.length}`
+                    : '';
+            }
+
+            renderAuditLogEntries(filtered, auditLogCache.length);
+        }
+
+        // يعيد ضبط جميع حقول الفلترة ويعرض القائمة الكاملة من جديد
+        function clearAuditLogFilters() {
+            const entityEl = document.getElementById('auditFilterEntityType');
+            const userEl   = document.getElementById('auditFilterUser');
+            const fromEl   = document.getElementById('auditFilterDateFrom');
+            const toEl     = document.getElementById('auditFilterDateTo');
+            if (entityEl) entityEl.value = '';
+            if (userEl)   userEl.value = '';
+            if (fromEl)   fromEl.value = '';
+            if (toEl)     toEl.value = '';
+            applyAuditLogFilters();
+        }
+
         // رسم عناصر سجل التدقيق في الواجهة + تحديث شريط الإحصائيات
-        function renderAuditLogEntries(entries) {
+        // entries: العناصر بعد الفلترة (للعرض) — totalCount: إجمالي الدفعة المحمّلة قبل الفلترة (اختياري)
+        function renderAuditLogEntries(entries, totalCount) {
             const listEl  = document.getElementById('auditLogListContainer');
             const countEl = document.getElementById('auditLogCountLabel');
             if (!listEl) return;
 
-            if (countEl) countEl.textContent = `آخر ${entries.length} عملية`;
+            const total = typeof totalCount === 'number' ? totalCount : entries.length;
+            if (countEl) {
+                countEl.textContent = (entries.length === total)
+                    ? `آخر ${total} عملية`
+                    : `${entries.length} من أصل ${total} عملية`;
+            }
 
-            // تحديث الإحصائيات
+            // تحديث الإحصائيات (على أساس النتائج المعروضة بعد الفلترة)
             const counts = { add: 0, edit: 0, delete: 0 };
             entries.forEach(e => { if (counts[e.action] !== undefined) counts[e.action]++; });
             const setStat = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -17310,7 +17435,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             setStat('statAuditDelete', counts.delete);
 
             if (entries.length === 0) {
-                listEl.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-8">لا توجد عمليات مسجلة بعد.</p>';
+                listEl.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-8">لا توجد عمليات مطابقة لهذه الفلترة.</p>';
                 return;
             }
 
@@ -18835,6 +18960,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (db) {
                 db.collection('programs').doc(programKey).collection('courses').doc(courseKey)
                   .update({ attendance: course.attendance })
+                  .then(() => {
+                      const traineeName = (course.traineesList && course.traineesList[traineeIndex]) || `متدرب #${traineeIndex}`;
+                      const statusLabel = (unifiedCellConfig(next).title || '').split('|')[0].trim() || 'بدون تسجيل';
+                      logActivity('edit', 'attendance', traineeName, null, `تحديث الحضور/المشاركة (جلسة ${parseInt(sessionIndex)+1}: ${statusLabel}) — دورة: ${course.code || courseKey}`);
+                  })
                   .catch(err => console.error('toggleUnifiedCell error:', err));
             }
         }
@@ -19151,6 +19281,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     await db.collection('programs').doc(programKey).collection('courses').doc(courseKey)
                         .update({ assessmentConfig: cfg });
                     showToast('✅ تم حفظ إعداد التقييم بنجاح', 'success');
+                    logActivity('edit', 'evaluation', course.code || courseKey, courseKey, `تحديث إعداد التقييم — ضمن البرنامج: ${program.title}`);
                 } catch(err) {
                     console.error('saveAssessmentConfig error:', err);
                     showToast('❌ فشل حفظ إعداد التقييم في Firestore', 'error');
@@ -19858,6 +19989,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     try {
                         await db.collection('programs').doc(programKey).collection('courses').doc(courseKey)
                             .update({ grades: course.grades });
+                        const traineeName = (course.traineesList && course.traineesList[tIndex]) || `متدرب #${tIndex}`;
+                        logActivity('edit', 'examResult', traineeName, null, `تعديل درجة (${typeKey}) — دورة: ${course.code || courseKey}`);
                     } catch(err) {
                         console.error('saveTraineeGradeField Firestore error:', err);
                     }
@@ -19885,6 +20018,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     await db.collection('programs').doc(programKey).collection('courses').doc(courseKey)
                         .update({ grades: course.grades || {} });
                     showToast('✅ تم حفظ جميع الدرجات بنجاح', 'success');
+                    logActivity('edit', 'examResult', course.code || courseKey, courseKey, `حفظ جميع الدرجات — ضمن البرنامج: ${program.title}`);
                 } catch(err) {
                     console.error('saveAllGrades error:', err);
                     showToast('❌ فشل حفظ الدرجات في Firestore', 'error');
@@ -20382,6 +20516,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     batch.delete(db.collection('programs').doc(programKey));
                     await batch.commit();
                     showToast('🗑️ تم حذف البرنامج من Firestore', 'info');
+                    logActivity('delete', 'program', program.title, programKey);
                 } catch (err) {
                     console.error('deleteProgram error:', err);
                     showToast('❌ فشل حذف البرنامج من Firestore', 'error');
@@ -20526,6 +20661,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     try {
                         await db.collection('programs').doc(modalActiveKey).update(data);
                         showToast('✅ تم حفظ التعديلات', 'success');
+                        logActivity('edit', 'program', titleAr, modalActiveKey);
                     } catch (err) {
                         console.error('updateProgram error:', err);
                         showToast('❌ فشل حفظ التعديلات في Firestore', 'error');
@@ -20549,6 +20685,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         const { courses, ...firestoreData } = newProgram;
                         await db.collection('programs').doc(newKey).set(firestoreData);
                         showToast('✅ تم حفظ البرنامج في Firestore', 'success');
+                        logActivity('add', 'program', titleAr, newKey);
                     } catch (err) {
                         console.error('addProgram error:', err);
                         showToast('❌ فشل حفظ البرنامج في Firestore', 'error');
@@ -20725,6 +20862,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         await db.collection('programs').doc(courseModalProgramKey)
                                 .collection('courses').doc(courseModalActiveCourseKey).update(data);
                         showToast('✅ تم حفظ تعديلات الدورة', 'success');
+                        logActivity('edit', 'course', data.code || courseModalActiveCourseKey, courseModalActiveCourseKey, `ضمن البرنامج: ${program.title}`);
                     } catch (err) {
                         console.error('updateCourse error:', err);
                         showToast('❌ فشل حفظ تعديلات الدورة في Firestore', 'error');
@@ -20751,6 +20889,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         await db.collection('programs').doc(courseModalProgramKey)
                                 .collection('courses').doc(newKey).set(firestoreData);
                         showToast('✅ تم حفظ الدورة في Firestore', 'success');
+                        logActivity('add', 'course', newCourse.code || newKey, newKey, `ضمن البرنامج: ${program.title}`);
                     } catch (err) {
                         console.error('addCourse error:', err);
                         showToast('❌ فشل حفظ الدورة في Firestore', 'error');
@@ -20785,6 +20924,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     await db.collection('programs').doc(programKey)
                             .collection('courses').doc(courseKey).delete();
                     showToast('🗑️ تم حذف الدورة من Firestore', 'info');
+                    logActivity('delete', 'course', course.code || courseKey, courseKey, `ضمن البرنامج: ${program.title}`);
                 } catch (err) {
                     console.error('deleteCourse error:', err);
                     showToast('❌ فشل حذف الدورة من Firestore', 'error');
@@ -21244,6 +21384,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                 attendance: course.attendance || {}
                             });
                     showToast('🗑️ تم حذف المتدرب من Firestore', 'info');
+                    logActivity('delete', 'trainee', traineeName, null, `تمت إزالته من دورة: ${course.code || courseKey} — برنامج: ${program.title}`);
                 } catch (err) {
                     console.error('deleteTrainee error:', err);
                     showToast('❌ فشل حذف المتدرب من Firestore', 'error');
@@ -21285,6 +21426,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                     traineesList: course.traineesList
                                 });
                         showToast('✅ تم حفظ تعديلات المتدرب في Firestore', 'success');
+                        logActivity('edit', 'trainee', name, null, `ضمن دورة: ${course.code || traineeModalCourseKey} — برنامج: ${program.title}`);
                     } catch (err) {
                         console.error('updateTrainee error:', err);
                         showToast('❌ فشل حفظ تعديلات المتدرب في Firestore', 'error');
@@ -21311,6 +21453,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                     traineesCount: course.traineesCount
                                 });
                         showToast('✅ تم إضافة المتدرب في Firestore', 'success');
+                        logActivity('add', 'trainee', name, null, `تمت إضافته لدورة: ${course.code || traineeModalCourseKey} — برنامج: ${program.title}`);
                     } catch (err) {
                         console.error('saveTrainee error:', err);
                         showToast('❌ فشل حفظ المتدرب في Firestore', 'error');
@@ -22551,6 +22694,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
                 showToast(`✅ تم إنشاء الحساب وإرسال بريد إعادة تعيين كلمة المرور إلى ${trainee.email}`, 'success');
                 showTraineeDetail(traineeId);
+                logActivity('edit', 'trainee', trainee.nameAr, traineeId, `تم إنشاء حساب دخول (${trainee.email})`);
 
             } catch (err) {
                 console.error('[TraineeAuth] ERROR:', err.code, err.message);
@@ -22734,6 +22878,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
                 showToast(`✅ تم إنشاء الحساب وإرسال بريد إعادة تعيين كلمة المرور إلى ${trainer.email}`, 'success');
                 showTrainerDetail(trainerId);
+                logActivity('edit', 'trainer', trainer.nameAr, trainerId, `تم إنشاء حساب دخول (${trainer.email})`);
 
             } catch (err) {
                 console.error('[TrainerAuth] ERROR:', err.code, err.message);
@@ -22787,6 +22932,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }
             buildSidebarTrainees();
             showToast('🗑️ تم حذف المتدرب', 'info');
+            logActivity('delete', 'trainee', trainee.nameAr, id, 'حذف من سجل المتدربين');
         }
 
         // تعديل بيانات متدرب
@@ -23002,6 +23148,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     buildSidebarTrainees();
                     showTraineeDetail(traineeModalEditId);
                     showToast('✅ تم تحديث بيانات المتدرب', 'success');
+                    logActivity('edit', 'trainee', nameAr, traineeModalEditId, 'تعديل بيانات في سجل المتدربين');
                 } catch (e) {
                     console.error(e);
                     showToast('❌ فشل الحفظ في Firebase', 'error');
@@ -23021,6 +23168,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     }
                     const newTrainee = { id: newId, ...traineeData };
                     registryTrainees.push(newTrainee);
+                    logActivity('add', 'trainee', nameAr, newId, 'إضافة جديدة لسجل المتدربين');
 
                     if (courseCtx) {
                         // تمت الإضافة من سياق دورة: اربط المتدرب الجديد بالدورة مباشرة بدل فتح سجل المتدربين
@@ -23313,6 +23461,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (lbl) lbl.textContent = `${registryTrainers.length} مدرب مسجل`;
             buildSidebarTrainers();
             showToast('🗑️ تم حذف المدرب', 'info');
+            logActivity('delete', 'trainer', trainer.nameAr, id, 'حذف من سجل المدربين');
         }
 
         // تعديل بيانات مدرب
@@ -23610,6 +23759,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     const lbl = document.getElementById('trainersCountLabel');
                     if (lbl) lbl.textContent = `${registryTrainers.length} مدرب مسجل`;
                     showToast('✅ تم تحديث بيانات المدرب', 'success');
+                    logActivity('edit', 'trainer', nameAr, trainerModalEditId, 'تعديل بيانات في سجل المدربين');
                 } catch (e) {
                     console.error(e);
                     showToast('❌ فشل الحفظ في Firebase', 'error');
@@ -23628,6 +23778,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     }
                     const newTrainer = { id: newId, ...trainerData };
                     registryTrainers.push(newTrainer);
+                    logActivity('add', 'trainer', nameAr, newId, 'إضافة جديدة لسجل المدربين');
 
                     if (fieldCtx && fieldCtx.fieldId) {
                         // تمت الإضافة من حقل مدرب داخل نافذة الدورة: اربط الاسم بالحقل مباشرة
@@ -25454,6 +25605,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         try {
             let docId;
+            const isEditingExam = !!emsEditingExamId;
             if (emsEditingExamId) {
                 await db.collection('examinations').doc(emsEditingExamId).set(payload, {merge:true});
                 docId = emsEditingExamId;
@@ -25464,6 +25616,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 emsEditingExamId = docId;
             }
             const savedExam = { id: docId, ...payload };
+            logActivity(isEditingExam ? 'edit' : 'add', 'exam', course?.code || ck, docId, `${payload.examType || 'امتحان'} — ضمن البرنامج: ${program?.title || ''}`);
             // تخزين الامتحان في الذاكرة المؤقتة تحت كل دورة من الدورات
             // المختارة، حتى تظهر بيانات الامتحان بشكل صحيح أينما عُرضت
             // إحدى هذه الدورات
@@ -25728,6 +25881,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             // إزالة الامتحان من الذاكرة المؤقتة تحت كل الدورات التي كان يشملها
             const coveredKeys = exam.courseKeys && exam.courseKeys.length ? exam.courseKeys : [ck];
             coveredKeys.forEach(k => { delete emsExamCache[emsKey(pk, k)]; });
+            const programForLog = programsData[pk];
+            logActivity('delete', 'exam', exam.courseCode || ck, exam.id, `حذف امتحان — ضمن البرنامج: ${programForLog?.title || ''}`);
             emsEditingExamId = null;
             // العودة لتفاصيل الدورة
             const program = programsData[pk];
@@ -27172,6 +27327,8 @@ ${questionsHtml}
                     gradeLabel:     finalGrade.label,
                 };
                 await sessionRef.update(updateData);
+                const traineeLabelForLog = currentUser?.displayName || currentUser?.nameAr || currentUser?.email || 'متدرب';
+                logActivity('add', 'examResult', traineeLabelForLog, sessionRef.id, `نتيجة امتحان: ${finalScore}/${totalMark} (${finalPct}%) — ${finalGrade.label}${isCheatPenalty ? ' — عقوبة غش' : ''}`);
             } catch(e) { console.warn('grade save error:', e); }
         }
 
@@ -30563,6 +30720,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 // وضع التعديل: تحديث بيانات جلسة موجودة بدون المساس بحالتها أو الدخول إليها
                 await dbRef.collection('liveSessions').doc(_editingLiveSessionId).set(sessionPayload, { merge: true });
                 closeNewLiveSessionModal();
+                logActivity('edit', 'liveSession', titleAr, _editingLiveSessionId, `تحديث بيانات جلسة متزامنة${linkedCourseCode ? ' — دورة: ' + linkedCourseCode : ''}`);
                 _editingLiveSessionId = null;
                 await _renderIndependentLiveSessionCards();
                 await _renderCourseLinkedLiveSessionCards();
@@ -30584,6 +30742,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 });
 
                 closeNewLiveSessionModal();
+                logActivity('add', 'liveSession', titleAr, docRef.id, `إنشاء جلسة متزامنة${linkedCourseCode ? ' — دورة: ' + linkedCourseCode : ''}`);
                 await joinLiveSessionById(docRef.id);
                 showToast('✅ تم إنشاء وبدء الجلسة المتزامنة', 'success');
             }
@@ -30648,7 +30807,10 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         if (!confirmed) return;
 
         try {
+            const doc = await dbRef.collection('liveSessions').doc(sessionId).get();
+            const data = doc.exists ? doc.data() : {};
             await dbRef.collection('liveSessions').doc(sessionId).delete();
+            logActivity('delete', 'liveSession', data.sessionTitleAr || data.courseCode || sessionId, sessionId, data.linkedCourseCode ? `دورة: ${data.linkedCourseCode}` : null);
             await _renderIndependentLiveSessionCards();
             await _renderCourseLinkedLiveSessionCards();
             _removeSessionFromTimeline(sessionId);
@@ -30699,6 +30861,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
                 endedAt:      null
             });
+            logActivity('add', 'liveSession', title, docRef.id, 'بدء جلسة متزامنة حرة (غير مرتبطة بدورة)');
             await joinLiveSessionById(docRef.id);
             showToast('✅ تم بدء الجلسة المتزامنة', 'success');
         } catch (e) {
@@ -30891,6 +31054,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
                 endedAt:      null
             });
+            logActivity('add', 'liveSession', item.course.code || item.courseKey, docRef.id, `بدء جلسة متزامنة — دورة: ${item.course.code || item.courseKey} — برنامج: ${item.programTitle}`);
             await joinLiveSessionById(docRef.id);
             showToast('✅ تم بدء الجلسة المتزامنة', 'success');
         } catch (e) {
@@ -31254,6 +31418,8 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 status: 'ended',
                 endedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            const sessionLabel = (_liveSessionData && (_liveSessionData.sessionTitleAr || _liveSessionData.courseCode)) || 'جلسة متزامنة';
+            logActivity('edit', 'liveSession', sessionLabel, _liveSessionId, 'إنهاء الجلسة المتزامنة');
         } catch (e) {
             console.error('endLiveSessionNow error', e);
             showToast('⚠️ تعذّر إنهاء الجلسة', 'error');
