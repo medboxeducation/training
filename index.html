@@ -11257,6 +11257,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         <h3 id="sidebarLiveTitle" class="text-sm font-bold text-gray-800 truncate">الجلسات المتزامنة</h3>
                         <p id="sidebarLiveSubtitle" class="text-[11px] text-gray-500 truncate">اختر طريقة بدء الجلسة</p>
                     </div>
+                    <button id="sidebarLiveTimelineBtn" onclick="openLiveSessionsTimeline()" class="w-8 h-8 rounded-full glass-icon-btn flex items-center justify-center text-primary flex-shrink-0 hover:bg-primary/10" title="الخط الزمني للجلسات">
+                        <i class="ph ph-clock-countdown text-sm"></i>
+                    </button>
                 </div>
                 <div id="sidebarLiveBody" class="space-y-2">
                     <!-- تُملأ ديناميكياً -->
@@ -12802,6 +12805,25 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 <button class="flex-1 glass-panel py-2.5 rounded-lg font-semibold hover:border-gray-400 transition-colors" onclick="closeNewLiveSessionModal()">
                     إلغاء
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة منبثقة: الخط الزمني للجلسات المتزامنة المسجلة -->
+    <div id="liveSessionsTimelineModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeLiveSessionsTimelineModal()">
+        <div class="glass-panel bg-white/90 w-full max-w-xl max-h-[85vh] overflow-y-auto rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-5 pb-4 border-b border-white/40">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-clock-countdown text-primary"></i> الخط الزمني للجلسات
+                </h2>
+                <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeLiveSessionsTimelineModal()">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            <div id="liveSessionsTimelineBody" class="relative">
+                <div class="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                    <i class="ph ph-spinner-gap animate-spin text-lg"></i> جاري تحميل الجلسات...
+                </div>
             </div>
         </div>
     </div>
@@ -29551,7 +29573,149 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         }).join('');
     }
 
-    // يعرض بطاقات الجلسات المتزامنة المستقلة (غير المرتبطة بدورة) والنشطة حالياً
+    // ════════════════════════════════════════════════════
+    //  الخط الزمني للجلسات المتزامنة المسجلة (Timeline)
+    // ════════════════════════════════════════════════════
+
+    // يفتح نافذة الخط الزمني ويجلب كل الجلسات المسجلة (نشطة ومنتهية) ذات الصلة بالمستخدم الحالي
+    async function openLiveSessionsTimeline() {
+        const modal = document.getElementById('liveSessionsTimelineModal');
+        const body  = document.getElementById('liveSessionsTimelineBody');
+        const dbRef = _liveGetDb();
+        const user  = _liveGetUser();
+        if (!modal || !body) return;
+
+        modal.classList.remove('hidden');
+        body.innerHTML = `<div class="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                               <i class="ph ph-spinner-gap animate-spin text-lg"></i> جاري تحميل الجلسات...
+                           </div>`;
+
+        if (!dbRef || !user) {
+            body.innerHTML = `<p class="text-center text-sm text-gray-400 py-8">تعذّر تحميل البيانات</p>`;
+            return;
+        }
+
+        let sessions = [];
+        try {
+            const snap = await dbRef.collection('liveSessions').orderBy('createdAt', 'desc').limit(200).get();
+            sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.warn('تعذّر جلب الجلسات المسجلة', e);
+            body.innerHTML = `<p class="text-center text-sm text-gray-400 py-8">تعذّر تحميل الجلسات</p>`;
+            return;
+        }
+
+        // فلترة حسب صلة المستخدم بالجلسة: الأدمن يرى الكل، غيره يرى جلساته أو جلسات دوراته فقط
+        if (user.role !== 'admin') {
+            const relevantCourseKeys = new Set(_liveGetAllCoursesFlat()
+                .filter(r => {
+                    if (user.role === 'trainer') {
+                        const trainerName = user.displayName || user.nameAr || user.name || '';
+                        return (r.course.mainTrainer || '').includes(trainerName);
+                    }
+                    if (user.role === 'trainee') {
+                        const traineeName = user.displayName || user.nameAr || user.name || '';
+                        return (r.course.traineesList || []).includes(traineeName);
+                    }
+                    return false;
+                })
+                .map(r => r.courseKey));
+            const myUid = user.uid || user.appUid;
+            sessions = sessions.filter(s => (s.courseKey && relevantCourseKeys.has(s.courseKey)) || s.hostUid === myUid);
+        }
+
+        _renderLiveSessionsTimelineContent(sessions);
+    }
+
+    function closeLiveSessionsTimelineModal() {
+        const modal = document.getElementById('liveSessionsTimelineModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // يستخرج تاريخاً قابلاً للعرض والفرز من الجلسة (تاريخ الجلسة المُدخل، وإلا تاريخ الإنشاء)
+    function _liveSessionTimelineDate(s) {
+        if (s.sessionDate) {
+            const t = new Date(s.sessionDate + (s.sessionTime ? 'T' + s.sessionTime : 'T00:00'));
+            if (!isNaN(t.getTime())) return t;
+        }
+        if (s.createdAt && typeof s.createdAt.toDate === 'function') return s.createdAt.toDate();
+        return new Date(0);
+    }
+
+    // يبني عرض الخط الزمني: تجميع الجلسات حسب اليوم، مرتبة من الأحدث إلى الأقدم
+    function _renderLiveSessionsTimelineContent(sessions) {
+        const body = document.getElementById('liveSessionsTimelineBody');
+        if (!body) return;
+
+        if (!sessions.length) {
+            body.innerHTML = `
+                <div class="flex flex-col items-center justify-center text-center py-10">
+                    <div class="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                        <i class="ph ph-clock-countdown text-3xl text-gray-300"></i>
+                    </div>
+                    <p class="text-sm font-semibold text-gray-400">لا توجد جلسات مسجلة بعد</p>
+                </div>`;
+            return;
+        }
+
+        const withDates = sessions
+            .map(s => ({ s, d: _liveSessionTimelineDate(s) }))
+            .sort((a, b) => b.d - a.d);
+
+        // تجميع حسب اليوم (بصيغة yyyy-mm-dd محلية)
+        const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const groupsMap = new Map();
+        withDates.forEach(({ s, d }) => {
+            const key = dayKey(d);
+            if (!groupsMap.has(key)) groupsMap.set(key, { d, items: [] });
+            groupsMap.get(key).items.push(s);
+        });
+
+        body.innerHTML = Array.from(groupsMap.values()).map(group => {
+            const dateLabel = group.d.getTime() > 0
+                ? group.d.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                : 'تاريخ غير معروف';
+
+            const itemsHtml = group.items.map(s => {
+                const title    = escapeHtml(s.sessionTitleAr || s.linkedCourseCode || s.courseCode || 'جلسة بدون عنوان');
+                const lecturer = escapeHtml(s.lecturerName || s.hostName || '—');
+                const timeText = s.sessionTime
+                    ? escapeHtml(s.sessionTime)
+                    : (s.createdAt && s.createdAt.toDate ? s.createdAt.toDate().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '—');
+                const isActive = s.status === 'active';
+                const statusBadge = isActive
+                    ? `<span class="shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 live-pulse-dot"></span> نشطة</span>`
+                    : `<span class="shrink-0 text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">منتهية</span>`;
+
+                return `
+                <div class="relative pr-5">
+                    <span class="absolute right-[-5px] top-2 w-3 h-3 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-gray-300'} ring-4 ring-white"></span>
+                    <div class="glass-element rounded-lg p-2.5 mb-2.5 cursor-pointer hover:border-primary/50 hover:-translate-y-0.5 transition-all" onclick="_goToSessionFromTimeline('${s.id}')">
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <p class="font-bold text-sm text-gray-800 truncate flex-1">${title}</p>
+                            ${statusBadge}
+                        </div>
+                        <div class="flex items-center gap-3 text-[11px] text-gray-400">
+                            <span class="flex items-center gap-1"><i class="ph ph-clock"></i> ${timeText}</span>
+                            <span class="flex items-center gap-1 truncate"><i class="ph ph-chalkboard-teacher"></i> ${lecturer}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            return `
+            <div class="mb-4">
+                <p class="text-xs font-bold text-gray-500 mb-2 sticky top-0 bg-white/80 backdrop-blur-sm py-1">${escapeHtml(dateLabel)}</p>
+                <div class="border-r-2 border-primary/15">${itemsHtml}</div>
+            </div>`;
+        }).join('');
+    }
+
+    // عند الضغط على أي جلسة في الخط الزمني: أغلق النافذة وانتقل لعرض بياناتها في لوحة العرض الرئيسية
+    function _goToSessionFromTimeline(sessionId) {
+        closeLiveSessionsTimelineModal();
+        openSessionLobby(sessionId);
+    }
     // كل بطاقة تعرض: عنوان الجلسة، تاريخ الجلسة، اسم المحاضر
     async function _renderIndependentLiveSessionCards() {
         const listEl = document.getElementById('liveIndependentSessionsList');
