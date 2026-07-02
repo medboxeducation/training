@@ -29471,7 +29471,17 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         _liveSessionPickerSetHeader('الجلسات المتزامنة', 'اختر طريقة بدء الجلسة', false);
 
         body.innerHTML = `
-            <div id="liveIndependentSessionsSection" class="pt-2">
+            <div id="liveCourseLinkedSessionsSection" class="pt-2">
+                <div class="flex items-center gap-2 px-1 mb-2">
+                    <span class="text-[11px] font-bold text-gray-400">الجلسات التابعة للدورات</span>
+                </div>
+                <div id="liveCourseLinkedSessionsList" class="space-y-2">
+                    <div class="flex items-center justify-center py-6 text-gray-400 text-xs gap-2">
+                        <i class="ph ph-spinner-gap animate-spin"></i> جاري التحميل...
+                    </div>
+                </div>
+            </div>
+            <div id="liveIndependentSessionsSection" class="pt-4">
                 <div class="flex items-center gap-2 px-1 mb-2">
                     <span class="text-[11px] font-bold text-gray-400">الجلسات المستقلة الحالية</span>
                 </div>
@@ -29482,7 +29492,63 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 </div>
             </div>`;
 
-        await _renderIndependentLiveSessionCards();
+        await Promise.all([
+            _renderCourseLinkedLiveSessionCards(),
+            _renderIndependentLiveSessionCards()
+        ]);
+    }
+
+    // يعرض بطاقات الجلسات المتزامنة المرتبطة بدورات (تم إنشاؤها عبر البرامج والدورات المسجلة) والنشطة حالياً
+    async function _renderCourseLinkedLiveSessionCards() {
+        const listEl = document.getElementById('liveCourseLinkedSessionsList');
+        const dbRef  = _liveGetDb();
+        if (!listEl || !dbRef) return;
+
+        let sessions = [];
+        try {
+            const snap = await dbRef.collection('liveSessions')
+                .where('status', '==', 'active')
+                .where('isFreeSession', '==', false)
+                .get();
+            sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.warn('تعذّر جلب جلسات الدورات', e);
+            listEl.innerHTML = `<p class="text-center text-xs text-gray-400 py-4">تعذّر تحميل الجلسات</p>`;
+            return;
+        }
+
+        if (sessions.length === 0) {
+            listEl.innerHTML = `<p class="text-center text-xs text-gray-300 py-4">لا توجد جلسات دورات نشطة حالياً</p>`;
+            return;
+        }
+
+        listEl.innerHTML = sessions.map(s => {
+            const title    = escapeHtml(s.sessionTitleAr || s.linkedCourseCode || 'جلسة بدون عنوان');
+            const dateText = escapeHtml(s.sessionDate || '—');
+            const lecturer = escapeHtml(s.lecturerName || s.hostName || '—');
+            return `
+            <div class="glass-element rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:border-primary/50 hover:-translate-y-0.5 transition-all" onclick="openSessionLobby('${s.id}')">
+                <div class="w-10 h-10 rounded-lg glass-icon-tile flex items-center justify-center text-primary shrink-0">
+                    <i class="ph ph-graduation-cap"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                        <p class="font-bold text-sm text-gray-800 truncate">${title}</p>
+                        ${s.linkedCourseCode ? `<span class="shrink-0 font-mono text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">${escapeHtml(s.linkedCourseCode)}</span>` : ''}
+                    </div>
+                    <p class="text-[11px] text-gray-400 truncate"><i class="ph ph-chalkboard-teacher"></i> ${lecturer}</p>
+                    <p class="text-[11px] text-gray-400 truncate"><i class="ph ph-calendar-blank"></i> ${dateText}</p>
+                </div>
+                <div class="admin-only flex items-center gap-1 shrink-0">
+                    <button onclick="event.stopPropagation(); editLiveSession('${s.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل الجلسة">
+                        <i class="ph ph-pencil-simple text-xs"></i>
+                    </button>
+                    <button onclick="event.stopPropagation(); deleteLiveSession('${s.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف الجلسة">
+                        <i class="ph ph-trash text-xs"></i>
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
     }
 
     // يعرض بطاقات الجلسات المتزامنة المستقلة (غير المرتبطة بدورة) والنشطة حالياً
@@ -29779,6 +29845,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
     //  نافذة منبثقة: إنشاء جلسة متزامنة جديدة (بديل النموذج المصغر)
     // ════════════════════════════════════════════════════
     let _editingLiveSessionId = null;
+    let _liveSessionModalCourseKey = null; // إن كانت الجلسة الجاري إنشاؤها/تعديلها مرتبطة بدورة مُحددة
 
     async function openNewLiveSessionModal(prefill) {
         const modal = document.getElementById('newLiveSessionModal');
@@ -29816,6 +29883,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
 
         // تعبئة تلقائية عند الفتح من سياق دورة مُحددة: البرنامج + المحاضر + رمز الدورة
         const badge = document.getElementById('liveSessionModalCourseCodeBadge');
+        _liveSessionModalCourseKey = (prefill && prefill.courseKey) ? prefill.courseKey : null;
         if (prefill && (prefill.programKey || prefill.lecturerName || prefill.courseCode)) {
             if (programSelect && prefill.programKey) {
                 programSelect.value = prefill.programKey;
@@ -29909,12 +29977,17 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         if (!lecturerName){ showToast('⚠️ يرجى اختيار اسم المحاضر', 'error'); return; }
 
         const program = programsData[programKey];
+        const badgeEl = document.getElementById('liveSessionModalCourseCodeBadge');
+        const isLinkedToCourse = !!_liveSessionModalCourseKey;
+        const linkedCourseCode = (isLinkedToCourse && badgeEl && !badgeEl.classList.contains('hidden'))
+            ? (badgeEl.textContent || '').trim() : null;
 
         const sessionPayload = {
             programKey:       programKey,
-            courseKey:        null,
+            courseKey:        _liveSessionModalCourseKey || null,
+            linkedCourseCode: linkedCourseCode,
             programTitle:     program?.title || '',
-            isFreeSession:    true,
+            isFreeSession:    !isLinkedToCourse,
             sessionTitleAr:   titleAr,
             sessionTitleEn:   titleEn,
             courseCode:       sessionCode || titleAr,
@@ -29934,6 +30007,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 closeNewLiveSessionModal();
                 _editingLiveSessionId = null;
                 await _renderIndependentLiveSessionCards();
+                await _renderCourseLinkedLiveSessionCards();
                 showToast('✅ تم تحديث بيانات الجلسة', 'success');
             } else {
                 // وضع الإنشاء: جلسة جديدة يدخلها منشئها فوراً
@@ -29987,6 +30061,18 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             if (lecturerSelect) lecturerSelect.value = data.lecturerName || '';
             setVal('liveSessionObjectivesInput', data.objectives);
 
+            // استعادة ارتباط الجلسة بالدورة (إن وُجد) حتى لا يتحول نوعها عند الحفظ
+            _liveSessionModalCourseKey = data.courseKey || null;
+            const badge = document.getElementById('liveSessionModalCourseCodeBadge');
+            if (badge) {
+                if (data.courseKey && data.linkedCourseCode) {
+                    badge.textContent = data.linkedCourseCode;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+
             const titleEl = document.querySelector('#newLiveSessionModal h2');
             if (titleEl) titleEl.innerHTML = '<i class="ph ph-pencil-simple text-primary"></i> تعديل الجلسة المتزامنة';
         } catch (e) {
@@ -30006,6 +30092,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         try {
             await dbRef.collection('liveSessions').doc(sessionId).delete();
             await _renderIndependentLiveSessionCards();
+            await _renderCourseLinkedLiveSessionCards();
             if (_sessionLobbyId === sessionId) closeSessionLobby();
             showToast('✅ تم حذف الجلسة', 'success');
         } catch (e) {
@@ -30146,7 +30233,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 const canStart = user.role === 'admin' || user.role === 'trainer';
                 const esc = (s) => (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const openModalAttr = canStart
-                    ? ` onclick="_openLiveSessionModalForCourse('${esc(r.programKey)}', '${esc(r.course.mainTrainer)}', '${esc(r.course.code || r.courseKey)}')" style="cursor:pointer"`
+                    ? ` onclick="_openLiveSessionModalForCourse('${esc(r.programKey)}', '${esc(r.course.mainTrainer)}', '${esc(r.course.code || r.courseKey)}', '${esc(r.courseKey)}')" style="cursor:pointer"`
                     : '';
                 return `
                 <div class="glass-element rounded-xl p-3 flex items-center gap-3">
@@ -30195,8 +30282,8 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
     }
 
     // يفتح نافذة "إنشاء جلسة متزامنة جديدة" مُعبّأة مسبقاً باسم البرنامج والمحاضر ورمز الدورة
-    function _openLiveSessionModalForCourse(programKey, lecturerName, courseCode) {
-        openNewLiveSessionModal({ programKey, lecturerName, courseCode });
+    function _openLiveSessionModalForCourse(programKey, lecturerName, courseCode, courseKey) {
+        openNewLiveSessionModal({ programKey, lecturerName, courseCode, courseKey });
     }
 
     // ════════════════════════════════════════════════════
