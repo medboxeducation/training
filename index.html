@@ -12735,7 +12735,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <div class="space-y-4">
                 <!-- اسم البرنامج -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم البرنامج <span class="text-red-500">*</span></label>
+                    <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-1.5">
+                        اسم البرنامج <span class="text-red-500">*</span>
+                        <span id="liveSessionModalCourseCodeBadge" class="hidden font-mono text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full"></span>
+                    </label>
                     <select id="liveSessionProgramSelect" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" onchange="generateLiveSessionCode()">
                         <option value="" disabled selected>اختر البرنامج</option>
                     </select>
@@ -29777,7 +29780,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
     // ════════════════════════════════════════════════════
     let _editingLiveSessionId = null;
 
-    async function openNewLiveSessionModal() {
+    async function openNewLiveSessionModal(prefill) {
         const modal = document.getElementById('newLiveSessionModal');
         if (!modal) return;
 
@@ -29810,6 +29813,35 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         if (programSelect) programSelect.selectedIndex = 0;
         if (lecturerSelect) lecturerSelect.selectedIndex = 0;
+
+        // تعبئة تلقائية عند الفتح من سياق دورة مُحددة: البرنامج + المحاضر + رمز الدورة
+        const badge = document.getElementById('liveSessionModalCourseCodeBadge');
+        if (prefill && (prefill.programKey || prefill.lecturerName || prefill.courseCode)) {
+            if (programSelect && prefill.programKey) {
+                programSelect.value = prefill.programKey;
+            }
+            if (lecturerSelect && prefill.lecturerName) {
+                const exists = Array.from(lecturerSelect.options).some(o => o.value === prefill.lecturerName);
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = prefill.lecturerName;
+                    opt.textContent = prefill.lecturerName;
+                    lecturerSelect.appendChild(opt);
+                }
+                lecturerSelect.value = prefill.lecturerName;
+            }
+            if (badge) {
+                if (prefill.courseCode) {
+                    badge.textContent = prefill.courseCode;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            generateLiveSessionCode();
+        } else if (badge) {
+            badge.classList.add('hidden');
+        }
 
         modal.classList.remove('hidden');
     }
@@ -30107,17 +30139,21 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         }
 
         let globalIdx = 0;
-        body.innerHTML = groups.map(g => {
+        body.innerHTML = groups.map((g, gIdx) => {
             const coursesHtml = g.items.map(r => {
                 const idx = globalIdx++;
                 const active = findActiveFor(r.courseKey);
                 const canStart = user.role === 'admin' || user.role === 'trainer';
+                const esc = (s) => (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const openModalAttr = canStart
+                    ? ` onclick="_openLiveSessionModalForCourse('${esc(r.programKey)}', '${esc(r.course.mainTrainer)}', '${esc(r.course.code || r.courseKey)}')" style="cursor:pointer"`
+                    : '';
                 return `
                 <div class="glass-element rounded-xl p-3 flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg glass-icon-tile flex items-center justify-center text-primary shrink-0">
                         <i class="ph ph-graduation-cap"></i>
                     </div>
-                    <div class="min-w-0 flex-1">
+                    <div class="min-w-0 flex-1"${openModalAttr} title="${canStart ? 'اضغط لإنشاء جلسة لهذه الدورة' : ''}">
                         <p class="font-bold text-sm text-gray-800 truncate">${escapeHtml(r.course.code || r.courseKey)}</p>
                         <p class="text-xs text-gray-400 truncate">${escapeHtml(r.course.startDate ? new Date(r.course.startDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : r.programTitle)}</p>
                     </div>
@@ -30134,16 +30170,33 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                 </div>`;
             }).join('');
 
+            const groupId = `programCoursesGroup${gIdx}`;
             return `
             <div class="mb-1">
-                <div class="flex items-center gap-2 px-1 pt-3 pb-1.5 first:pt-0">
+                <button type="button" class="w-full flex items-center gap-2 px-1 pt-3 pb-1.5 first:pt-0" onclick="_toggleProgramCoursesGroup('${groupId}', this)">
+                    <i class="ph ph-caret-left text-gray-400 text-xs shrink-0 transition-transform"></i>
                     <i class="ph ph-books text-primary text-sm shrink-0"></i>
-                    <p class="text-xs font-bold text-gray-500 truncate">${escapeHtml(g.programTitle)}</p>
+                    <p class="text-xs font-bold text-gray-500 truncate flex-1 text-right">${escapeHtml(g.programTitle)}</p>
                     <span class="text-[10px] text-gray-300 shrink-0">(${g.items.length})</span>
-                </div>
-                <div class="space-y-2">${coursesHtml}</div>
+                </button>
+                <div id="${groupId}" class="hidden space-y-2">${coursesHtml}</div>
             </div>`;
         }).join('');
+    }
+
+    // يطوي/يبسط قائمة دورات برنامج معيّن عند الضغط على السهم المقابل لاسمه
+    function _toggleProgramCoursesGroup(groupId, btnEl) {
+        const box = document.getElementById(groupId);
+        if (!box) return;
+        const collapsing = !box.classList.contains('hidden');
+        box.classList.toggle('hidden');
+        const caret = btnEl && btnEl.querySelector('.ph-caret-left');
+        if (caret) caret.style.transform = collapsing ? '' : 'rotate(-90deg)';
+    }
+
+    // يفتح نافذة "إنشاء جلسة متزامنة جديدة" مُعبّأة مسبقاً باسم البرنامج والمحاضر ورمز الدورة
+    function _openLiveSessionModalForCourse(programKey, lecturerName, courseCode) {
+        openNewLiveSessionModal({ programKey, lecturerName, courseCode });
     }
 
     // ════════════════════════════════════════════════════
