@@ -11257,7 +11257,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         <h3 id="sidebarLiveTitle" class="text-sm font-bold text-gray-800 truncate">الجلسات المتزامنة</h3>
                         <p id="sidebarLiveSubtitle" class="text-[11px] text-gray-500 truncate">اختر طريقة بدء الجلسة</p>
                     </div>
-                    <button id="sidebarLiveTimelineBtn" onclick="openLiveSessionsTimeline()" class="w-8 h-8 rounded-full glass-icon-btn flex items-center justify-center text-primary flex-shrink-0 hover:bg-primary/10" title="الخط الزمني للجلسات">
+                    <button id="sidebarLiveTimelineBtn" onclick="openLiveSessionsTimelineView()" class="w-8 h-8 rounded-full glass-icon-btn flex items-center justify-center text-primary flex-shrink-0 hover:bg-primary/10" title="الخط الزمني للجلسات">
                         <i class="ph ph-clock-countdown text-sm"></i>
                     </button>
                 </div>
@@ -11295,7 +11295,76 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 border-right: 3px solid #0790AC;
             }
 
-
+            /* ===== الخط الزمني للجلسات المتزامنة (تصميم عصري) ===== */
+            .live-timeline-filter-btn {
+                background: rgba(255,255,255,0.6);
+                border: 1px solid rgba(0,0,0,0.06);
+                color: #6b7280;
+            }
+            .live-timeline-filter-btn:hover { border-color: rgba(7,144,172,0.35); color: #0790AC; }
+            .live-timeline-filter-btn.active {
+                background: linear-gradient(135deg, #0790AC, #06b6d4);
+                border-color: transparent;
+                color: #fff;
+                box-shadow: 0 4px 12px rgba(7,144,172,0.25);
+            }
+            .live-timeline-track { position: relative; }
+            .live-timeline-track::before {
+                content: '';
+                position: absolute;
+                top: 4px; bottom: 4px; right: 15px;
+                width: 2px;
+                background: linear-gradient(180deg, rgba(7,144,172,0.35), rgba(7,144,172,0.05));
+                border-radius: 2px;
+            }
+            .live-timeline-day-label {
+                position: sticky;
+                top: 0;
+                z-index: 5;
+                backdrop-filter: blur(6px);
+            }
+            .live-timeline-card {
+                position: relative;
+                border-radius: 16px;
+                padding: 14px 16px;
+                margin-bottom: 12px;
+                margin-right: 34px;
+                background: rgba(255,255,255,0.72);
+                border: 1px solid rgba(0,0,0,0.06);
+                border-right-width: 4px;
+                box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+                transition: all .2s ease;
+                cursor: pointer;
+            }
+            .live-timeline-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 24px rgba(15,23,42,0.10);
+            }
+            .live-timeline-card.status-active { border-right-color: #10b981; }
+            .live-timeline-card.status-ended  { border-right-color: #94a3b8; }
+            .live-timeline-dot {
+                position: absolute;
+                right: -39px;
+                top: 18px;
+                width: 12px; height: 12px;
+                border-radius: 50%;
+                background: #94a3b8;
+                box-shadow: 0 0 0 4px #fff;
+            }
+            .live-timeline-dot.status-active { background: #10b981; }
+            .live-timeline-dot.status-ended  { background: #94a3b8; }
+            .live-timeline-time-chip {
+                display: inline-flex; align-items: center; gap: 4px;
+                font-size: 11px; font-weight: 700;
+                padding: 3px 9px; border-radius: 999px;
+                background: rgba(7,144,172,0.08); color: #0790AC;
+            }
+            .live-timeline-duration-chip {
+                display: inline-flex; align-items: center; gap: 4px;
+                font-size: 11px; font-weight: 700;
+                padding: 3px 9px; border-radius: 999px;
+                background: rgba(245,158,11,0.10); color: #b45309;
+            }
         </style>
 
         <!-- زر إظهار القائمة يُنشأ بواسطة JS -->
@@ -12162,6 +12231,40 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
             </div>
 
+            <!-- عرض: الخط الزمني للجلسات المتزامنة (ضمن لوحة العرض الرئيسية) -->
+            <div id="liveSessionsTimelineView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <div class="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                    <button onclick="closeLiveSessionsTimelineView()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 flex-shrink-0" title="رجوع">
+                        <i class="ph ph-arrow-right text-lg"></i>
+                    </button>
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary/20 to-sky-200/40 flex items-center justify-center text-primary text-xl border border-primary/20 shrink-0">
+                        <i class="ph ph-clock-countdown"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-lg font-bold text-gray-800">الخط الزمني للجلسات المتزامنة</h2>
+                        <p class="text-xs text-gray-400">سجلّ زمني بكل الجلسات: تواريخها، أوقاتها، ومددها</p>
+                    </div>
+                    <button onclick="openLiveSessionsTimelineView()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 flex-shrink-0" title="تحديث">
+                        <i class="ph ph-arrow-clockwise text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- فلاتر الحالة -->
+                <div class="flex items-center gap-2 mb-5 flex-wrap">
+                    <button data-filter="all" onclick="_setLiveTimelineFilter('all')" class="live-timeline-filter-btn active px-3.5 py-1.5 rounded-full text-xs transition-all">الكل</button>
+                    <button data-filter="active" onclick="_setLiveTimelineFilter('active')" class="live-timeline-filter-btn px-3.5 py-1.5 rounded-full text-xs transition-all flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 live-pulse-dot"></span> نشطة الآن
+                    </button>
+                    <button data-filter="ended" onclick="_setLiveTimelineFilter('ended')" class="live-timeline-filter-btn px-3.5 py-1.5 rounded-full text-xs transition-all">منتهية</button>
+                </div>
+
+                <div id="liveSessionsTimelineViewBody" class="relative flex-1">
+                    <div class="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                        <i class="ph ph-spinner-gap animate-spin text-lg"></i> جاري تحميل الجلسات...
+                    </div>
+                </div>
+            </div>
+
             <!-- ب. عرض التفاصيل (Details View) - مخفي افتراضياً -->
             <div id="detailsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <!-- هيدر الدورة -->
@@ -12805,25 +12908,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 <button class="flex-1 glass-panel py-2.5 rounded-lg font-semibold hover:border-gray-400 transition-colors" onclick="closeNewLiveSessionModal()">
                     إلغاء
                 </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- نافذة منبثقة: الخط الزمني للجلسات المتزامنة المسجلة -->
-    <div id="liveSessionsTimelineModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeLiveSessionsTimelineModal()">
-        <div class="glass-panel bg-white/90 w-full max-w-xl max-h-[85vh] overflow-y-auto rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
-            <div class="flex items-center justify-between mb-5 pb-4 border-b border-white/40">
-                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <i class="ph ph-clock-countdown text-primary"></i> الخط الزمني للجلسات
-                </h2>
-                <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeLiveSessionsTimelineModal()">
-                    <i class="ph ph-x text-lg"></i>
-                </button>
-            </div>
-            <div id="liveSessionsTimelineBody" class="relative">
-                <div class="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
-                    <i class="ph ph-spinner-gap animate-spin text-lg"></i> جاري تحميل الجلسات...
-                </div>
             </div>
         </div>
     </div>
@@ -14304,7 +14388,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView'];
+        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -29575,17 +29659,31 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
 
     // ════════════════════════════════════════════════════
     //  الخط الزمني للجلسات المتزامنة المسجلة (Timeline)
+    //  يُعرض الآن ضمن لوحة العرض الرئيسية بدلاً من نافذة منبثقة مستقلة
     // ════════════════════════════════════════════════════
 
-    // يفتح نافذة الخط الزمني ويجلب كل الجلسات المسجلة (نشطة ومنتهية) ذات الصلة بالمستخدم الحالي
-    async function openLiveSessionsTimeline() {
-        const modal = document.getElementById('liveSessionsTimelineModal');
-        const body  = document.getElementById('liveSessionsTimelineBody');
+    let _liveTimelineFilter    = 'all';   // all | active | ended
+    let _liveTimelineSessions  = [];      // آخر نتيجة تم جلبها من Firestore
+    let _liveTimelinePrevView  = 'dashboardView'; // العرض الذي نعود إليه عند الرجوع
+
+    // يفتح الخط الزمني ضمن لوحة العرض الرئيسية ويجلب كل الجلسات المسجلة (نشطة ومنتهية) ذات الصلة بالمستخدم الحالي
+    async function openLiveSessionsTimelineView() {
+        // تذكّر العرض الحالي (إن لم نكن بالفعل داخل الخط الزمني) للرجوع إليه لاحقاً
+        const currentlyOpenView = allViews.find(id => {
+            const el = document.getElementById(id);
+            return el && !el.classList.contains('hidden');
+        });
+        if (currentlyOpenView && currentlyOpenView !== 'liveSessionsTimelineView') {
+            _liveTimelinePrevView = currentlyOpenView;
+        }
+
+        showView('liveSessionsTimelineView');
+
+        const body = document.getElementById('liveSessionsTimelineViewBody');
         const dbRef = _liveGetDb();
         const user  = _liveGetUser();
-        if (!modal || !body) return;
+        if (!body) return;
 
-        modal.classList.remove('hidden');
         body.innerHTML = `<div class="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
                                <i class="ph ph-spinner-gap animate-spin text-lg"></i> جاري تحميل الجلسات...
                            </div>`;
@@ -29624,12 +29722,22 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             sessions = sessions.filter(s => (s.courseKey && relevantCourseKeys.has(s.courseKey)) || s.hostUid === myUid);
         }
 
-        _renderLiveSessionsTimelineContent(sessions);
+        _liveTimelineSessions = sessions;
+        _renderLiveSessionsTimelineContent(_liveTimelineSessions);
     }
 
-    function closeLiveSessionsTimelineModal() {
-        const modal = document.getElementById('liveSessionsTimelineModal');
-        if (modal) modal.classList.add('hidden');
+    // يغلق الخط الزمني ويعود إلى العرض السابق في لوحة العرض الرئيسية
+    function closeLiveSessionsTimelineView() {
+        showView(_liveTimelinePrevView || 'dashboardView');
+    }
+
+    // يبدّل فلتر الحالة (الكل / نشطة الآن / منتهية) ويعيد رسم القائمة من الكاش دون طلب جديد
+    function _setLiveTimelineFilter(filter) {
+        _liveTimelineFilter = filter;
+        document.querySelectorAll('.live-timeline-filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.filter === filter);
+        });
+        _renderLiveSessionsTimelineContent(_liveTimelineSessions);
     }
 
     // يستخرج تاريخاً قابلاً للعرض والفرز من الجلسة (تاريخ الجلسة المُدخل، وإلا تاريخ الإنشاء)
@@ -29642,18 +29750,35 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         return new Date(0);
     }
 
-    // يبني عرض الخط الزمني: تجميع الجلسات حسب اليوم، مرتبة من الأحدث إلى الأقدم
-    function _renderLiveSessionsTimelineContent(sessions) {
-        const body = document.getElementById('liveSessionsTimelineBody');
+    // يحسب نص نطاق الوقت "10:00 - 11:00" بالاعتماد على وقت الجلسة ومدتها بالدقائق
+    function _liveTimelineTimeRange(s) {
+        if (!s.sessionTime) return null;
+        const [hh, mm] = s.sessionTime.split(':').map(Number);
+        if (isNaN(hh) || isNaN(mm)) return null;
+        const start = new Date(2000, 0, 1, hh, mm);
+        const durationMin = Number(s.durationMinutes) || 0;
+        const fmt = (d) => d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+        if (!durationMin) return fmt(start);
+        const end = new Date(start.getTime() + durationMin * 60000);
+        return `${fmt(start)} — ${fmt(end)}`;
+    }
+
+    // يبني عرض الخط الزمني العصري: تجميع الجلسات حسب اليوم، مرتبة من الأحدث إلى الأقدم، مع تلوين حسب الحالة
+    function _renderLiveSessionsTimelineContent(allSessions) {
+        const body = document.getElementById('liveSessionsTimelineViewBody');
         if (!body) return;
+
+        const sessions = _liveTimelineFilter === 'all'
+            ? allSessions
+            : allSessions.filter(s => (_liveTimelineFilter === 'active') === (s.status === 'active'));
 
         if (!sessions.length) {
             body.innerHTML = `
-                <div class="flex flex-col items-center justify-center text-center py-10">
-                    <div class="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                <div class="flex flex-col items-center justify-center text-center py-14">
+                    <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
                         <i class="ph ph-clock-countdown text-3xl text-gray-300"></i>
                     </div>
-                    <p class="text-sm font-semibold text-gray-400">لا توجد جلسات مسجلة بعد</p>
+                    <p class="text-sm font-semibold text-gray-400">لا توجد جلسات لعرضها</p>
                 </div>`;
             return;
         }
@@ -29664,6 +29789,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
 
         // تجميع حسب اليوم (بصيغة yyyy-mm-dd محلية)
         const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const todayKey = dayKey(new Date());
         const groupsMap = new Map();
         withDates.forEach(({ s, d }) => {
             const key = dayKey(d);
@@ -29671,49 +29797,61 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             groupsMap.get(key).items.push(s);
         });
 
-        body.innerHTML = Array.from(groupsMap.values()).map(group => {
+        body.innerHTML = Array.from(groupsMap.entries()).map(([key, group]) => {
+            const isToday = key === todayKey;
             const dateLabel = group.d.getTime() > 0
-                ? group.d.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                ? (isToday ? 'اليوم — ' + group.d.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })
+                           : group.d.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
                 : 'تاريخ غير معروف';
 
             const itemsHtml = group.items.map(s => {
-                const title    = escapeHtml(s.sessionTitleAr || s.linkedCourseCode || s.courseCode || 'جلسة بدون عنوان');
-                const lecturer = escapeHtml(s.lecturerName || s.hostName || '—');
-                const timeText = s.sessionTime
-                    ? escapeHtml(s.sessionTime)
-                    : (s.createdAt && s.createdAt.toDate ? s.createdAt.toDate().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '—');
-                const isActive = s.status === 'active';
+                const title      = escapeHtml(s.sessionTitleAr || s.linkedCourseCode || s.courseCode || 'جلسة بدون عنوان');
+                const lecturer   = escapeHtml(s.lecturerName || s.hostName || '—');
+                const programTxt = escapeHtml(s.programTitle || (s.isFreeSession ? 'جلسة مستقلة' : ''));
+                const isActive   = s.status === 'active';
+                const statusClass = isActive ? 'status-active' : 'status-ended';
+
+                const timeRange  = _liveTimelineTimeRange(s);
+                const timeText   = timeRange || (s.createdAt && s.createdAt.toDate
+                    ? s.createdAt.toDate().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '—');
+                const durationTxt = _formatSessionDuration(s.durationMinutes);
+
                 const statusBadge = isActive
-                    ? `<span class="shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 live-pulse-dot"></span> نشطة</span>`
-                    : `<span class="shrink-0 text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">منتهية</span>`;
+                    ? `<span class="shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 live-pulse-dot"></span> نشطة الآن</span>`
+                    : `<span class="shrink-0 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full flex items-center gap-1"><i class="ph ph-check-circle"></i> منتهية</span>`;
 
                 return `
-                <div class="relative pr-5">
-                    <span class="absolute right-[-5px] top-2 w-3 h-3 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-gray-300'} ring-4 ring-white"></span>
-                    <div class="glass-element rounded-lg p-2.5 mb-2.5 cursor-pointer hover:border-primary/50 hover:-translate-y-0.5 transition-all" onclick="_goToSessionFromTimeline('${s.id}')">
-                        <div class="flex items-center justify-between gap-2 mb-1">
-                            <p class="font-bold text-sm text-gray-800 truncate flex-1">${title}</p>
+                <div class="relative">
+                    <span class="live-timeline-dot ${statusClass}"></span>
+                    <div class="live-timeline-card ${statusClass}" onclick="_goToSessionFromTimeline('${s.id}')">
+                        <div class="flex items-start justify-between gap-2 mb-2">
+                            <div class="min-w-0">
+                                <p class="font-bold text-sm text-gray-800 truncate">${title}</p>
+                                ${programTxt ? `<p class="text-[11px] text-gray-400 truncate mt-0.5"><i class="ph ph-books"></i> ${programTxt}</p>` : ''}
+                            </div>
                             ${statusBadge}
                         </div>
-                        <div class="flex items-center gap-3 text-[11px] text-gray-400">
-                            <span class="flex items-center gap-1"><i class="ph ph-clock"></i> ${timeText}</span>
-                            <span class="flex items-center gap-1 truncate"><i class="ph ph-chalkboard-teacher"></i> ${lecturer}</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="live-timeline-time-chip"><i class="ph ph-clock"></i> ${timeText}</span>
+                            ${durationTxt !== '—' ? `<span class="live-timeline-duration-chip"><i class="ph ph-hourglass-medium"></i> ${durationTxt}</span>` : ''}
+                            <span class="inline-flex items-center gap-1 text-[11px] text-gray-400 truncate"><i class="ph ph-chalkboard-teacher"></i> ${lecturer}</span>
                         </div>
                     </div>
                 </div>`;
             }).join('');
 
             return `
-            <div class="mb-4">
-                <p class="text-xs font-bold text-gray-500 mb-2 sticky top-0 bg-white/80 backdrop-blur-sm py-1">${escapeHtml(dateLabel)}</p>
-                <div class="border-r-2 border-primary/15">${itemsHtml}</div>
+            <div class="mb-5 live-timeline-track">
+                <p class="live-timeline-day-label text-xs font-bold ${isToday ? 'text-primary' : 'text-gray-500'} mb-3 bg-white/70 inline-flex items-center gap-1.5 px-3 py-1 rounded-full">
+                    <i class="ph ph-calendar-dot"></i> ${escapeHtml(dateLabel)}
+                </p>
+                ${itemsHtml}
             </div>`;
         }).join('');
     }
 
-    // عند الضغط على أي جلسة في الخط الزمني: أغلق النافذة وانتقل لعرض بياناتها في لوحة العرض الرئيسية
+    // عند الضغط على أي جلسة في الخط الزمني: انتقل لعرض بياناتها في لوحة العرض الرئيسية
     function _goToSessionFromTimeline(sessionId) {
-        closeLiveSessionsTimelineModal();
         openSessionLobby(sessionId);
     }
     // كل بطاقة تعرض: عنوان الجلسة، تاريخ الجلسة، اسم المحاضر
