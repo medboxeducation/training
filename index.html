@@ -12101,8 +12101,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         </div>
                     </div>
 
-                    <!-- أهداف الجلسة: تُعرض قبل بطاقة رمز المرور، وفقط إن وُجدت -->
-                    <div id="sessionLobbyObjectivesBox" class="hidden glass-element rounded-xl p-3.5 mb-4">
+                    <!-- أهداف الجلسة: تُعرض دائماً قبل بطاقة رمز المرور -->
+                    <div id="sessionLobbyObjectivesBox" class="glass-element rounded-xl p-3.5 mb-4">
                         <p class="text-[11px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-target"></i> أهداف الجلسة</p>
                         <p id="sessionLobbyObjectives" class="text-sm font-bold text-gray-800 whitespace-pre-line">—</p>
                     </div>
@@ -27969,14 +27969,25 @@ let _isMuted        = false;
 let _isVideoOff     = false;
 let _currentFacingMode = 'user'; // for camera flip
 
-// ─── إعداد STUN (مجاني 100٪) ────────────────────────────────
+// ─── إعداد STUN/TURN ────────────────────────────────────────
+// STUN فقط لا يكفي لكثير من المستخدمين خلف شبكات NAT/جدران حماية مؤسسية،
+// ما يؤدي لفشل الاتصال المباشر أو بطئه الشديد. نضيف خوادم TURN عامة (Open Relay)
+// كحل احتياطي (Relay) يمرّر الوسائط عبر خادم وسيط عند تعذّر الاتصال المباشر.
+// ملاحظة: هذه خوادم TURN عامة مجانية مناسبة للاستخدام الخفيف/التجريبي فقط —
+// للإنتاج بحمل أكبر يُفضّل خادم TURN مخصص (Twilio NTS، Cloudflare Calls، coturn ذاتي...).
 const RTC_CONFIG = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478'  },
-        { urls: 'stun:global.stun.twilio.com:3478' }
-    ]
+        { urls: 'stun:global.stun.twilio.com:3478' },
+        // TURN عبر UDP/TCP (Open Relay Project — عام ومجاني)
+        { urls: 'turn:openrelay.metered.ca:80',  username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        // TURN عبر TLS على المنفذ 443 — يعمل خلف أشد الجدران/البروكسيات تقييداً (تبدو كحركة HTTPS عادية)
+        { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+    ],
+    iceCandidatePoolSize: 4
 };
 
 // ─── بدء اتصال (كـ Caller) ───────────────────────────────────
@@ -29612,17 +29623,15 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         if (timeEl)     timeEl.textContent     = data.sessionTime || '—';
         if (durationEl) durationEl.textContent = _formatSessionDuration(data.durationMinutes);
 
-        // أهداف الجلسة: تُعرض فقط إن وُجدت، قبل بطاقة رمز المرور
-        const objEl  = document.getElementById('sessionLobbyObjectives');
-        const objBox = document.getElementById('sessionLobbyObjectivesBox');
-        if (objBox && objEl) {
+        // أهداف الجلسة: تُعرض دائماً قبل بطاقة رمز المرور (نص بديل إن لم تُحدَّد أهداف)
+        const objEl = document.getElementById('sessionLobbyObjectives');
+        if (objEl) {
             const objectives = (data.objectives || '').trim();
-            if (objectives) {
-                objEl.textContent = objectives;
-                objBox.classList.remove('hidden');
-            } else {
-                objBox.classList.add('hidden');
-            }
+            objEl.textContent = objectives || 'لم يتم تحديد أهداف لهذه الجلسة';
+            objEl.classList.toggle('text-gray-400', !objectives);
+            objEl.classList.toggle('font-normal', !objectives);
+            objEl.classList.toggle('text-gray-800', !!objectives);
+            objEl.classList.toggle('font-bold', !!objectives);
         }
 
         // QR الهيدر: رابط عام لفتح بيانات الجلسة (لا يحمل رمز المرور)
@@ -30022,6 +30031,19 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         return out;
     }
 
+    // يستخرج قيمة زمنية قابلة للمقارنة من الدورة (تاريخ التسجيل/الإنشاء، وإلا تاريخ البدء) لترتيبها من الأحدث للأقدم
+    function _courseSortDateValue(course) {
+        const v = course && course.createdAt;
+        if (v && typeof v.toMillis === 'function') return v.toMillis();       // Firestore Timestamp
+        if (v && typeof v.seconds === 'number') return v.seconds * 1000;      // Firestore Timestamp (raw)
+        if (v) { const t = new Date(v).getTime(); if (!isNaN(t)) return t; }  // ISO string / رقم
+        if (course && course.startDate) {                                     // احتياطي: تاريخ بدء الدورة
+            const t2 = new Date(course.startDate).getTime();
+            if (!isNaN(t2)) return t2;
+        }
+        return 0;
+    }
+
     async function _renderLiveSessionsPickerContent() {
         const body = document.getElementById('sidebarLiveBody');
         const user = _liveGetUser();
@@ -30056,9 +30078,23 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             relevant = relevant.filter(r => findActiveFor(r.courseKey));
         }
 
-        _livePickerCourses = relevant;
+        // ترتيب النتائج: تجميع حسب البرنامج (بنفس ترتيب ظهوره)، وتحت كل برنامج
+        // الدورات مرتّبة من الأحدث إلى الأقدم
+        const programOrder = [];
+        const seenPrograms = new Set();
+        relevant.forEach(r => {
+            if (!seenPrograms.has(r.programKey)) { seenPrograms.add(r.programKey); programOrder.push(r.programKey); }
+        });
+        const groups = programOrder.map(pk => {
+            const items = relevant.filter(r => r.programKey === pk)
+                                   .sort((a, b) => _courseSortDateValue(b.course) - _courseSortDateValue(a.course));
+            return { programKey: pk, programTitle: items[0].programTitle, items };
+        });
 
-        if (relevant.length === 0) {
+        // مصفوفة مسطحة بنفس ترتيب العرض الجديد — تُستخدم للفهرسة في startLiveSession(idx)
+        _livePickerCourses = groups.flatMap(g => g.items);
+
+        if (_livePickerCourses.length === 0) {
             body.innerHTML = `
                 <div class="flex flex-col items-center justify-center text-center py-10">
                     <div class="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
@@ -30070,28 +30106,42 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
             return;
         }
 
-        body.innerHTML = relevant.map((r, idx) => {
-            const active = findActiveFor(r.courseKey);
-            const canStart = user.role === 'admin' || user.role === 'trainer';
-            return `
-            <div class="glass-element rounded-xl p-3 flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg glass-icon-tile flex items-center justify-center text-primary shrink-0">
-                    <i class="ph ph-graduation-cap"></i>
-                </div>
-                <div class="min-w-0 flex-1">
-                    <p class="font-bold text-sm text-gray-800 truncate">${escapeHtml(r.course.code || r.courseKey)}</p>
-                    <p class="text-xs text-gray-400 truncate">${escapeHtml(r.programTitle)}</p>
-                </div>
-                ${active
-                    ? `<button onclick="joinLiveSessionById('${active.id}')" class="shrink-0 bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1">
-                           <span class="w-1.5 h-1.5 rounded-full bg-white live-pulse-dot"></span> انضمام
-                       </button>`
-                    : (canStart
-                        ? `<button onclick="startLiveSession(${idx})" class="shrink-0 bg-primary text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1">
-                               <i class="ph ph-play"></i> بدء جلسة
+        let globalIdx = 0;
+        body.innerHTML = groups.map(g => {
+            const coursesHtml = g.items.map(r => {
+                const idx = globalIdx++;
+                const active = findActiveFor(r.courseKey);
+                const canStart = user.role === 'admin' || user.role === 'trainer';
+                return `
+                <div class="glass-element rounded-xl p-3 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg glass-icon-tile flex items-center justify-center text-primary shrink-0">
+                        <i class="ph ph-graduation-cap"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="font-bold text-sm text-gray-800 truncate">${escapeHtml(r.course.code || r.courseKey)}</p>
+                        <p class="text-xs text-gray-400 truncate">${escapeHtml(r.course.startDate ? new Date(r.course.startDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : r.programTitle)}</p>
+                    </div>
+                    ${active
+                        ? `<button onclick="joinLiveSessionById('${active.id}')" class="shrink-0 bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1">
+                               <span class="w-1.5 h-1.5 rounded-full bg-white live-pulse-dot"></span> انضمام
                            </button>`
-                        : `<span class="shrink-0 text-[11px] text-gray-300 font-semibold px-2">لا توجد جلسة حالياً</span>`)
-                }
+                        : (canStart
+                            ? `<button onclick="startLiveSession(${idx})" class="shrink-0 bg-primary text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1">
+                                   <i class="ph ph-play"></i> بدء جلسة
+                               </button>`
+                            : `<span class="shrink-0 text-[11px] text-gray-300 font-semibold px-2">لا توجد جلسة حالياً</span>`)
+                    }
+                </div>`;
+            }).join('');
+
+            return `
+            <div class="mb-1">
+                <div class="flex items-center gap-2 px-1 pt-3 pb-1.5 first:pt-0">
+                    <i class="ph ph-books text-primary text-sm shrink-0"></i>
+                    <p class="text-xs font-bold text-gray-500 truncate">${escapeHtml(g.programTitle)}</p>
+                    <span class="text-[10px] text-gray-300 shrink-0">(${g.items.length})</span>
+                </div>
+                <div class="space-y-2">${coursesHtml}</div>
             </div>`;
         }).join('');
     }
@@ -30611,13 +30661,22 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         let stream;
         try {
             stream = kind === 'screen'
-                ? await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 24 }, audio: true })
+                ? await navigator.mediaDevices.getDisplayMedia({
+                      video: { frameRate: { ideal: 24, max: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                      audio: true
+                  })
                 : await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
         } catch (e) {
             console.warn('_hostStartBroadcast getMedia error', e);
             showToast('⚠️ تعذّر الوصول إلى ' + (kind === 'screen' ? 'الشاشة' : 'الكاميرا'), 'error');
             return;
         }
+
+        // تلميح للمتصفح بطبيعة المحتوى: "تفاصيل" لمشاركة الشاشة (نص/شرائح واضحة)
+        // و"حركة" للكاميرا (سلاسة الفيديو) — يحسّن اختيار المتصفح لجودة الترميز المناسبة
+        stream.getVideoTracks().forEach(t => {
+            try { t.contentHint = kind === 'screen' ? 'detail' : 'motion'; } catch (e) {}
+        });
 
         _liveBroadcastStream = stream;
         _liveBroadcastKind   = kind;
@@ -30697,8 +30756,32 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
 
         _liveBroadcastStream.getTracks().forEach(t => pc.addTrack(t, _liveBroadcastStream));
 
+        // ضبط معدل البت الأقصى وأفضلية التدهور عند ضعف الشبكة:
+        // لمشاركة الشاشة: نُفضّل الحفاظ على وضوح النص/التفاصيل على حساب معدل الإطارات.
+        // للكاميرا: نُفضّل توازناً بين الدقة والسلاسة.
+        pc.getSenders().filter(s => s.track && s.track.kind === 'video').forEach(sender => {
+            try {
+                const params = sender.getParameters();
+                if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+                params.encodings[0].maxBitrate = _liveBroadcastKind === 'screen' ? 2_500_000 : 1_200_000;
+                params.degradationPreference = _liveBroadcastKind === 'screen' ? 'maintain-resolution' : 'balanced';
+                sender.setParameters(params).catch(() => {});
+            } catch (e) { /* بعض المتصفحات قد لا تدعم setParameters بالكامل — نتجاهل بأمان */ }
+        });
+
         pc.onicecandidate = e => {
             if (e.candidate) docRef.collection('hostCandidates').add(e.candidate.toJSON()).catch(() => {});
+        };
+        // إعادة الاتصال بهذا المشاهد تلقائياً عند فشل/انقطاع اتصاله
+        pc.oniceconnectionstatechange = () => {
+            if ((pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') && _liveBroadcastPeers[viewerUid] === pc) {
+                setTimeout(() => {
+                    if (_liveBroadcastPeers[viewerUid] === pc && (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected')) {
+                        _hostDisconnectViewer(viewerUid);
+                        if (_liveBroadcastStream) _hostConnectToViewer(viewerUid);
+                    }
+                }, 2000);
+            }
         };
 
         try {
@@ -30771,6 +30854,17 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         pc.ontrack = e => _showLiveStageStream(e.streams[0], kind === 'screen' ? 'مشاركة شاشة' : 'مشاركة فيديو');
         pc.onicecandidate = e => {
             if (e.candidate) docRef.collection('viewerCandidates').add(e.candidate.toJSON()).catch(() => {});
+        };
+        // إعادة محاولة الاتصال تلقائياً عند انقطاعه (شبكة ضعيفة/مؤقتة) بدل بقاء البث متجمداً
+        pc.oniceconnectionstatechange = () => {
+            if ((pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') && _liveViewerPeer === pc) {
+                setTimeout(() => {
+                    if (_liveViewerPeer === pc && (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected')) {
+                        _viewerStopReceiving();
+                        _viewerStartReceiving(hostUid, kind);
+                    }
+                }, 2000);
+            }
         };
 
         const unsubDoc = docRef.onSnapshot(async snap => {
