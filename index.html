@@ -11404,114 +11404,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <!-- أ. الداش بورد (Dashboard) - العرض الافتراضي -->
             <div id="dashboardView" class="min-h-full flex flex-col">
 
-                <!-- ══════════════ قسم: حول البرنامج (About the Program) ══════════════ -->
-                <section id="aboutProgramSection" class="mb-10">
-                    <div class="flex items-center gap-3 mb-1">
-                        <i class="ph ph-info text-3xl text-primary"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">حول البرنامج</h2>
-                        <span class="text-xs font-semibold text-gray-400 tracking-wide">About the Program</span>
-                    </div>
-                    <p class="text-sm text-gray-500 mb-6 max-w-2xl leading-relaxed">
-                        منصة MedBox.Education هي نظام متكامل لإدارة التدريب الطبي والتعليم المستمر، يجمع بين
-                        إدارة البرامج، الامتحانات الإلكترونية، الجلسات المتزامنة، والموسوعة الأكاديمية في بيئة واحدة سهلة الاستخدام.
-                    </p>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-
-                        <!-- بطاقة 1: البرامج التدريبية -->
-                        <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
-                            <div class="about-feature-glow" style="background: radial-gradient(circle, #0790AC 0%, transparent 70%);"></div>
-                            <div class="relative flex items-start gap-4">
-                                <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-cyan-500/30" style="background: linear-gradient(135deg, #0AA6C2, #0790AC);">
-                                    <i class="ph ph-books"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 class="font-bold text-gray-800 text-base leading-tight">إدارة البرامج التدريبية</h3>
-                                    <p class="text-[11px] font-semibold text-cyan-600/70 mb-1.5 tracking-wide">Training Programs</p>
-                                    <p class="text-xs text-gray-500 leading-relaxed">تسجيل البرامج والدورات والمتدربين مع متابعة الحضور والتقييم بشكل كامل.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- بطاقة 2: الامتحانات الإلكترونية -->
-                        <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
-                            <div class="about-feature-glow" style="background: radial-gradient(circle, #6366F1 0%, transparent 70%);"></div>
-                            <div class="relative flex items-start gap-4">
-                                <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-indigo-500/30" style="background: linear-gradient(135deg, #818CF8, #6366F1);">
-                                    <i class="ph ph-exam"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 class="font-bold text-gray-800 text-base leading-tight">نظام الامتحانات الإلكترونية</h3>
-                                    <p class="text-[11px] font-semibold text-indigo-500/70 mb-1.5 tracking-wide">Online Exams</p>
-                                    <p class="text-xs text-gray-500 leading-relaxed">امتحانات محمية بكلمة مرور مع تصحيح تلقائي، مؤقّت زمني، وأنواع أسئلة متعددة.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- بطاقة 3: الجلسات المتزامنة -->
-                        <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
-                            <div class="about-feature-glow" style="background: radial-gradient(circle, #EC4899 0%, transparent 70%);"></div>
-                            <div class="relative flex items-start gap-4">
-                                <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-pink-500/30" style="background: linear-gradient(135deg, #F472B6, #EC4899);">
-                                    <i class="ph ph-video-camera"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 class="font-bold text-gray-800 text-base leading-tight">الجلسات التدريبية المتزامنة</h3>
-                                    <p class="text-[11px] font-semibold text-pink-500/70 mb-1.5 tracking-wide">Live Sessions</p>
-                                    <p class="text-xs text-gray-500 leading-relaxed">بث مباشر بتقنية WebRTC، سبورة تفاعلية مشتركة، وتسجيل محلي للجلسات.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- بطاقة 4: الموسوعة الأكاديمية -->
-                        <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
-                            <div class="about-feature-glow" style="background: radial-gradient(circle, #F59E0B 0%, transparent 70%);"></div>
-                            <div class="relative flex items-start gap-4">
-                                <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-amber-500/30" style="background: linear-gradient(135deg, #FBBF24, #F59E0B);">
-                                    <i class="ph ph-graduation-cap"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 class="font-bold text-gray-800 text-base leading-tight">الموسوعة الأكاديمية</h3>
-                                    <p class="text-[11px] font-semibold text-amber-500/70 mb-1.5 tracking-wide">Academic Pedia</p>
-                                    <p class="text-xs text-gray-500 leading-relaxed">مرجع شامل للمهارات السريرية والكتب والأبحاث الطبية في مكان واحد.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- بطاقة 5: رموز QR -->
-                        <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
-                            <div class="about-feature-glow" style="background: radial-gradient(circle, #10B981 0%, transparent 70%);"></div>
-                            <div class="relative flex items-start gap-4">
-                                <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-emerald-500/30" style="background: linear-gradient(135deg, #34D399, #10B981);">
-                                    <i class="ph ph-qr-code"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 class="font-bold text-gray-800 text-base leading-tight">تسجيل وتحقق فوري عبر QR</h3>
-                                    <p class="text-[11px] font-semibold text-emerald-500/70 mb-1.5 tracking-wide">QR Registration</p>
-                                    <p class="text-xs text-gray-500 leading-relaxed">إنشاء ومسح رموز QR للمتدربين والمدربين والبرامج بسرعة وسهولة.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- بطاقة 6: الإشعارات والتواصل -->
-                        <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
-                            <div class="about-feature-glow" style="background: radial-gradient(circle, #8B5CF6 0%, transparent 70%);"></div>
-                            <div class="relative flex items-start gap-4">
-                                <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-violet-500/30" style="background: linear-gradient(135deg, #A78BFA, #8B5CF6);">
-                                    <i class="ph ph-bell-ringing"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 class="font-bold text-gray-800 text-base leading-tight">الإشعارات والتواصل الفوري</h3>
-                                    <p class="text-[11px] font-semibold text-violet-500/70 mb-1.5 tracking-wide">Notifications & Chat</p>
-                                    <p class="text-xs text-gray-500 leading-relaxed">تنبيهات لحظية مصنّفة مع محادثات مباشرة بين المدربين والمتدربين.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </section>
-                <!-- ══════════════ نهاية قسم حول البرنامج ══════════════ -->
-
                 <div class="flex items-center gap-3 mb-8">
                     <i class="ph ph-squares-four text-3xl text-primary"></i>
                     <h2 class="text-2xl font-bold text-gray-800">لوحة المتابعة الرئيسية</h2>
@@ -11644,6 +11536,113 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ب٢. عرض "حول البرنامج" (About the Program View) - مخفي افتراضياً -->
+            <div id="aboutProgramView" class="hidden min-h-full flex flex-col">
+                <div class="flex items-center gap-3 mb-1">
+                    <i class="ph ph-info text-3xl text-primary"></i>
+                    <h2 class="text-2xl font-bold text-gray-800">حول البرنامج</h2>
+                    <span class="text-xs font-semibold text-gray-400 tracking-wide">About the Program</span>
+                </div>
+                <p class="text-sm text-gray-500 mb-6 max-w-2xl leading-relaxed">
+                    منصة MedBox.Education هي نظام متكامل لإدارة التدريب الطبي والتعليم المستمر، يجمع بين
+                    إدارة البرامج، الامتحانات الإلكترونية، الجلسات المتزامنة، والموسوعة الأكاديمية في بيئة واحدة سهلة الاستخدام.
+                </p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+
+                    <!-- بطاقة 1: البرامج التدريبية -->
+                    <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
+                        <div class="about-feature-glow" style="background: radial-gradient(circle, #0790AC 0%, transparent 70%);"></div>
+                        <div class="relative flex items-start gap-4">
+                            <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-cyan-500/30" style="background: linear-gradient(135deg, #0AA6C2, #0790AC);">
+                                <i class="ph ph-books"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-gray-800 text-base leading-tight">إدارة البرامج التدريبية</h3>
+                                <p class="text-[11px] font-semibold text-cyan-600/70 mb-1.5 tracking-wide">Training Programs</p>
+                                <p class="text-xs text-gray-500 leading-relaxed">تسجيل البرامج والدورات والمتدربين مع متابعة الحضور والتقييم بشكل كامل.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة 2: الامتحانات الإلكترونية -->
+                    <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
+                        <div class="about-feature-glow" style="background: radial-gradient(circle, #6366F1 0%, transparent 70%);"></div>
+                        <div class="relative flex items-start gap-4">
+                            <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-indigo-500/30" style="background: linear-gradient(135deg, #818CF8, #6366F1);">
+                                <i class="ph ph-exam"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-gray-800 text-base leading-tight">نظام الامتحانات الإلكترونية</h3>
+                                <p class="text-[11px] font-semibold text-indigo-500/70 mb-1.5 tracking-wide">Online Exams</p>
+                                <p class="text-xs text-gray-500 leading-relaxed">امتحانات محمية بكلمة مرور مع تصحيح تلقائي، مؤقّت زمني، وأنواع أسئلة متعددة.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة 3: الجلسات المتزامنة -->
+                    <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
+                        <div class="about-feature-glow" style="background: radial-gradient(circle, #EC4899 0%, transparent 70%);"></div>
+                        <div class="relative flex items-start gap-4">
+                            <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-pink-500/30" style="background: linear-gradient(135deg, #F472B6, #EC4899);">
+                                <i class="ph ph-video-camera"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-gray-800 text-base leading-tight">الجلسات التدريبية المتزامنة</h3>
+                                <p class="text-[11px] font-semibold text-pink-500/70 mb-1.5 tracking-wide">Live Sessions</p>
+                                <p class="text-xs text-gray-500 leading-relaxed">بث مباشر بتقنية WebRTC، سبورة تفاعلية مشتركة، وتسجيل محلي للجلسات.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة 4: الموسوعة الأكاديمية -->
+                    <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
+                        <div class="about-feature-glow" style="background: radial-gradient(circle, #F59E0B 0%, transparent 70%);"></div>
+                        <div class="relative flex items-start gap-4">
+                            <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-amber-500/30" style="background: linear-gradient(135deg, #FBBF24, #F59E0B);">
+                                <i class="ph ph-graduation-cap"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-gray-800 text-base leading-tight">الموسوعة الأكاديمية</h3>
+                                <p class="text-[11px] font-semibold text-amber-500/70 mb-1.5 tracking-wide">Academic Pedia</p>
+                                <p class="text-xs text-gray-500 leading-relaxed">مرجع شامل للمهارات السريرية والكتب والأبحاث الطبية في مكان واحد.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة 5: رموز QR -->
+                    <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
+                        <div class="about-feature-glow" style="background: radial-gradient(circle, #10B981 0%, transparent 70%);"></div>
+                        <div class="relative flex items-start gap-4">
+                            <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-emerald-500/30" style="background: linear-gradient(135deg, #34D399, #10B981);">
+                                <i class="ph ph-qr-code"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-gray-800 text-base leading-tight">تسجيل وتحقق فوري عبر QR</h3>
+                                <p class="text-[11px] font-semibold text-emerald-500/70 mb-1.5 tracking-wide">QR Registration</p>
+                                <p class="text-xs text-gray-500 leading-relaxed">إنشاء ومسح رموز QR للمتدربين والمدربين والبرامج بسرعة وسهولة.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة 6: الإشعارات والتواصل -->
+                    <div class="about-feature-card group relative rounded-3xl p-5 overflow-hidden">
+                        <div class="about-feature-glow" style="background: radial-gradient(circle, #8B5CF6 0%, transparent 70%);"></div>
+                        <div class="relative flex items-start gap-4">
+                            <div class="w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg shadow-violet-500/30" style="background: linear-gradient(135deg, #A78BFA, #8B5CF6);">
+                                <i class="ph ph-bell-ringing"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-gray-800 text-base leading-tight">الإشعارات والتواصل الفوري</h3>
+                                <p class="text-[11px] font-semibold text-violet-500/70 mb-1.5 tracking-wide">Notifications & Chat</p>
+                                <p class="text-xs text-gray-500 leading-relaxed">تنبيهات لحظية مصنّفة مع محادثات مباشرة بين المدربين والمتدربين.</p>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -14667,7 +14666,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView'];
+        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -16740,7 +16739,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     showFirebaseSettings();
                     break;
                 case 'about':
-                    showComingSoon('حول التطبيق');
+                    showAboutProgramView();
                     break;
                 case 'users':
                     showUsersRegistry();
@@ -18305,6 +18304,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
 
         // ════════════════════════════════════════════════════════════════
+
+        // عرض بطاقات "حول البرنامج" في لوحة العرض الرئيسية عند الضغط على زر الإعدادات المقابل
+        function showAboutProgramView() {
+            showView('aboutProgramView');
+            closeSidebar();
+        }
 
         function showFirebaseSettings() {
             if (document.body.classList.contains('trainer-mode')) {
