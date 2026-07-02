@@ -11861,6 +11861,47 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     </button>
                 </div>
             </div>
+            <!-- ي. عرض سجل التدقيق (Audit Log View) - مخفي افتراضياً -->
+            <div id="auditLogView" class="hidden min-h-full flex flex-col">
+                <div class="flex items-center justify-between mb-5">
+                    <div class="flex items-center gap-3">
+                        <div class="glass-icon-tile w-12 h-12 rounded-xl flex items-center justify-center text-primary text-2xl">
+                            <i class="ph ph-clipboard-text"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800">سجل التدقيق</h2>
+                            <p id="auditLogCountLabel" class="text-xs text-gray-500 mt-0.5">جاري التحميل...</p>
+                        </div>
+                    </div>
+                    <button onclick="loadAuditLog(true)"
+                        class="glass-element px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-primary hover:border-primary/50 transition-colors">
+                        <i class="ph ph-arrow-clockwise text-base"></i>
+                        <span class="hidden md:inline">تحديث</span>
+                    </button>
+                </div>
+
+                <!-- شريط الإحصائيات -->
+                <div id="auditLogStatsBar" class="grid grid-cols-3 gap-3 mb-5">
+                    <div class="glass-element rounded-xl p-3 text-center">
+                        <p id="statAuditAdd" class="text-2xl font-bold text-green-600">—</p>
+                        <p class="text-xs text-gray-500 mt-0.5">إضافة</p>
+                    </div>
+                    <div class="glass-element rounded-xl p-3 text-center">
+                        <p id="statAuditEdit" class="text-2xl font-bold text-blue-600">—</p>
+                        <p class="text-xs text-gray-500 mt-0.5">تعديل</p>
+                    </div>
+                    <div class="glass-element rounded-xl p-3 text-center">
+                        <p id="statAuditDelete" class="text-2xl font-bold text-red-500">—</p>
+                        <p class="text-xs text-gray-500 mt-0.5">حذف</p>
+                    </div>
+                </div>
+
+                <!-- قائمة عناصر سجل التدقيق -->
+                <div id="auditLogListContainer" class="flex flex-col gap-2 flex-1 overflow-y-auto pb-4">
+                    <p class="text-xs text-gray-400 italic text-center py-8">جاري تحميل سجل التدقيق...</p>
+                </div>
+            </div>
+
             <div id="programsGridView" class="hidden min-h-full flex flex-col">
                 <div class="flex items-center justify-between mb-8">
                     <div class="flex items-center gap-3">
@@ -13388,6 +13429,70 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
         // ─────────────────────────────────────────────────────────────────────
 
+        // ═══════════════════════════════════════════════════════════════════
+        // ======== نظام سجل التدقيق المركزي (Audit Log System) ========
+        // يسجّل كل عمليات الإضافة / التعديل / الحذف على جميع أنواع البيانات
+        // مع توقيت العملية وهوية الحساب الذي قام بها.
+        // ═══════════════════════════════════════════════════════════════════
+
+        // تسمية أنواع البيانات (Entity Types) بالعربية + الأيقونة المناسبة لكل نوع
+        const AUDIT_ENTITY_LABELS = {
+            program:        { label: 'برنامج تدريبي',      icon: 'ph-books' },
+            course:         { label: 'دورة تدريبية',       icon: 'ph-graduation-cap' },
+            trainee:        { label: 'متدرب',              icon: 'ph-student' },
+            trainer:        { label: 'مدرب',               icon: 'ph-chalkboard-teacher' },
+            user:           { label: 'مستخدم',             icon: 'ph-user' },
+            exam:           { label: 'امتحان',             icon: 'ph-exam' },
+            examResult:     { label: 'نتيجة امتحان',        icon: 'ph-clipboard-text' },
+            liveSession:    { label: 'جلسة مباشرة',        icon: 'ph-monitor-play' },
+            attendance:     { label: 'حضور',               icon: 'ph-calendar-check' },
+            evaluation:     { label: 'تقييم',              icon: 'ph-star' },
+            permissions:    { label: 'صلاحيات مستخدم',      icon: 'ph-shield-check' },
+            other:          { label: 'بيانات عامة',         icon: 'ph-database' },
+        };
+
+        // تسمية نوع العملية + لونها وأيقونتها
+        const AUDIT_ACTION_LABELS = {
+            add:    { label: 'إضافة', color: 'text-green-600', bg: 'bg-green-50 border-green-200', icon: 'ph-plus-circle' },
+            edit:   { label: 'تعديل', color: 'text-blue-600',  bg: 'bg-blue-50 border-blue-200',   icon: 'ph-pencil-simple' },
+            delete: { label: 'حذف',   color: 'text-red-500',   bg: 'bg-red-50 border-red-200',     icon: 'ph-trash-simple' },
+        };
+
+        // هل يملك المستخدم الحالي صلاحية الاطلاع على سجل التدقيق؟ (المدير فقط حالياً)
+        function canViewAuditLog() {
+            return !!(currentUser && currentUser.role === 'admin');
+        }
+
+        // تسجيل عملية جديدة في سجل التدقيق — يُستدعى بعد كل عملية إضافة/تعديل/حذف ناجحة
+        // action:     'add' | 'edit' | 'delete'
+        // entityType: أحد مفاتيح AUDIT_ENTITY_LABELS (مثل 'trainee', 'course', ...)
+        // entityLabel: اسم/عنوان العنصر المتأثر لعرضه في السجل (مثال: اسم المتدرب)
+        // entityId:   معرف العنصر (اختياري)
+        // details:    نص أو كائن إضافي يوضّح ما الذي تغيّر (اختياري)
+        async function logActivity(action, entityType, entityLabel, entityId, details) {
+            try {
+                if (!db) return; // لا يوجد اتصال بقاعدة البيانات بعد
+                const actorUid  = (currentUser && currentUser.uid) || 'unknown';
+                const actorName = (currentUser && (currentUser.displayName || currentUser.nameAr || currentUser.email)) || 'مستخدم غير معروف';
+                const actorRole = (currentUser && currentUser.role) || 'unknown';
+                await db.collection('auditLogs').add({
+                    action,
+                    entityType: entityType || 'other',
+                    entityLabel: entityLabel || '—',
+                    entityId: entityId || null,
+                    details: details || null,
+                    userId: actorUid,
+                    userName: actorName,
+                    userRole: actorRole,
+                    clientTime: new Date().toISOString(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+            } catch (err) {
+                // لا نقاطع تدفق العملية الأساسية في حال فشل التسجيل — فقط نسجل الخطأ في الكونسول
+                console.error('logActivity error:', err);
+            }
+        }
+
         function togglePasswordVisibility(inputId, eyeId) {
             const input = document.getElementById(inputId);
             const eye   = document.getElementById(eyeId);
@@ -14388,7 +14493,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView'];
+        const allViews = ['dashboardView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -14398,6 +14503,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function showView(id) {
             hideAllViews();
             document.getElementById(id).classList.remove('hidden');
+            // إيقاف الاستماع اللحظي لسجل التدقيق عند الانتقال لعرض آخر
+            if (id !== 'auditLogView' && typeof stopAuditLogListener === 'function') stopAuditLogListener();
             // إدارة وضع المحادثة في المحتوى الرئيسي
             const main = document.getElementById('mainContentArea');
             if (main) {
@@ -17028,8 +17135,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             {
                 key: 'auditlog',
                 icon: 'ph-clipboard-text',
-                title: 'سجل المدققين',
-                subtitle: 'سجل عمليات التدقيق والمراجعة',
+                title: 'سجل التدقيق',
+                subtitle: 'سجل جميع عمليات الإضافة والتعديل والحذف',
+                adminOnly: true,
             },
         ];
 
@@ -17086,6 +17194,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             list.appendChild(header);
 
             registryCards.forEach(card => {
+                // إخفاء البطاقات المخصصة للمدير فقط (مثل سجل التدقيق) عن باقي الأدوار
+                if (card.adminOnly && !canViewAuditLog()) return;
                 const isActive = activeRegistryCard === card.key;
                 const item = document.createElement('div');
                 item.className = `glass-element rounded-xl p-3.5 cursor-pointer flex items-center gap-3 hover:border-primary/50 hover:-translate-y-0.5 transition-all duration-200 ${isActive ? 'border-primary/50 bg-primary/5' : ''}`;
@@ -17122,7 +17232,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     showTraineesRegistry();
                     break;
                 case 'auditlog':
-                    showComingSoon('سجل المدققين');
+                    showAuditLogView();
                     break;
             }
         }
@@ -17131,6 +17241,114 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         function exitRegistrySidebar() {
             document.getElementById('sidebarRegistryList').classList.add('hidden');
             document.getElementById('sidebarProgramList').classList.remove('hidden');
+        }
+
+        // ======== عرض سجل التدقيق (Audit Log View) ========
+        let auditLogUnsubscribe = null; // دالة إلغاء الاشتراك بالمستمع اللحظي الحالي
+        let auditLogCache = [];         // آخر دفعة من عناصر السجل تم تحميلها
+
+        function showAuditLogView() {
+            if (!canViewAuditLog()) {
+                permissionDenied('الاطلاع على سجل التدقيق');
+                return;
+            }
+            closeSidebar();
+            showView('auditLogView');
+            loadAuditLog();
+        }
+
+        // تحميل سجل التدقيق (مع اشتراك لحظي لآخر 100 عملية) — forceRefresh لإعادة الربط يدوياً
+        function loadAuditLog(forceRefresh) {
+            if (!canViewAuditLog()) return;
+            const listEl  = document.getElementById('auditLogListContainer');
+            const countEl = document.getElementById('auditLogCountLabel');
+            if (!db) {
+                if (listEl) listEl.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-8">لا يوجد اتصال بقاعدة البيانات بعد.</p>';
+                return;
+            }
+            if (auditLogUnsubscribe && !forceRefresh) return; // الاشتراك قائم بالفعل
+            if (auditLogUnsubscribe) { auditLogUnsubscribe(); auditLogUnsubscribe = null; }
+
+            if (countEl) countEl.textContent = 'جاري التحميل...';
+            if (listEl) listEl.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-8">جاري تحميل سجل التدقيق...</p>';
+
+            try {
+                auditLogUnsubscribe = db.collection('auditLogs')
+                    .orderBy('timestamp', 'desc')
+                    .limit(100)
+                    .onSnapshot(snap => {
+                        auditLogCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        renderAuditLogEntries(auditLogCache);
+                    }, err => {
+                        console.error('loadAuditLog listener error:', err);
+                        if (listEl) listEl.innerHTML = '<p class="text-xs text-red-400 italic text-center py-8">تعذّر تحميل سجل التدقيق.</p>';
+                    });
+            } catch (err) {
+                console.error('loadAuditLog error:', err);
+            }
+        }
+
+        // إيقاف الاستماع اللحظي لسجل التدقيق (يُستدعى عند مغادرة العرض)
+        function stopAuditLogListener() {
+            if (auditLogUnsubscribe) { auditLogUnsubscribe(); auditLogUnsubscribe = null; }
+        }
+
+        // رسم عناصر سجل التدقيق في الواجهة + تحديث شريط الإحصائيات
+        function renderAuditLogEntries(entries) {
+            const listEl  = document.getElementById('auditLogListContainer');
+            const countEl = document.getElementById('auditLogCountLabel');
+            if (!listEl) return;
+
+            if (countEl) countEl.textContent = `آخر ${entries.length} عملية`;
+
+            // تحديث الإحصائيات
+            const counts = { add: 0, edit: 0, delete: 0 };
+            entries.forEach(e => { if (counts[e.action] !== undefined) counts[e.action]++; });
+            const setStat = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+            setStat('statAuditAdd', counts.add);
+            setStat('statAuditEdit', counts.edit);
+            setStat('statAuditDelete', counts.delete);
+
+            if (entries.length === 0) {
+                listEl.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-8">لا توجد عمليات مسجلة بعد.</p>';
+                return;
+            }
+
+            listEl.innerHTML = entries.map(entry => {
+                const actionInfo = AUDIT_ACTION_LABELS[entry.action] || AUDIT_ACTION_LABELS.edit;
+                const entityInfo = AUDIT_ENTITY_LABELS[entry.entityType] || AUDIT_ENTITY_LABELS.other;
+                let dateStr = '—';
+                try {
+                    const d = entry.timestamp && entry.timestamp.toDate ? entry.timestamp.toDate() : (entry.clientTime ? new Date(entry.clientTime) : null);
+                    if (d) dateStr = d.toLocaleString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                } catch (e) {}
+                const detailsHtml = entry.details
+                    ? `<p class="text-[11px] text-gray-500 mt-1 leading-relaxed">${typeof entry.details === 'string' ? entry.details : JSON.stringify(entry.details)}</p>`
+                    : '';
+                return `
+                <div class="glass-element rounded-xl p-3.5 flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${actionInfo.bg}">
+                        <i class="ph ${actionInfo.icon} ${actionInfo.color} text-lg"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center flex-wrap gap-1.5">
+                            <span class="text-xs font-bold ${actionInfo.color}">${actionInfo.label}</span>
+                            <span class="text-xs text-gray-400">·</span>
+                            <span class="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                                <i class="ph ${entityInfo.icon} text-gray-400"></i> ${entityInfo.label}
+                            </span>
+                        </div>
+                        <p class="text-sm font-bold text-gray-800 mt-0.5 truncate">${entry.entityLabel || '—'}</p>
+                        ${detailsHtml}
+                        <div class="flex items-center flex-wrap gap-1.5 mt-1.5 text-[11px] text-gray-400">
+                            <i class="ph ph-user-circle"></i>
+                            <span class="font-medium text-gray-600">${entry.userName || 'غير معروف'}</span>
+                            <span>·</span>
+                            <span>${dateStr}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
         }
 
         // ======== Firebase Config Settings (بيانات Firebase) ========
