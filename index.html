@@ -26265,11 +26265,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         <div class="glass-panel rounded-xl p-4">
           <div class="flex items-start gap-3">
             <div class="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm shrink-0">${idx+1}</div>
+            <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full shrink-0 mt-1">${q.mark} علامة</span>
             <div class="flex-1">
-              <div class="flex flex-wrap items-center gap-2 mb-1">
-                <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${typeLabel}</span>
-                <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${q.mark} علامة</span>
-              </div>
               <p class="text-sm font-semibold text-gray-800">${q.text}</p>
               ${answerHtml}
             </div>
@@ -26312,32 +26309,35 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const questions = exam.questions || [];
         const total = exam.totalMark || questions.reduce((s,q)=>s+(+q.mark||0),0);
 
-        const questionsHtml = questions.map((q,i) => {
-            const typeLabel = (QUESTION_TYPES.find(t=>t.key===q.type)||{}).ar || q.type;
-            let bodyHtml = '';
-            if (q.type === 'tf') {
-                bodyHtml = `<div style="display:flex;gap:16px;margin-top:8px"><span style="padding:4px 12px;border:1px solid #ccc;border-radius:6px;">☐ صح</span><span style="padding:4px 12px;border:1px solid #ccc;border-radius:6px;">☐ خطأ</span></div>`;
-            } else if (q.type === 'mcq' && q.options) {
-                bodyHtml = `<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${q.options.map((o,j)=>`<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:22px;border:1px solid #999;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px">${String.fromCharCode(65+j)}</span>${o}</div>`).join('')}</div>`;
-            } else if (q.type === 'enum') {
-                bodyHtml = `<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${(q.items||[]).map((_,j)=>`<div style="display:flex;align-items:center;gap:8px"><span>${j+1}.</span><span style="flex:1;border-bottom:1px solid #ddd;min-height:20px;display:block"></span></div>`).join('')}</div>`;
-            } else if (q.type === 'essay') {
-                bodyHtml = `<div style="margin-top:8px;min-height:60px;border:1px dashed #ccc;border-radius:6px;padding:6px"></div>`;
-            } else if (q.type === 'match' && q.leftItems) {
-                bodyHtml = `<div style="margin-top:8px;display:flex;gap:12px"><div style="flex:1"><strong>العمود (أ)</strong>${q.leftItems.map((l,j)=>`<div style="margin-top:4px;padding:4px 8px;border:1px solid #ddd;border-radius:4px">${j+1}. ${l}</div>`).join('')}</div><div style="flex:1"><strong>العمود (ب)</strong>${(q.rightItems||[]).sort(()=>Math.random()-.5).map(r=>`<div style="margin-top:4px;padding:4px 8px;border:1px solid #ddd;border-radius:4px">${r}</div>`).join('')}</div></div>`;
-            }
-            return `<div style="margin-bottom:20px;page-break-inside:avoid">
+        const questionsHtml = groupQuestionsByType(questions).map(group => {
+            const itemsHtml = group.indexes.map(i => {
+                const q = questions[i];
+                let bodyHtml = '';
+                if (q.type === 'tf') {
+                    bodyHtml = `<div style="display:flex;gap:16px;margin-top:8px"><span style="padding:4px 12px;border:1px solid #ccc;border-radius:6px;">☐ صح</span><span style="padding:4px 12px;border:1px solid #ccc;border-radius:6px;">☐ خطأ</span></div>`;
+                } else if (q.type === 'mcq' && q.options) {
+                    bodyHtml = `<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${q.options.map((o,j)=>`<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:22px;border:1px solid #999;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px">${String.fromCharCode(65+j)}</span>${o}</div>`).join('')}</div>`;
+                } else if (q.type === 'enum') {
+                    bodyHtml = `<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${(q.items||[]).map((_,j)=>`<div style="display:flex;align-items:center;gap:8px"><span>${j+1}.</span><span style="flex:1;border-bottom:1px solid #ddd;min-height:20px;display:block"></span></div>`).join('')}</div>`;
+                } else if (q.type === 'essay') {
+                    bodyHtml = `<div style="margin-top:8px;min-height:60px;border:1px dashed #ccc;border-radius:6px;padding:6px"></div>`;
+                } else if (q.type === 'match' && q.leftItems) {
+                    bodyHtml = `<div style="margin-top:8px;display:flex;gap:12px"><div style="flex:1"><strong>العمود (أ)</strong>${q.leftItems.map((l,j)=>`<div style="margin-top:4px;padding:4px 8px;border:1px solid #ddd;border-radius:4px">${j+1}. ${l}</div>`).join('')}</div><div style="flex:1"><strong>العمود (ب)</strong>${(q.rightItems||[]).sort(()=>Math.random()-.5).map(r=>`<div style="margin-top:4px;padding:4px 8px;border:1px solid #ddd;border-radius:4px">${r}</div>`).join('')}</div></div>`;
+                }
+                return `<div style="margin-bottom:20px;page-break-inside:avoid">
               <div style="display:flex;align-items:flex-start;gap:10px">
                 <span style="background:#0790AC;color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex-shrink:0">${i+1}</span>
+                <span style="font-size:10px;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:12px;flex-shrink:0;margin-top:2px">${q.mark} علامة</span>
                 <div style="flex:1">
-                  <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-                    <span style="font-size:10px;background:#e0f4f7;color:#0790AC;padding:2px 8px;border-radius:12px">${typeLabel}</span>
-                    <span style="font-size:10px;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:12px">${q.mark} علامة</span>
-                  </div>
                   <p style="font-weight:600;font-size:13px;margin:0">${q.text}</p>
                   ${bodyHtml}
                 </div>
               </div>
+            </div>`;
+            }).join('');
+            return `<div style="margin-bottom:24px">
+              <h4 style="font-size:13px;font-weight:700;color:#0790AC;background:#e0f4f7;padding:6px 12px;border-radius:6px;margin-bottom:14px">${group.typeInfo.ar}</h4>
+              ${itemsHtml}
             </div>`;
         }).join('');
 
@@ -27245,14 +27245,11 @@ ${questionsHtml}
 
         return `
         <div id="examQuestionCard_${i}" style="background:rgba(255,255,255,0.9);backdrop-filter:blur(8px);border:2px solid rgba(99,102,241,0.12);border-radius:18px;padding:20px;margin-bottom:14px;transition:border-color 0.3s;box-shadow:0 2px 12px rgba(99,102,241,0.06);">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="width:28px;height:28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">${i+1}</span>
-                    <span style="font-size:10px;background:#eef2ff;color:#6366f1;padding:3px 8px;border-radius:99px;font-weight:600;">${typeInfo.ar}</span>
-                </div>
-                <span style="font-size:11px;color:#6b7280;background:#f3f4f6;padding:4px 10px;border-radius:99px;white-space:nowrap;">${mark} علامة</span>
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;">
+                <span style="width:28px;height:28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">${i+1}</span>
+                <span style="font-size:11px;color:#6b7280;background:#f3f4f6;padding:4px 10px;border-radius:99px;white-space:nowrap;flex-shrink:0;">${mark} علامة</span>
+                <p style="font-size:15px;font-weight:700;color:#111827;margin:2px 0 0;line-height:1.6;flex:1;">${q.text || ''}</p>
             </div>
-            <p style="font-size:15px;font-weight:700;color:#111827;margin:8px 0 0;line-height:1.6;">${q.text || ''}</p>
             ${answerHTML}
         </div>`;
     }
