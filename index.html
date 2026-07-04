@@ -10651,6 +10651,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         body.trainer-mode .non-admin-only-mobile { display: flex !important; }
 
         /* ====== Trainer Mode Styles ====== */
+        /* ====== زر تصحيح الامتحانات الورقية: يظهر للأدمن والمدرب، ويُخفى عن الضيف والمتدرب ====== */
+        .staff-only { }
+        body.guest-mode .staff-only,
+        body.trainee-mode .staff-only { display: none !important; }
         body.trainer-mode .admin-only            { display: none !important; }
         body.trainer-mode .trainer-hide          { display: none !important; }
         /* إخفاء زر إضافة برنامج/دورة/متدرب في trainer-mode */
@@ -10941,6 +10945,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <!-- زر مسح QR Code -->
             <button class="glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center" title="مسح رمز QR (متدرب / مدرب / برنامج / دورة)" onclick="openQRScannerModal()">
                 <i class="ph ph-scan text-lg md:text-xl"></i>
+            </button>
+            <!-- زر تصحيح الامتحانات الورقية -->
+            <button class="staff-only glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center" title="تصحيح ورقة امتحان (مسح QR)" onclick="openPaperCorrectionScanner()">
+                <i class="ph ph-exam text-lg md:text-xl"></i>
             </button>
             <button class="admin-only glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center" title="السجلات" onclick="showRegistrySidebar()">
                 <i class="ph ph-clipboard-text text-lg md:text-xl"></i>
@@ -18723,9 +18731,20 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 updateRegistryAddButton();
                 return;
             }
-            if (sidebarLevel === 'courses' || sidebarLevel === 'exam') {
+            if (sidebarLevel === 'exam') {
+                btn.title = 'إنشاء امتحان جديد';
+                let canCreate = false;
+                if (activeCourseKey) {
+                    const prog   = programsData[activeProgramKey];
+                    const course = prog && (prog.courses || []).find(c => c.key === activeCourseKey);
+                    canCreate = course ? canCreateExam(course) : false;
+                } else {
+                    canCreate = canCreateExamForProgram(activeProgramKey);
+                }
+                btn.classList.toggle('hidden', !canCreate);
+            } else if (sidebarLevel === 'courses') {
                 btn.title = 'إضافة دورة جديدة';
-                btn.classList.toggle('hidden', !hasPermission('addCourse') || sidebarLevel === 'exam');
+                btn.classList.toggle('hidden', !hasPermission('addCourse'));
             } else {
                 btn.title = 'إضافة برنامج جديد';
                 btn.classList.toggle('hidden', !hasPermission('addProgram'));
@@ -18742,6 +18761,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 }
             } else if (sidebarMode === 'users') {
                 openUserModal('add', null);
+            } else if (sidebarLevel === 'exam' && activeProgramKey) {
+                // نفس الطريقة المعتمدة حالياً لإنشاء امتحان جديد:
+                // إن كانت اللوحة معروضة لدورة محددة تُنشأ لها مباشرة،
+                // وإن كانت معروضة لكل امتحانات البرنامج يُفتح نموذج
+                // اختيار الدورة داخل نافذة التصميم نفسها
+                emsShowDesigner(activeProgramKey, activeCourseKey || null);
             } else if (sidebarLevel === 'courses' && activeProgramKey) {
                 addCourse(activeProgramKey);
             } else {
@@ -19846,11 +19871,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <div class="glass-element rounded-xl p-5" id="${containerId}">
                 <h3 class="font-bold text-base mb-3 text-primary flex items-center gap-2">
                     <i class="ph ph-exam"></i> الامتحانات المسجلة
-                    <button onclick="emsCurrentCourseKey='${course.key}'; _buildSidebarExamCard('${programKey}','${course.key}')"
-                        class="mr-auto w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
-                        title="عرض جميع الامتحانات المسجلة">
-                        <i class="ph ph-list-bullets text-sm"></i>
-                    </button>
                 </h3>
                 <div class="glass-panel rounded-xl p-4 cursor-pointer hover:border-primary/50 hover:-translate-y-0.5 transition-all"
                     onclick="emsCurrentCourseKey='${course.key}'; emsShowExamReview('${programKey}','${course.key}', getCachedExam('${programKey}','${course.key}'))">
@@ -19872,19 +19892,34 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         <i class="ph ph-arrow-left text-gray-300 text-sm shrink-0"></i>
                     </div>
                 </div>
+                ${canManage ? `
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                    <button onclick="event.stopPropagation(); openPaperCorrectionScanner('${programKey}','${course.key}')"
+                        class="w-full glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary inline-flex items-center justify-center gap-1.5 hover:bg-primary/10 hover:border-primary/40">
+                        <i class="ph ph-scan"></i> تصحيح ورقة
+                    </button>
+                    <button onclick="event.stopPropagation(); openPaperResultsList('${programKey}','${course.key}','${exam.id||''}')"
+                        class="w-full glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary inline-flex items-center justify-center gap-1.5 hover:bg-primary/10 hover:border-primary/40">
+                        <i class="ph ph-list-checks"></i> نتائج التصحيح
+                    </button>
+                </div>` : ''}
             </div>`;
         }
 
-        // ── عرض بطاقة الامتحان في القائمة الجانبية ──
+        // ── عرض جميع الامتحانات المسجلة لدورة ما في القائمة الجانبية ──
         // تستخدم لوحة مستقلة (sidebarExamPanel) لا تُمسّ sidebarProgramList
+        // ملاحظة: سابقاً كانت هذه الدالة تعرض امتحاناً واحداً فقط، وهو ما كان
+        // يسبب اختفاء الامتحانات الأخرى المحفوظة لنفس الدورة من الواجهة رغم
+        // بقائها في Firestore. الآن تعرض القائمة الكاملة لكل امتحان محفوظ.
+        let _emsSidebarExamsCurrent = []; // الامتحانات المعروضة حالياً في اللوحة الجانبية (لربط بطاقات القائمة دون تكرار بيانات الامتحان في onclick)
         function _buildSidebarExamCard(programKey, courseKey) {
             const program = programsData[programKey];
             const course  = (program?.courses || []).find(c => c.key === courseKey);
             if (!program || !course) return;
 
-            const exam = (typeof getCachedExam === 'function') ? getCachedExam(programKey, courseKey) : null;
-            if (!exam) {
-                // إن لم يُحمَّل بعد، حاول التحميل ثم أعد البناء
+            const exams = (typeof getCachedExamList === 'function') ? getCachedExamList(programKey, courseKey) : null;
+            if (!exams) {
+                // إن لم تُحمَّل القائمة بعد، حاول التحميل ثم أعد البناء
                 if (typeof emsLoadExam === 'function') {
                     emsLoadExam(programKey, courseKey).then(() => {
                         _buildSidebarExamCard(programKey, courseKey);
@@ -19893,17 +19928,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 return;
             }
 
-            const locked    = exam?.id ? !!_emsSubmissionLockCache[exam.id] : false;
-            const role      = currentUser ? String(currentUser.role || '').trim().toLowerCase() : '';
-            const isAdmin   = role === 'admin';
-            const isTrainer = role === 'trainer';
-            const canManage = !locked && (isAdmin || (isTrainer && !!(course.mainTrainer && course.mainTrainer.includes(currentUser?.name || currentUser?.displayName || ''))));
-            const typeInfo  = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
-            const qCount    = exam.questions?.length || 0;
-            const totalMark = exam.totalMark || 0;
-            const examDateStr = exam.examDate
-                ? exam.examDate + (exam.examTime ? ' · ' + exam.examTime : '')
-                : '—';
+            _emsSidebarExamsCurrent = exams;
+
+            // تفعيل مستوى "exam" على مستوى دورة محددة — زر "+" العلوي يتحول
+            // إلى "إنشاء امتحان جديد" لهذه الدورة تحديداً
+            sidebarLevel = 'exam';
+            activeProgramKey = programKey;
+            activeCourseKey  = courseKey;
 
             // إخفاء القائمة الرئيسية وإظهار لوحة الامتحان المستقلة
             const mainList  = document.getElementById('sidebarProgramList');
@@ -19928,58 +19959,242 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
             `;
             examPanel.appendChild(header);
+            // تحديث زر "+" العلوي (بجانب زر الترتيب) ليصبح "إنشاء امتحان جديد"
+            updateSidebarAddButton();
 
             // عنوان
             const subTitle = document.createElement('div');
             subTitle.className = 'px-1 py-1 mb-2';
-            subTitle.innerHTML = `<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><i class="ph ph-exam text-xs text-primary"></i> الامتحانات المسجلة</span>`;
+            subTitle.innerHTML = `<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><i class="ph ph-exam text-xs text-primary"></i> الامتحانات المسجلة${exams.length ? ` (${exams.length})` : ''}</span>`;
             examPanel.appendChild(subTitle);
 
-            // بطاقة الامتحان
-            const card = document.createElement('div');
-            card.className = 'glass-element p-3 rounded-xl cursor-pointer hover:border-primary/50 transition-all hover:-translate-y-0.5';
-            card.onclick = () => {
-                emsCurrentCourseKey = courseKey;
-                emsShowExamViewer(programKey, courseKey, exam);
-            };
-            card.innerHTML = `
-                <!-- صف النوع + أزرار -->
-                <div class="flex items-center justify-between mb-1.5">
-                    <div class="flex items-center gap-1.5">
-                        <div class="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-sm">
-                            <i class="ph ${typeInfo.icon}"></i>
+            if (exams.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'text-center py-10 text-gray-400';
+                empty.innerHTML = `<i class="ph ph-exam text-3xl block mb-2 text-gray-300"></i><p class="text-sm">لا يوجد امتحان مسجَّل لهذه الدورة بعد</p>`;
+                examPanel.appendChild(empty);
+                openSidebar();
+                return;
+            }
+
+            const role      = currentUser ? String(currentUser.role || '').trim().toLowerCase() : '';
+            const isAdmin   = role === 'admin';
+            const isTrainer = role === 'trainer';
+
+            // بطاقة لكل امتحان محفوظ
+            exams.forEach((exam, idx) => {
+                const locked    = exam?.id ? !!_emsSubmissionLockCache[exam.id] : false;
+                const canManage = !locked && (isAdmin || (isTrainer && !!(course.mainTrainer && course.mainTrainer.includes(currentUser?.name || currentUser?.displayName || ''))));
+                const typeInfo  = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
+                const qCount    = exam.questions?.length || 0;
+                const totalMark = exam.totalMark || 0;
+                const examDateStr = exam.examDate
+                    ? exam.examDate + (exam.examTime ? ' · ' + exam.examTime : '')
+                    : '—';
+
+                const card = document.createElement('div');
+                card.className = 'glass-element p-3 rounded-xl cursor-pointer hover:border-primary/50 transition-all hover:-translate-y-0.5 mb-2';
+                card.onclick = () => {
+                    emsCurrentCourseKey = courseKey;
+                    emsShowExamViewer(programKey, courseKey, _emsSidebarExamsCurrent[idx]);
+                };
+                card.innerHTML = `
+                    <!-- صف النوع + أزرار -->
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-sm">
+                                <i class="ph ${typeInfo.icon}"></i>
+                            </div>
+                            <span class="font-bold text-sm text-gray-800">${typeInfo.ar}</span>
                         </div>
-                        <span class="font-bold text-sm text-gray-800">${typeInfo.ar}</span>
+                        <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
+                            ${canManage ? `
+                            <button onclick="emsCurrentCourseKey='${courseKey}'; emsRequestEditExam('${programKey}','${courseKey}','${exam.id}')"
+                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
+                                <i class="ph ph-pencil-simple text-xs"></i>
+                            </button>
+                            <button onclick="emsConfirmDeleteExam('${programKey}','${courseKey}','${exam.id}')"
+                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
+                                <i class="ph ph-trash text-xs"></i>
+                            </button>` : ''}
+                            <button onclick="emsPrintExam('${programKey}','${courseKey}','${exam.id}')"
+                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100" title="طباعة">
+                                <i class="ph ph-printer text-xs"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
-                        ${canManage ? `
-                        <button onclick="emsCurrentCourseKey='${courseKey}'; emsRequestEditExam('${programKey}','${courseKey}')"
-                            class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
-                            <i class="ph ph-pencil-simple text-xs"></i>
-                        </button>
-                        <button onclick="emsConfirmDeleteExam('${programKey}','${courseKey}')"
-                            class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
-                            <i class="ph ph-trash text-xs"></i>
-                        </button>` : ''}
-                        <button onclick="emsPrintExam('${programKey}','${courseKey}')"
-                            class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100" title="طباعة">
-                            <i class="ph ph-printer text-xs"></i>
-                        </button>
+                    <!-- تاريخ الامتحان -->
+                    <p class="text-[10px] text-gray-500 flex items-center gap-1 mb-2">
+                        <i class="ph ph-calendar-blank text-primary text-xs"></i> ${examDateStr}
+                    </p>
+                    <!-- شارات -->
+                    <div class="flex flex-wrap gap-1">
+                        <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${qCount} سؤال</span>
+                        <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${totalMark} علامة</span>
+                        ${exam.duration ? `<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${exam.duration} د</span>` : ''}
+                        ${locked ? `<span class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1"><i class="ph ph-lock-key"></i>مقفل</span>` : ''}
                     </div>
-                </div>
-                <!-- تاريخ الامتحان -->
-                <p class="text-[10px] text-gray-500 flex items-center gap-1 mb-2">
-                    <i class="ph ph-calendar-blank text-primary text-xs"></i> ${examDateStr}
-                </p>
-                <!-- شارات -->
-                <div class="flex flex-wrap gap-1">
-                    <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${qCount} سؤال</span>
-                    <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${totalMark} علامة</span>
-                    ${exam.duration ? `<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${exam.duration} د</span>` : ''}
-                    ${locked ? `<span class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1"><i class="ph ph-lock-key"></i>مقفل</span>` : ''}
+                `;
+                examPanel.appendChild(card);
+            });
+
+            // فتح الشريط الجانبي إن كان مغلقاً
+            openSidebar();
+        }
+
+        // ── عرض جميع الامتحانات المسجلة لبرنامج كامل (كل الدورات المسموحة) ──
+        // تُستدعى من زر "الامتحانات" في هيدر بيانات البرنامج بلوحة العرض
+        // الرئيسية. تفتح القائمة الجانبية (إن كانت مغلقة) وتعرض كل امتحان
+        // محفوظ ضمن أي دورة من دورات البرنامج المسموحة للمستخدم الحالي،
+        // بصرف النظر عن الدورة. تزيل التكرار عبر id الامتحان لأن الامتحان
+        // الواحد قد يكون مرتبطاً بأكثر من دورة (courseKeys).
+        let _emsSidebarProgramExamsCurrent = []; // [{exam, course}] المعروضة حالياً
+        async function _buildSidebarExamPanelForProgram(programKey) {
+            const program = programsData[programKey];
+            if (!program) return;
+
+            const allowedCourses = emsAllowedCoursesForProgram(programKey);
+            if (allowedCourses.length === 0) {
+                showToast?.('⛔ لا توجد دورات مسجل فيها كمدرب أساسي ضمن هذا البرنامج', 'error');
+                return;
+            }
+
+            // تفعيل مستوى "exam" في القائمة الجانبية — زر "+" العلوي (بجانب
+            // زر الترتيب) يتحول تلقائياً إلى "إنشاء امتحان جديد" طالما هذا
+            // المستوى مفعّل (عبر updateSidebarAddButton/handleSidebarAddClick)
+            sidebarLevel = 'exam';
+            activeProgramKey = programKey;
+            activeCourseKey  = null;
+
+            // تحميل امتحانات كل دورة مسموحة لم تُحمَّل بعد
+            await Promise.all(allowedCourses.map(c => {
+                if (!getCachedExamList(programKey, c.key)) return emsLoadExam(programKey, c.key);
+                return Promise.resolve();
+            }));
+
+            // تجميع كل الامتحانات من كل الدورات مع إزالة التكرار حسب id الامتحان
+            const byId = {};
+            allowedCourses.forEach(course => {
+                const list = getCachedExamList(programKey, course.key) || [];
+                list.forEach(exam => {
+                    if (!byId[exam.id]) byId[exam.id] = { exam, course };
+                });
+            });
+            const items = Object.values(byId).sort((a, b) => {
+                const ta = new Date(a.exam.updatedAt || a.exam.createdAt || 0).getTime();
+                const tb = new Date(b.exam.updatedAt || b.exam.createdAt || 0).getTime();
+                return tb - ta; // الأحدث أولاً
+            });
+
+            _emsSidebarProgramExamsCurrent = items;
+
+            // إخفاء القائمة الرئيسية وإظهار لوحة الامتحان المستقلة
+            const mainList  = document.getElementById('sidebarProgramList');
+            const examPanel = document.getElementById('sidebarExamPanel');
+            if (mainList)  mainList.classList.add('hidden');
+            if (examPanel) {
+                examPanel.classList.remove('hidden');
+                examPanel.innerHTML = '';
+            } else return;
+
+            // هيدر: رجوع + عنوان البرنامج + زر "+" لإنشاء امتحان جديد (بنفس الطريقة المعتمدة حالياً)
+            const header = document.createElement('div');
+            header.className = 'flex items-center gap-2 pb-2 mb-2 border-b border-white/30';
+            header.innerHTML = `
+                <button class="w-7 h-7 rounded-full glass-icon-btn flex items-center justify-center text-primary flex-shrink-0 hover:bg-primary/10"
+                    onclick="_hideSidebarExamPanel(); buildSidebarCourses('${programKey}')" title="رجوع">
+                    <i class="ph ph-arrow-right text-sm"></i>
+                </button>
+                <div class="flex-1 min-w-0">
+                    <button onclick="showProgramDetails('${programKey}')" class="text-[10px] text-gray-400 hover:text-primary transition-colors truncate block text-right w-full">${program.title}</button>
+                    <span class="text-xs font-bold text-primary truncate block text-right w-full">امتحانات البرنامج</span>
                 </div>
             `;
-            examPanel.appendChild(card);
+            examPanel.appendChild(header);
+            // تحديث زر "+" العلوي (بجانب زر الترتيب) ليصبح "إنشاء امتحان جديد"
+            updateSidebarAddButton();
+
+            // عنوان
+            const subTitle = document.createElement('div');
+            subTitle.className = 'px-1 py-1 mb-2';
+            subTitle.innerHTML = `<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><i class="ph ph-exam text-xs text-primary"></i> جميع الامتحانات المسجلة${items.length ? ` (${items.length})` : ''}</span>`;
+            examPanel.appendChild(subTitle);
+
+            if (items.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'text-center py-10 text-gray-400';
+                empty.innerHTML = `<i class="ph ph-exam text-3xl block mb-2 text-gray-300"></i><p class="text-sm">لا يوجد امتحان مسجَّل لهذا البرنامج بعد</p>`;
+                examPanel.appendChild(empty);
+                openSidebar();
+                return;
+            }
+
+            const role      = currentUser ? String(currentUser.role || '').trim().toLowerCase() : '';
+            const isAdmin   = role === 'admin';
+            const isTrainer = role === 'trainer';
+
+            // بطاقة لكل امتحان محفوظ (من أي دورة ضمن البرنامج)
+            items.forEach((item, idx) => {
+                const { exam, course } = item;
+                const courseKey = course.key;
+                const locked    = exam?.id ? !!_emsSubmissionLockCache[exam.id] : false;
+                const canManage = !locked && (isAdmin || (isTrainer && !!(course.mainTrainer && course.mainTrainer.includes(currentUser?.name || currentUser?.displayName || ''))));
+                const typeInfo  = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
+                const qCount    = exam.questions?.length || 0;
+                const totalMark = exam.totalMark || 0;
+                const examDateStr = exam.examDate
+                    ? exam.examDate + (exam.examTime ? ' · ' + exam.examTime : '')
+                    : '—';
+
+                const card = document.createElement('div');
+                card.className = 'glass-element p-3 rounded-xl cursor-pointer hover:border-primary/50 transition-all hover:-translate-y-0.5 mb-2';
+                card.onclick = () => {
+                    emsCurrentProgramKey = programKey;
+                    emsCurrentCourseKey  = courseKey;
+                    emsShowExamViewer(programKey, courseKey, _emsSidebarProgramExamsCurrent[idx].exam);
+                };
+                card.innerHTML = `
+                    <!-- صف النوع + اسم الدورة + أزرار -->
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <div class="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-sm shrink-0">
+                                <i class="ph ${typeInfo.icon}"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <span class="font-bold text-sm text-gray-800 block truncate">${typeInfo.ar}</span>
+                                <span class="text-[10px] text-gray-400 block truncate">${course.code || courseKey}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
+                            ${canManage ? `
+                            <button onclick="emsCurrentProgramKey='${programKey}'; emsCurrentCourseKey='${courseKey}'; emsRequestEditExam('${programKey}','${courseKey}','${exam.id}')"
+                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
+                                <i class="ph ph-pencil-simple text-xs"></i>
+                            </button>
+                            <button onclick="emsConfirmDeleteExam('${programKey}','${courseKey}','${exam.id}')"
+                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
+                                <i class="ph ph-trash text-xs"></i>
+                            </button>` : ''}
+                            <button onclick="emsPrintExam('${programKey}','${courseKey}','${exam.id}')"
+                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100" title="طباعة">
+                                <i class="ph ph-printer text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- تاريخ الامتحان -->
+                    <p class="text-[10px] text-gray-500 flex items-center gap-1 mb-2">
+                        <i class="ph ph-calendar-blank text-primary text-xs"></i> ${examDateStr}
+                    </p>
+                    <!-- شارات -->
+                    <div class="flex flex-wrap gap-1">
+                        <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${qCount} سؤال</span>
+                        <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${totalMark} علامة</span>
+                        ${exam.duration ? `<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${exam.duration} د</span>` : ''}
+                        ${locked ? `<span class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1"><i class="ph ph-lock-key"></i>مقفل</span>` : ''}
+                    </div>
+                `;
+                examPanel.appendChild(card);
+            });
 
             // فتح الشريط الجانبي إن كان مغلقاً
             openSidebar();
@@ -20447,6 +20662,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         ${hasPermission('editCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors" onclick="editCourse('${programKey}', '${course.key}')"><i class="ph ph-pencil-simple text-sm"></i> تعديل</button>` : ''}
                         ${hasPermission('deleteCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors" onclick="deleteCourse('${programKey}', '${course.key}')"><i class="ph ph-trash text-sm"></i> حذف</button>` : ''}
                         ${hasPermission('addTrainee') && !document.body.classList.contains('trainer-mode') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300 transition-colors" onclick="addTrainee('${programKey}', '${course.key}')"><i class="ph ph-user-plus text-sm"></i> إضافة متدرب</button>` : ''}
+                        ${(emsCurrentRole() === 'admin' || (emsCurrentRole() === 'trainer' && emsIsMainTrainerOfCourse(course))) ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 hover:border-primary/40 transition-colors" onclick="emsCurrentProgramKey='${programKey}'; emsCurrentCourseKey='${course.key}'; _buildSidebarExamCard('${programKey}','${course.key}')"><i class="ph ph-list-bullets text-sm"></i> عرض الامتحانات</button>` : ''}
                     </span>
                 `;
             }
@@ -20461,6 +20677,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     ${hasPermission('editCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10" onclick="editCourse('${programKey}', '${course.key}')"><i class="ph ph-pencil-simple"></i> تعديل</button>` : ''}
                     ${hasPermission('deleteCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center justify-center gap-1.5 hover:bg-red-50 hover:border-red-300" onclick="deleteCourse('${programKey}', '${course.key}')"><i class="ph ph-trash"></i> حذف</button>` : ''}
                     ${hasPermission('addTrainee') && !document.body.classList.contains('trainer-mode') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300" onclick="addTrainee('${programKey}', '${course.key}')"><i class="ph ph-user-plus"></i> إضافة متدرب</button>` : ''}
+                    ${(emsCurrentRole() === 'admin' || (emsCurrentRole() === 'trainer' && emsIsMainTrainerOfCourse(course))) ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10 hover:border-primary/40" onclick="emsCurrentProgramKey='${programKey}'; emsCurrentCourseKey='${course.key}'; _buildSidebarExamCard('${programKey}','${course.key}')"><i class="ph ph-list-bullets"></i> عرض الامتحانات</button>` : ''}
                 </div>
 
                 <!-- الصف العلوي: معلومات + متدربون -->
@@ -24229,6 +24446,169 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         </div>
     </div>
 
+    <!-- ===== مودال تصحيح الامتحانات الورقية ===== -->
+    <div id="paperCorrectionModal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="if(event.target===this) closePaperCorrectionModal()">
+        <div class="glass-panel bg-white/95 w-full max-w-lg rounded-3xl p-6 shadow-2xl max-h-[92vh] overflow-y-auto" onclick="event.stopPropagation()">
+
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-exam text-primary text-xl"></i> تصحيح ورقة امتحان
+                </h3>
+                <button onclick="closePaperCorrectionModal()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <!-- ===== خطوة 1: مسح رمز QR للامتحان ===== -->
+            <div id="paperCorrectionStepScan">
+                <div class="relative rounded-2xl overflow-hidden bg-black mb-4" style="aspect-ratio:1">
+                    <video id="paperCorrectionVideo" class="w-full h-full object-cover" playsinline autoplay muted></video>
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div class="w-48 h-48 border-2 border-primary rounded-2xl relative">
+                            <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-xl"></div>
+                            <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl"></div>
+                            <div class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-xl"></div>
+                            <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-xl"></div>
+                            <div class="absolute left-0 right-0 h-0.5 bg-primary/70 rounded-full" style="top:50%; animation: scanLine 2s linear infinite;"></div>
+                        </div>
+                    </div>
+                    <canvas id="paperCorrectionCanvas" class="hidden"></canvas>
+                </div>
+                <div id="paperCorrectionScanStatus" class="text-center text-sm text-gray-500 mb-3 flex items-center justify-center gap-2">
+                    <i class="ph ph-circle-notch animate-spin text-primary"></i> جاري تفعيل الكاميرا...
+                </div>
+                <div class="border-t border-white/40 pt-4 text-center">
+                    <p class="text-xs text-gray-400 mb-2">امسح رمز QR المطبوع على ورقة الامتحان لتحديد الامتحان تلقائياً</p>
+                    <div class="flex gap-2 justify-center">
+                        <label class="cursor-pointer glass-icon-btn px-4 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-2 hover:border-primary/50">
+                            <i class="ph ph-image text-base"></i> رفع صورة
+                            <input type="file" accept="image/*" class="hidden" onchange="scanPaperCorrectionFromFile(event)">
+                        </label>
+                        <label class="cursor-pointer glass-icon-btn px-4 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-2 hover:border-primary/50">
+                            <i class="ph ph-camera text-base"></i> التقاط صورة
+                            <input type="file" accept="image/*" capture="environment" class="hidden" onchange="scanPaperCorrectionFromFile(event)">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== خطوة 2: تحديد الطالب صاحب الورقة ===== -->
+            <div id="paperCorrectionStepStudent" class="hidden">
+                <div id="paperCorrectionExamInfo" class="glass-element rounded-xl p-3 mb-4 text-xs text-gray-600"></div>
+
+                <label class="text-xs text-gray-500 mb-1 block">ابحث عن اسم الطالب</label>
+                <input id="paperCorrectionStudentSearch" type="text" placeholder="اكتب اسم الطالب..."
+                    class="w-full glass-panel rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:border-primary"
+                    oninput="renderPaperCorrectionStudentList(this.value)">
+
+                <div id="paperCorrectionStudentList" class="space-y-1.5 max-h-56 overflow-y-auto mb-4"></div>
+
+                <div class="border-t border-white/40 pt-3">
+                    <label class="text-xs text-gray-500 mb-1 block">أو أدخل اسماً يدوياً (إن لم يكن الطالب في القائمة)</label>
+                    <div class="flex gap-2">
+                        <input id="paperCorrectionManualName" type="text" placeholder="اسم الطالب"
+                            class="flex-1 glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                        <button onclick="selectPaperCorrectionManualStudent()" class="glass-icon-btn px-4 py-2 rounded-xl text-xs font-semibold text-primary hover:bg-primary/10">
+                            متابعة
+                        </button>
+                    </div>
+                </div>
+
+                <button onclick="backToPaperCorrectionScan()" class="mt-4 text-xs text-gray-400 flex items-center gap-1 hover:text-primary">
+                    <i class="ph ph-arrow-right"></i> إعادة مسح رمز QR
+                </button>
+            </div>
+
+            <!-- ===== خطوة 3: إدخال إجابات الطالب المظللة ===== -->
+            <div id="paperCorrectionStepAnswers" class="hidden">
+                <div id="paperCorrectionAnswersHeader" class="glass-element rounded-xl p-3 mb-4 text-sm"></div>
+
+                <div id="paperCorrectionQuestionsContainer" class="space-y-4 mb-5"></div>
+
+                <div class="flex flex-col gap-2 border-t border-white/40 pt-4">
+                    <button onclick="openPaperCorrectionReviewStep()"
+                        class="w-full py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2"
+                        style="background:linear-gradient(135deg,#0790AC,#056276)">
+                        <i class="ph ph-calculator"></i> التالي: حساب العلامة ومراجعتها
+                    </button>
+                    <button onclick="closePaperCorrectionModal()" class="text-xs text-gray-400 hover:text-red-400 mt-1">
+                        إلغاء
+                    </button>
+                </div>
+            </div>
+
+            <!-- ===== خطوة 4: مراجعة التصحيح والعلامة النهائية ===== -->
+            <div id="paperCorrectionStepReview" class="hidden">
+                <div id="paperCorrectionReviewHeader" class="glass-element rounded-xl p-3 mb-4 text-sm"></div>
+
+                <div id="paperCorrectionReviewRows" class="space-y-2 mb-5"></div>
+
+                <div class="flex flex-col gap-2 border-t border-white/40 pt-4">
+                    <button onclick="savePaperCorrectionSubmission(true)"
+                        class="w-full py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2"
+                        style="background:linear-gradient(135deg,#0790AC,#056276)">
+                        <i class="ph ph-floppy-disk"></i> حفظ ومتابعة الطالب التالي
+                    </button>
+                    <button onclick="savePaperCorrectionSubmission(false)"
+                        class="w-full py-2.5 rounded-xl glass-icon-btn text-sm text-primary font-semibold hover:bg-primary/10">
+                        حفظ وإغلاق
+                    </button>
+                    <button onclick="printCurrentPaperCorrectionReport()"
+                        class="w-full py-2 rounded-xl glass-icon-btn text-xs text-gray-600 font-semibold hover:bg-gray-50 flex items-center justify-center gap-1.5">
+                        <i class="ph ph-printer"></i> طباعة تقرير هذا الطالب
+                    </button>
+                    <button onclick="backToPaperCorrectionAnswers()" class="text-xs text-gray-400 flex items-center justify-center gap-1 hover:text-primary mt-1">
+                        <i class="ph ph-arrow-right"></i> رجوع لتعديل الإجابات
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ===== مودال قائمة نتائج التصحيح الورقي لامتحان معين (المرحلة 3) ===== -->
+    <div id="paperResultsListModal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="if(event.target===this) closePaperResultsListModal()">
+        <div class="glass-panel bg-white/95 w-full max-w-xl rounded-3xl p-6 shadow-2xl max-h-[92vh] overflow-y-auto flex flex-col" onclick="event.stopPropagation()">
+
+            <div class="flex items-center justify-between mb-4 shrink-0">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-list-checks text-primary text-xl"></i> نتائج التصحيح الورقي
+                </h3>
+                <button onclick="closePaperResultsListModal()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <div id="paperResultsExamInfo" class="glass-element rounded-xl p-3 mb-4 text-sm shrink-0"></div>
+
+            <div class="grid grid-cols-2 gap-2 mb-3 shrink-0">
+                <input id="paperResultsSearch" type="text" placeholder="ابحث باسم الطالب..."
+                    class="w-full glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                    oninput="applyPaperResultsSearch(this.value)">
+                <select id="paperResultsSort" onchange="applyPaperResultsSort(this.value)"
+                    class="w-full glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                    <option value="name-asc">الاسم (أ-ي)</option>
+                    <option value="name-desc">الاسم (ي-أ)</option>
+                    <option value="mark-desc">العلامة (الأعلى أولاً)</option>
+                    <option value="mark-asc">العلامة (الأقل أولاً)</option>
+                    <option value="date-desc">الأحدث أولاً</option>
+                </select>
+            </div>
+
+            <div class="flex items-center justify-between mb-3 shrink-0">
+                <p id="paperResultsCount" class="text-[11px] text-gray-400"></p>
+                <button onclick="printPaperResultsSheet()" class="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
+                    <i class="ph ph-printer"></i> طباعة كشف الدرجات (الكل)
+                </button>
+            </div>
+
+            <div id="paperResultsListRows" class="space-y-2 flex-1 overflow-y-auto pb-2">
+                <p class="text-xs text-gray-400 italic text-center py-8">جاري تحميل النتائج...</p>
+            </div>
+
+        </div>
+    </div>
+
     <!-- ===== مودال عرض QR Code للمتدرب ===== -->
     <div id="traineeQRModal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onclick="if(event.target===this) closeTraineeQRModal()">
         <div class="glass-panel bg-white/95 w-full max-w-xs rounded-3xl p-6 shadow-2xl text-center" onclick="event.stopPropagation()">
@@ -24344,6 +24724,23 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         let qrScanStream = null;
         let qrScanAnimFrame = null;
+
+        /* ========================================================
+           ===== نظام تصحيح الامتحانات الورقية (Paper Exam Correction) =====
+           المرحلة 1: مسح QR الامتحان + تحديد الطالب + إدخال الإجابات المظللة
+           ======================================================== */
+        let paperCorrectionScanStream = null;
+        let paperCorrectionScanAnimFrame = null;
+        let _paperCorrection = {
+            programKey: null,
+            courseKey: null,
+            examId: null,
+            exam: null,
+            traineeName: null,
+            answers: {}, // { [questionIndex]: value }
+            manualMarks: {}, // { [questionIndex]: مarks المصحح اليدوية (مقالي) }
+            grading: null // نتيجة آخر عملية تصحيح آلي { results, autoEarned, totalMark }
+        };
         let currentQRTraineeId = null;
         let currentQRTrainerId = null;
 
@@ -24881,6 +25278,926 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }
         }
 
+        /* ========================================================
+           ===== نظام تصحيح الامتحانات الورقية — منطق JavaScript =====
+           ======================================================== */
+
+        // ---- فتح المودال والبدء بخطوة المسح ----
+        // presetProgramKey/presetCourseKey اختياريان: يُمرَّران عند الفتح من
+        // بطاقة امتحان محددة، فقط كسياق احتياطي — لا يزال المسح مطلوباً
+        // لتحديد الامتحان (courseKey) بدقة (قد تحتوي الدورة أكثر من امتحان محفوظ عبر الوقت).
+        async function openPaperCorrectionScanner(presetProgramKey, presetCourseKey) {
+            _paperCorrection = {
+                programKey: presetProgramKey || null,
+                courseKey: presetCourseKey || null,
+                examId: null,
+                exam: null,
+                traineeName: null,
+                answers: {},
+                manualMarks: {},
+                grading: null
+            };
+            document.getElementById('paperCorrectionModal').classList.remove('hidden');
+            showPaperCorrectionStep('scan');
+
+            const status = document.getElementById('paperCorrectionScanStatus');
+            status.innerHTML = '<i class="ph ph-circle-notch animate-spin text-primary"></i> جاري تفعيل الكاميرا...';
+            try {
+                paperCorrectionScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                const video = document.getElementById('paperCorrectionVideo');
+                video.srcObject = paperCorrectionScanStream;
+                await video.play();
+                video.addEventListener('loadedmetadata', () => {
+                    status.innerHTML = '<i class="ph ph-scan text-primary"></i> وجّه الكاميرا نحو رمز QR على ورقة الامتحان';
+                    paperCorrectionScanAnimFrame = requestAnimationFrame(tickPaperCorrectionScan);
+                }, { once: true });
+                if (video.readyState >= video.HAVE_METADATA) {
+                    status.innerHTML = '<i class="ph ph-scan text-primary"></i> وجّه الكاميرا نحو رمز QR على ورقة الامتحان';
+                    paperCorrectionScanAnimFrame = requestAnimationFrame(tickPaperCorrectionScan);
+                }
+            } catch (e) {
+                status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> تعذّر الوصول للكاميرا — استخدم رفع صورة';
+            }
+        }
+
+        function stopPaperCorrectionCamera() {
+            if (paperCorrectionScanStream) {
+                paperCorrectionScanStream.getTracks().forEach(t => t.stop());
+                paperCorrectionScanStream = null;
+            }
+            if (paperCorrectionScanAnimFrame) {
+                cancelAnimationFrame(paperCorrectionScanAnimFrame);
+                paperCorrectionScanAnimFrame = null;
+            }
+            const video = document.getElementById('paperCorrectionVideo');
+            if (video) video.srcObject = null;
+        }
+
+        function closePaperCorrectionModal() {
+            stopPaperCorrectionCamera();
+            document.getElementById('paperCorrectionModal').classList.add('hidden');
+        }
+
+        function showPaperCorrectionStep(step) {
+            document.getElementById('paperCorrectionStepScan').classList.toggle('hidden', step !== 'scan');
+            document.getElementById('paperCorrectionStepStudent').classList.toggle('hidden', step !== 'student');
+            document.getElementById('paperCorrectionStepAnswers').classList.toggle('hidden', step !== 'answers');
+            document.getElementById('paperCorrectionStepReview').classList.toggle('hidden', step !== 'review');
+        }
+
+        function backToPaperCorrectionAnswers() {
+            showPaperCorrectionStep('answers');
+        }
+
+        function backToPaperCorrectionScan() {
+            openPaperCorrectionScanner(_paperCorrection.programKey, _paperCorrection.courseKey);
+        }
+
+        function tickPaperCorrectionScan() {
+            const video = document.getElementById('paperCorrectionVideo');
+            const canvas = document.getElementById('paperCorrectionCanvas');
+            if (!video || !paperCorrectionScanStream || video.readyState < video.HAVE_ENOUGH_DATA) {
+                paperCorrectionScanAnimFrame = requestAnimationFrame(tickPaperCorrectionScan);
+                return;
+            }
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+            if (code && code.data) {
+                stopPaperCorrectionCamera();
+                handlePaperCorrectionQRResult(code.data);
+                return;
+            }
+            paperCorrectionScanAnimFrame = requestAnimationFrame(tickPaperCorrectionScan);
+        }
+
+        /* ---- مسح QR من ملف صورة (لتصحيح الأوراق) ---- */
+        function scanPaperCorrectionFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            setTimeout(() => { event.target.value = ''; }, 300);
+
+            const status = document.getElementById('paperCorrectionScanStatus');
+            if (status) status.innerHTML = '<i class="ph ph-circle-notch animate-spin text-primary"></i> جاري تحليل الصورة...';
+
+            if (typeof BarcodeDetector !== 'undefined') {
+                const detector = new BarcodeDetector({ formats: ['qr_code'] });
+                createImageBitmap(file).then(bitmap => {
+                    return detector.detect(bitmap);
+                }).then(barcodes => {
+                    if (barcodes.length > 0) {
+                        handlePaperCorrectionQRResult(barcodes[0].rawValue);
+                    } else {
+                        scanPaperCorrectionWithJsQR(file, status);
+                    }
+                }).catch(() => {
+                    scanPaperCorrectionWithJsQR(file, status);
+                });
+            } else {
+                scanPaperCorrectionWithJsQR(file, status);
+            }
+        }
+
+        function scanPaperCorrectionWithJsQR(file, status) {
+            if (typeof jsQR !== 'function') {
+                if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> مكتبة jsQR غير محملة';
+                return;
+            }
+
+            function tryDecodeCanvas(canvas, ctx) {
+                const w = canvas.width, h = canvas.height;
+                let pixels, result;
+                try { pixels = ctx.getImageData(0, 0, w, h); }
+                catch(ex) { console.warn('getImageData failed:', ex); return null; }
+
+                result = jsQR(pixels.data, w, h, { inversionAttempts: 'attemptBoth' });
+                if (result && result.data) return result.data;
+
+                const bw = new Uint8ClampedArray(w * h * 4);
+                for (let i = 0; i < pixels.data.length; i += 4) {
+                    const lum = 0.299 * pixels.data[i] + 0.587 * pixels.data[i+1] + 0.114 * pixels.data[i+2];
+                    const v = lum < 140 ? 0 : 255;
+                    bw[i] = bw[i+1] = bw[i+2] = v;
+                    bw[i+3] = 255;
+                }
+                result = jsQR(bw, w, h, { inversionAttempts: 'attemptBoth' });
+                if (result && result.data) return result.data;
+
+                return null;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    try {
+                        const origW = img.naturalWidth  || 400;
+                        const origH = img.naturalHeight || 400;
+                        const sizes = [
+                            { w: origW, h: origH },
+                            { w: Math.round(origW * 1.5), h: Math.round(origH * 1.5) },
+                            { w: Math.round(origW * 0.5), h: Math.round(origH * 0.5) }
+                        ].map(s => ({
+                            w: Math.max(200, Math.min(2500, s.w)),
+                            h: Math.max(200, Math.min(2500, s.h))
+                        }));
+
+                        for (const { w, h } of sizes) {
+                            const c = document.createElement('canvas');
+                            c.width = w; c.height = h;
+                            const ctx = c.getContext('2d', { willReadFrequently: true });
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, w, h);
+                            ctx.drawImage(img, 0, 0, w, h);
+
+                            const found = tryDecodeCanvas(c, ctx);
+                            if (found) {
+                                handlePaperCorrectionQRResult(found);
+                                return;
+                            }
+                        }
+                        if (status) status.innerHTML = '<i class="ph ph-warning-circle text-amber-400"></i> لم يُعثر على رمز QR — جرّب صورة أوضح أو أقرب';
+                    } catch(err) {
+                        console.error('Paper correction QR processing error:', err);
+                        if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> خطأ: ' + (err.message || 'تعذّر تحليل الصورة');
+                    }
+                };
+                img.onerror = function() {
+                    if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> تعذّر تحميل الصورة';
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = function() {
+                if (status) status.innerHTML = '<i class="ph ph-warning-circle text-red-400"></i> فشل قراءة الملف';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        /* ---- معالجة نتيجة مسح رمز QR في سياق تصحيح ورقة امتحان ---- */
+        // نتوقع نفس صيغة الرابط المستخدمة في QR المطبوع على ورقة الامتحان:
+        // ?program=...&course=...&exam=...
+        async function handlePaperCorrectionQRResult(data) {
+            stopPaperCorrectionCamera();
+
+            let programKey = null, courseKey = null, examId = null;
+            try {
+                const url = new URL(data);
+                programKey = url.searchParams.get('program');
+                courseKey  = url.searchParams.get('course');
+                examId     = url.searchParams.get('exam');
+            } catch(e) { /* ليس رابطاً صحيحاً */ }
+
+            if (!examId) {
+                showToast('⚠️ رمز QR الممسوح لا يحتوي على بيانات امتحان صالحة', 'warning');
+                return;
+            }
+
+            const status = document.getElementById('paperCorrectionScanStatus');
+            if (status) status.innerHTML = '<i class="ph ph-circle-notch animate-spin text-primary"></i> جاري تحميل بيانات الامتحان...';
+
+            // تحميل بيانات البرامج/الدورات إن لم تكن محمّلة بعد
+            if (Object.keys(programsData).length === 0) {
+                await loadProgramsFromFirestore();
+            }
+
+            const program = programKey ? programsData[programKey] : null;
+            const course  = program && courseKey ? (program.courses || []).find(c => c.key === courseKey) : null;
+
+            if (!program || !course) {
+                showToast('❌ لم يتم العثور على الدورة المرتبطة بهذا الامتحان', 'error');
+                return;
+            }
+
+            // صلاحية: فقط الأدمن أو المدرب المسؤول عن هذه الدورة يمكنه تصحيح أوراقها
+            const canManage = (typeof canCreateExam === 'function') ? canCreateExam(course) : false;
+            if (!canManage) {
+                showToast('🔒 لا تملك صلاحية تصحيح امتحانات هذه الدورة', 'error');
+                return;
+            }
+
+            // جلب نسخة الامتحان بمعرّفه (نفس أسلوب navigateToCourseProfile)
+            let exam = getCachedExamById(programKey, courseKey, examId);
+            if ((!exam || exam.id !== examId) && db) {
+                try {
+                    const doc = await db.collection('examinations').doc(examId).get();
+                    if (doc.exists) exam = { id: doc.id, ...doc.data() };
+                } catch(e) { console.warn('تعذّر جلب الامتحان بمعرّفه:', e); }
+            }
+
+            if (!exam || !exam.questions || !exam.questions.length) {
+                showToast('❌ لم يتم العثور على أسئلة هذا الامتحان', 'error');
+                return;
+            }
+
+            _paperCorrection.programKey = programKey;
+            _paperCorrection.courseKey  = courseKey;
+            _paperCorrection.examId     = exam.id || examId;
+            _paperCorrection.exam       = exam;
+            _paperCorrection.traineeName = null;
+            _paperCorrection.answers = {};
+
+            openPaperCorrectionStudentStep();
+        }
+
+        /* ---- خطوة 2: اختيار الطالب صاحب الورقة ---- */
+        function openPaperCorrectionStudentStep() {
+            const { programKey, courseKey, exam } = _paperCorrection;
+            const program = programsData[programKey];
+            const course  = (program?.courses || []).find(c => c.key === courseKey);
+            const typeInfo = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
+
+            document.getElementById('paperCorrectionExamInfo').innerHTML = `
+                <p class="font-bold text-gray-700 mb-1"><i class="ph ph-book-open text-primary"></i> ${program?.title || ''}</p>
+                <p class="text-gray-500">الدورة: ${course?.code || course?.key || ''} · ${typeInfo.ar} · ${exam.questions.length} سؤال · ${exam.totalMark || 0} علامة</p>
+                ${exam.examDate ? `<p class="text-gray-400 mt-0.5">تاريخ الامتحان: ${exam.examDate}${exam.examTime ? ' · ' + exam.examTime : ''}</p>` : ''}
+            `;
+
+            document.getElementById('paperCorrectionStudentSearch').value = '';
+            document.getElementById('paperCorrectionManualName').value = '';
+            renderPaperCorrectionStudentList('');
+            showPaperCorrectionStep('student');
+        }
+
+        function renderPaperCorrectionStudentList(filterText) {
+            const { programKey, courseKey } = _paperCorrection;
+            const program = programsData[programKey];
+            const course  = (program?.courses || []).find(c => c.key === courseKey);
+            const trainees = (course?.traineesList || []).filter(name =>
+                !filterText || name.toLowerCase().includes(filterText.trim().toLowerCase())
+            );
+
+            const listEl = document.getElementById('paperCorrectionStudentList');
+            if (!trainees.length) {
+                listEl.innerHTML = `<p class="text-center text-xs text-gray-400 py-4">لا يوجد طالب مطابق ضمن قائمة هذه الدورة</p>`;
+                return;
+            }
+            listEl.innerHTML = trainees.map(name => `
+                <button onclick="selectPaperCorrectionStudent('${name.replace(/'/g,"\\'")}')"
+                    class="w-full text-right glass-panel rounded-lg px-3 py-2 text-sm hover:border-primary/50 hover:bg-primary/5 flex items-center gap-2">
+                    <i class="ph ph-user text-primary"></i> ${name}
+                </button>
+            `).join('');
+        }
+
+        function selectPaperCorrectionStudent(name) {
+            _paperCorrection.traineeName = name;
+            openPaperCorrectionAnswersStep();
+        }
+
+        function selectPaperCorrectionManualStudent() {
+            const name = document.getElementById('paperCorrectionManualName')?.value.trim();
+            if (!name) { showToast('⚠️ الرجاء إدخال اسم الطالب', 'warning'); return; }
+            _paperCorrection.traineeName = name;
+            openPaperCorrectionAnswersStep();
+        }
+
+        /* ---- خطوة 3: بناء نموذج إدخال الإجابات المظللة حسب نوع كل سؤال ---- */
+        function openPaperCorrectionAnswersStep() {
+            const { exam, traineeName } = _paperCorrection;
+            const program = programsData[_paperCorrection.programKey];
+            const course  = (program?.courses || []).find(c => c.key === _paperCorrection.courseKey);
+
+            document.getElementById('paperCorrectionAnswersHeader').innerHTML = `
+                <p class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ph-user-circle text-primary"></i> ${traineeName}</p>
+                <p class="text-xs text-gray-400 mt-0.5">${program?.title || ''} · ${course?.code || course?.key || ''}</p>
+            `;
+
+            const container = document.getElementById('paperCorrectionQuestionsContainer');
+            container.innerHTML = (exam.questions || []).map((q, i) => paperCorrectionQuestionInputHTML(q, i)).join('');
+
+            showPaperCorrectionStep('answers');
+        }
+
+        function paperCorrectionQuestionInputHTML(q, index) {
+            const typeInfo = QUESTION_TYPES.find(t => t.key === q.type) || { ar: q.type };
+            const header = `
+                <div class="flex items-start gap-2 mb-2">
+                    <span class="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">${index+1}</span>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-gray-700">${q.text || ''}</p>
+                        <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">${typeInfo.ar} · ${q.mark || 0} علامة</span>
+                    </div>
+                </div>`;
+
+            let body = '';
+
+            if (q.type === 'tf') {
+                body = `
+                <div class="flex gap-2">
+                    <button type="button" data-qidx="${index}" data-val="true" onclick="setPaperCorrectionTFAnswer(${index}, 'true', this)"
+                        class="paper-tf-btn flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-500 hover:border-primary/40">صح</button>
+                    <button type="button" data-qidx="${index}" data-val="false" onclick="setPaperCorrectionTFAnswer(${index}, 'false', this)"
+                        class="paper-tf-btn flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-500 hover:border-primary/40">خطأ</button>
+                </div>`;
+            } else if (q.type === 'mcq' && q.options) {
+                const multi = !!q.multipleCorrect;
+                body = `
+                <div class="grid grid-cols-2 gap-2">
+                    ${q.options.map((o, j) => `
+                    <button type="button" data-qidx="${index}" data-val="${j}" onclick="${multi ? `togglePaperCorrectionMCQAnswer(${index}, ${j}, this)` : `setPaperCorrectionMCQAnswer(${index}, ${j}, this)`}"
+                        class="paper-mcq-btn text-right py-2 px-3 rounded-lg text-sm border border-gray-200 text-gray-600 hover:border-primary/40 flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full border border-gray-300 text-[10px] flex items-center justify-center shrink-0">${String.fromCharCode(65+j)}</span>
+                        <span class="truncate">${o}</span>
+                    </button>`).join('')}
+                </div>`;
+            } else if (q.type === 'enum' && q.items) {
+                body = `
+                <div class="space-y-1.5">
+                    ${q.items.map((_, j) => `
+                    <div class="flex items-center gap-2">
+                        <span class="w-5 text-center text-xs text-gray-400 font-bold">${j+1}.</span>
+                        <input type="text" placeholder="إجابة الطالب"
+                            oninput="setPaperCorrectionEnumAnswer(${index}, ${j}, this.value)"
+                            class="flex-1 glass-panel rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-primary">
+                    </div>`).join('')}
+                </div>`;
+            } else if (q.type === 'match' && q.leftItems) {
+                body = `
+                <div class="space-y-1.5">
+                    ${q.leftItems.map((l, j) => `
+                    <div class="flex items-center gap-2">
+                        <span class="flex-1 text-xs text-gray-500 truncate">${l}</span>
+                        <i class="ph ph-arrows-left-right text-gray-300 text-xs shrink-0"></i>
+                        <select onchange="setPaperCorrectionMatchAnswer(${index}, ${j}, this.value)"
+                            class="flex-1 glass-panel rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-primary">
+                            <option value="">— ما وصله الطالب —</option>
+                            ${(q.rightItems || []).map((r, k) => `<option value="${k}">${r}</option>`).join('')}
+                        </select>
+                    </div>`).join('')}
+                </div>`;
+            } else if (q.type === 'essay') {
+                body = `
+                <textarea rows="3" placeholder="انسخ إجابة الطالب هنا (سيتم تصحيحها يدوياً)"
+                    oninput="setPaperCorrectionEssayAnswer(${index}, this.value)"
+                    class="w-full glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none"></textarea>`;
+            }
+
+            return `<div class="glass-element rounded-xl p-3">${header}${body}</div>`;
+        }
+
+        // ---- دوال ضبط قيمة إجابة كل نوع سؤال في الحالة المؤقتة ----
+        function setPaperCorrectionTFAnswer(qIndex, val, btnEl) {
+            _paperCorrection.answers[qIndex] = val;
+            btnEl.parentElement.querySelectorAll('.paper-tf-btn').forEach(b => {
+                const active = b.dataset.val === val;
+                b.classList.toggle('bg-primary', active);
+                b.classList.toggle('text-white', active);
+                b.classList.toggle('border-primary', active);
+                b.classList.toggle('text-gray-500', !active);
+            });
+        }
+
+        function setPaperCorrectionMCQAnswer(qIndex, optIndex, btnEl) {
+            _paperCorrection.answers[qIndex] = optIndex;
+            btnEl.parentElement.querySelectorAll('.paper-mcq-btn').forEach(b => {
+                const active = parseInt(b.dataset.val) === optIndex;
+                b.classList.toggle('bg-primary/10', active);
+                b.classList.toggle('border-primary', active);
+                b.classList.toggle('font-bold', active);
+                b.classList.toggle('text-primary', active);
+            });
+        }
+
+        function togglePaperCorrectionMCQAnswer(qIndex, optIndex, btnEl) {
+            const current = Array.isArray(_paperCorrection.answers[qIndex]) ? _paperCorrection.answers[qIndex] : [];
+            const idx = current.indexOf(optIndex);
+            if (idx >= 0) current.splice(idx, 1); else current.push(optIndex);
+            _paperCorrection.answers[qIndex] = current;
+            const active = current.includes(optIndex);
+            btnEl.classList.toggle('bg-primary/10', active);
+            btnEl.classList.toggle('border-primary', active);
+            btnEl.classList.toggle('font-bold', active);
+            btnEl.classList.toggle('text-primary', active);
+        }
+
+        function setPaperCorrectionEnumAnswer(qIndex, itemIndex, val) {
+            if (!Array.isArray(_paperCorrection.answers[qIndex])) _paperCorrection.answers[qIndex] = [];
+            _paperCorrection.answers[qIndex][itemIndex] = val;
+        }
+
+        function setPaperCorrectionMatchAnswer(qIndex, itemIndex, val) {
+            if (!Array.isArray(_paperCorrection.answers[qIndex])) _paperCorrection.answers[qIndex] = [];
+            _paperCorrection.answers[qIndex][itemIndex] = val;
+        }
+
+        function setPaperCorrectionEssayAnswer(qIndex, val) {
+            _paperCorrection.answers[qIndex] = val;
+        }
+
+        /* ---- حفظ ورقة الطالب كمسودة في Firestore (بلا حساب علامة بعد — المرحلة 2) ---- */
+        /* ---- المرحلة 2: منطق المقارنة والتصحيح الآلي وحساب العلامات ---- */
+
+        // تصحيح كل إجابة مقارنة بمفتاح الإجابة الصحيحة في نسخة الامتحان.
+        // tf/mcq/fill/match: تصحيح آلي كامل. enum: تصحيح آلي بمطابقة العناصر
+        // المقبولة (غير مرتبة). essay: يبقى بحاجة لتصحيح يدوي دائماً (manual:true)
+        // لأنه لا يوجد نص إجابة قطعي يمكن مطابقته آلياً.
+        function paperCorrectionGradeAnswers(exam, answers) {
+            const results = (exam.questions || []).map((q, i) => {
+                const mark = parseFloat(q.mark) || 0;
+                const answer = answers[i];
+
+                const isEmpty = (answer === undefined || answer === null || answer === '' ||
+                    (Array.isArray(answer) && answer.filter(v => v !== undefined && v !== null && v !== '').length === 0));
+
+                if (q.type === 'essay') {
+                    return { index: i, type: q.type, mark, earned: 0, correct: false, manual: true, empty: isEmpty };
+                }
+
+                if (isEmpty) {
+                    return { index: i, type: q.type, mark, earned: 0, correct: false, manual: false, empty: true };
+                }
+
+                let earned = 0, correct = false, partial = false;
+
+                if (q.type === 'tf') {
+                    correct = String(answer) === String(q.correctAnswer);
+                    earned = correct ? mark : 0;
+                } else if (q.type === 'mcq') {
+                    const correctSet = new Set((q.correctIndexes || []).map(String));
+                    const givenSet   = new Set(Array.isArray(answer) ? answer.map(String) : [String(answer)]);
+                    correct = correctSet.size === givenSet.size && [...correctSet].every(v => givenSet.has(v));
+                    earned = correct ? mark : 0;
+                } else if (q.type === 'fill') {
+                    correct = String(answer).trim().toLowerCase() === String(q.correctAnswer || '').trim().toLowerCase();
+                    earned = correct ? mark : 0;
+                } else if (q.type === 'match') {
+                    const given = Array.isArray(answer) ? answer : [];
+                    const total = q.leftItems?.length || 0;
+                    let correctPairs = 0;
+                    for (let k = 0; k < total; k++) {
+                        if (given[k] !== undefined && given[k] !== '' && String(given[k]) === String(k)) correctPairs++;
+                    }
+                    correct = total > 0 && correctPairs === total;
+                    partial = correctPairs > 0 && !correct;
+                    earned = total > 0 ? Math.round((correctPairs / total) * mark * 10) / 10 : 0;
+                } else if (q.type === 'enum') {
+                    const given = (Array.isArray(answer) ? answer : []).map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
+                    const acceptedPool = (q.items || []).map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
+                    const totalItems = acceptedPool.length || 1;
+                    let matched = 0;
+                    given.forEach(g => {
+                        const idx = acceptedPool.indexOf(g);
+                        if (idx >= 0) { matched++; acceptedPool.splice(idx, 1); }
+                    });
+                    correct = matched === totalItems && given.length === totalItems;
+                    partial = matched > 0 && !correct;
+                    earned = Math.round((matched / totalItems) * mark * 10) / 10;
+                }
+
+                return { index: i, type: q.type, mark, earned, correct, manual: false, partial, empty: false };
+            });
+
+            const autoEarned = results.reduce((s, r) => s + (r.manual ? 0 : r.earned), 0);
+            const totalMark = exam.totalMark || (exam.questions || []).reduce((s, q) => s + (parseFloat(q.mark) || 0), 0);
+
+            return { results, autoEarned, totalMark };
+        }
+
+        /* ---- خطوة 4: تشغيل التصحيح الآلي وعرض شاشة المراجعة ---- */
+        function openPaperCorrectionReviewStep() {
+            const { exam, answers } = _paperCorrection;
+            _paperCorrection.grading = paperCorrectionGradeAnswers(exam, answers);
+            _paperCorrection.manualMarks = {};
+
+            renderPaperCorrectionReviewRows();
+            updatePaperCorrectionReviewTotals();
+            showPaperCorrectionStep('review');
+        }
+
+        function renderPaperCorrectionReviewRows() {
+            const { exam, traineeName, grading } = _paperCorrection;
+            const program = programsData[_paperCorrection.programKey];
+            const course  = (program?.courses || []).find(c => c.key === _paperCorrection.courseKey);
+
+            const rowsHtml = grading.results.map(r => {
+                const typeInfo = QUESTION_TYPES.find(t => t.key === r.type) || { ar: r.type };
+                let statusHtml = '';
+                if (r.manual) {
+                    statusHtml = `
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">تصحيح يدوي</span>
+                        <input type="number" min="0" max="${r.mark}" step="0.5" placeholder="0"
+                            oninput="setPaperCorrectionManualMark(${r.index}, this.value, ${r.mark})"
+                            class="w-16 glass-panel rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-primary">
+                        <span class="text-[10px] text-gray-400">/ ${r.mark}</span>
+                    </div>`;
+                } else if (r.empty) {
+                    statusHtml = `<span class="text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full shrink-0">بدون إجابة · 0/${r.mark}</span>`;
+                } else if (r.correct) {
+                    statusHtml = `<span class="text-[10px] bg-green-50 text-green-600 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0"><i class="ph ph-check-circle"></i> ${r.earned}/${r.mark}</span>`;
+                } else if (r.partial) {
+                    statusHtml = `<span class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0"><i class="ph ph-minus-circle"></i> ${r.earned}/${r.mark} (جزئي)</span>`;
+                } else {
+                    statusHtml = `<span class="text-[10px] bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0"><i class="ph ph-x-circle"></i> 0/${r.mark}</span>`;
+                }
+                return `
+                <div class="glass-element rounded-lg p-2.5 flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">${r.index+1}</span>
+                        <span class="text-xs text-gray-500 truncate">${typeInfo.ar}</span>
+                    </div>
+                    ${statusHtml}
+                </div>`;
+            }).join('');
+
+            document.getElementById('paperCorrectionReviewHeader').innerHTML = `
+                <p class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ph-user-circle text-primary"></i> ${traineeName}</p>
+                <p class="text-xs text-gray-400 mt-0.5">${program?.title || ''} · ${course?.code || course?.key || ''}</p>
+                <div class="mt-2 flex items-center gap-2">
+                    <span id="paperCorrectionFinalEarned" class="text-2xl font-black text-primary">0</span>
+                    <span class="text-sm text-gray-400">/ ${grading.totalMark}</span>
+                    <span id="paperCorrectionFinalPct" class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold mr-auto">0%</span>
+                </div>
+            `;
+            document.getElementById('paperCorrectionReviewRows').innerHTML = rowsHtml;
+        }
+
+        function setPaperCorrectionManualMark(qIndex, val, maxMark) {
+            let num = parseFloat(val);
+            if (isNaN(num)) num = 0;
+            if (num < 0) num = 0;
+            if (num > maxMark) num = maxMark;
+            _paperCorrection.manualMarks[qIndex] = num;
+            updatePaperCorrectionReviewTotals();
+        }
+
+        function paperCorrectionFinalEarnedTotal() {
+            const { grading, manualMarks } = _paperCorrection;
+            const manualTotal = Object.values(manualMarks).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+            return Math.round((grading.autoEarned + manualTotal) * 100) / 100;
+        }
+
+        function updatePaperCorrectionReviewTotals() {
+            const { grading } = _paperCorrection;
+            const finalEarned = paperCorrectionFinalEarnedTotal();
+            const pct = grading.totalMark > 0 ? Math.round((finalEarned / grading.totalMark) * 1000) / 10 : 0;
+            const earnedEl = document.getElementById('paperCorrectionFinalEarned');
+            const pctEl = document.getElementById('paperCorrectionFinalPct');
+            if (earnedEl) earnedEl.textContent = finalEarned;
+            if (pctEl) pctEl.textContent = pct + '%';
+        }
+
+        /* ---- حفظ ورقة الطالب مُصحَّحة (مع العلامة النهائية) في Firestore ---- */
+        async function savePaperCorrectionSubmission(continueNext) {
+            const { programKey, courseKey, examId, exam, traineeName, answers, grading, manualMarks } = _paperCorrection;
+            if (!traineeName) { showToast('⚠️ لم يتم تحديد اسم الطالب', 'warning'); return; }
+            if (!db) { showToast('❌ لا يوجد اتصال بقاعدة البيانات', 'error'); return; }
+            if (!grading) { showToast('⚠️ الرجاء حساب العلامة أولاً', 'warning'); return; }
+
+            const finalEarned = paperCorrectionFinalEarnedTotal();
+            const totalMark = grading.totalMark;
+            const percentage = totalMark > 0 ? Math.round((finalEarned / totalMark) * 1000) / 10 : 0;
+
+            const answersArr = grading.results.map(r => ({
+                index: r.index,
+                type: r.type,
+                mark: r.mark,
+                value: (answers[r.index] === undefined ? null : answers[r.index]),
+                earned: r.manual ? (manualMarks[r.index] || 0) : r.earned,
+                correct: r.manual ? null : r.correct,
+                manual: r.manual
+            }));
+
+            try {
+                await db.collection('paperExamSubmissions').add({
+                    programKey, courseKey, examId,
+                    examType: exam.examType || null,
+                    examDate: exam.examDate || null,
+                    totalMark,
+                    earnedMark: finalEarned,
+                    percentage,
+                    traineeName,
+                    answers: answersArr,
+                    status: 'graded',
+                    createdBy: (currentUser && (currentUser.email || currentUser.uid)) || null,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast(`✅ تم حفظ نتيجة الطالب "${traineeName}" — ${finalEarned}/${totalMark}`, 'success');
+            } catch (e) {
+                console.error('تعذّر حفظ ورقة التصحيح:', e);
+                showToast('❌ حدث خطأ أثناء الحفظ', 'error');
+                return;
+            }
+
+            if (continueNext) {
+                // العودة لاختيار طالب جديد لنفس الامتحان دون الحاجة لإعادة المسح
+                _paperCorrection.traineeName = null;
+                _paperCorrection.answers = {};
+                _paperCorrection.manualMarks = {};
+                _paperCorrection.grading = null;
+                openPaperCorrectionStudentStep();
+            } else {
+                closePaperCorrectionModal();
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // ███  المرحلة 3 — تقرير النتيجة النهائي والطباعة/الأرشفة  ███
+        // ══════════════════════════════════════════════════════════════════
+
+        /* ---- بناء وطباعة تقرير نتيجة فردي (مشتركة بين المراجعة المباشرة وقائمة النتائج) ----
+           sub: كائن يحوي على الأقل: traineeName, examDate, examType, totalMark, earnedMark, percentage, answers[] */
+        function buildAndPrintPaperResultReport(sub, programKey, courseKey) {
+            const program = programsData[programKey];
+            const course  = (program?.courses || []).find(c => c.key === courseKey);
+            const totalMark  = sub.totalMark || 0;
+            const earnedMark = sub.earnedMark || 0;
+            const pct = sub.percentage ?? (totalMark > 0 ? Math.round((earnedMark / totalMark) * 1000) / 10 : 0);
+            const gradeInfo = (typeof getGradeLabel === 'function') ? getGradeLabel(pct) : null;
+            const examTypeInfo = (typeof EXAM_TYPES !== 'undefined') ? (EXAM_TYPES.find(t => t.key === sub.examType) || null) : null;
+
+            const rowsHtml = (sub.answers || []).map(a => {
+                const typeInfo = (typeof QUESTION_TYPES !== 'undefined') ? (QUESTION_TYPES.find(t => t.key === a.type) || { ar: a.type }) : { ar: a.type };
+                const statusLabel = a.manual ? 'تصحيح يدوي' : (a.correct === true ? 'إجابة صحيحة' : (a.correct === false ? 'إجابة خاطئة' : '—'));
+                return `<tr><td>${a.index + 1}</td><td>${typeInfo.ar}</td><td>${statusLabel}</td><td>${a.earned} / ${a.mark}</td></tr>`;
+            }).join('');
+
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head>
+<meta charset="UTF-8"><title>تقرير نتيجة — ${sub.traineeName || ''}</title>
+<style>
+    * { box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
+    body { font-family:'Segoe UI', Tahoma, Arial, sans-serif; padding:24px; color:#1f2937; font-size:13px; background:#fff; }
+    .header { border:2px solid #0790AC; border-radius:8px; padding:16px; margin-bottom:22px; }
+    .logo-area { font-size:18px; font-weight:800; color:#0790AC; }
+    .logo-area span { display:block; font-size:11px; font-weight:400; color:#6b7280; margin-top:2px; }
+    .header-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px 20px; margin-top:12px; border-top:1px solid #e5e7eb; padding-top:12px; }
+    .info-cell .label { font-size:10px; color:#9ca3af; margin-bottom:2px; }
+    .info-cell .value { font-weight:600; font-size:13px; }
+    .score-box { text-align:center; margin:22px 0; padding:18px; border-radius:12px; background:#e0f4f7; }
+    .score-box .earned { font-size:40px; font-weight:900; color:#0790AC; }
+    .score-box .total { font-size:16px; color:#6b7280; }
+    .score-box .pct { display:inline-block; margin-top:8px; font-size:13px; font-weight:700; background:#0790AC; color:#fff; padding:3px 14px; border-radius:20px; }
+    h3.section { font-size:13px; font-weight:700; color:#0790AC; margin-bottom:10px; border-bottom:2px solid #e0f4f7; padding-bottom:6px; }
+    table { width:100%; border-collapse:collapse; margin-top:4px; }
+    th { background:#0790AC; color:#fff; padding:6px 8px; font-size:11px; text-align:center; }
+    td { padding:5px 8px; text-align:center; border-bottom:1px solid #eee; font-size:11px; }
+    tr:nth-child(even) { background:#f8fbfd; }
+    .sign-row { display:flex; justify-content:space-between; gap:24px; margin-top:44px; }
+    .sign-row .sign { flex:1; text-align:center; }
+    .sign-row .sign .line { border-top:1px solid #9ca3af; margin-top:36px; padding-top:4px; font-size:11px; color:#6b7280; }
+    @media print {
+        body { padding:12px; }
+        * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+    }
+</style></head><body>
+<div class="header">
+    <div class="logo-area">MedBox.Education <span>تقرير نتيجة امتحان (تصحيح ورقي)</span></div>
+    <div class="header-grid">
+        <div class="info-cell"><div class="label">اسم البرنامج</div><div class="value">${program?.title || '—'}</div></div>
+        <div class="info-cell"><div class="label">رمز الدورة/الدفعة</div><div class="value">${course?.code || courseKey || '—'}</div></div>
+        <div class="info-cell"><div class="label">تاريخ الامتحان</div><div class="value">${sub.examDate || '—'}</div></div>
+        <div class="info-cell"><div class="label">نوع الامتحان</div><div class="value">${examTypeInfo?.ar || '—'}</div></div>
+        <div class="info-cell"><div class="label">اسم الطالب</div><div class="value">${sub.traineeName || '—'}</div></div>
+        <div class="info-cell"><div class="label">تاريخ الطباعة</div><div class="value">${new Date().toLocaleDateString('ar-EG')}</div></div>
+    </div>
+</div>
+<div class="score-box">
+    <span class="earned">${earnedMark}</span><span class="total"> / ${totalMark}</span>
+    <div class="pct">${pct}%${gradeInfo?.label ? ' — ' + gradeInfo.label : ''}</div>
+</div>
+${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب السؤال</h3>
+<table><thead><tr><th>#</th><th>نوع السؤال</th><th>الحالة</th><th>العلامة</th></tr></thead><tbody>${rowsHtml}</tbody></table>` : ''}
+<div class="sign-row">
+    <div class="sign"><div class="line">توقيع المصحّح</div></div>
+    <div class="sign"><div class="line">توقيع المسؤول</div></div>
+</div>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`);
+            win.document.close();
+        }
+
+        /* ---- طباعة تقرير الطالب الحالي مباشرة من شاشة المراجعة (قبل/بعد الحفظ) ---- */
+        function printCurrentPaperCorrectionReport() {
+            const { programKey, courseKey, exam, traineeName, grading, manualMarks } = _paperCorrection;
+            if (!traineeName || !grading) { showToast('⚠️ الرجاء إتمام حساب العلامة أولاً', 'warning'); return; }
+
+            const finalEarned = paperCorrectionFinalEarnedTotal();
+            const totalMark = grading.totalMark;
+            const percentage = totalMark > 0 ? Math.round((finalEarned / totalMark) * 1000) / 10 : 0;
+
+            const answersArr = grading.results.map(r => ({
+                index: r.index, type: r.type, mark: r.mark,
+                earned: r.manual ? (manualMarks[r.index] || 0) : r.earned,
+                correct: r.manual ? null : r.correct,
+                manual: r.manual
+            }));
+
+            buildAndPrintPaperResultReport({
+                traineeName, examDate: exam.examDate, examType: exam.examType,
+                totalMark, earnedMark: finalEarned, percentage, answers: answersArr
+            }, programKey, courseKey);
+        }
+
+        /* ---- حالة قائمة نتائج التصحيح الورقي لامتحان معين ---- */
+        let _paperResultsList = { programKey: null, courseKey: null, examId: null, exam: null, submissions: [], filterText: '', sortBy: 'name-asc' };
+
+        /* ---- فتح شاشة عرض جميع الأوراق المصححة لامتحان معين ---- */
+        async function openPaperResultsList(programKey, courseKey, examId) {
+            const exam = (typeof getCachedExamById === 'function') ? getCachedExamById(programKey, courseKey, examId) : null;
+            _paperResultsList = { programKey, courseKey, examId, exam, submissions: [], filterText: '', sortBy: 'name-asc' };
+
+            document.getElementById('paperResultsListModal').classList.remove('hidden');
+            const searchInput = document.getElementById('paperResultsSearch');
+            const sortSelect  = document.getElementById('paperResultsSort');
+            if (searchInput) searchInput.value = '';
+            if (sortSelect)  sortSelect.value  = 'name-asc';
+
+            renderPaperResultsExamInfo();
+            document.getElementById('paperResultsListRows').innerHTML =
+                `<p class="text-xs text-gray-400 italic text-center py-8">جاري تحميل النتائج...</p>`;
+
+            if (!db) { showToast('❌ لا يوجد اتصال بقاعدة البيانات', 'error'); renderPaperResultsList(); return; }
+            if (!examId) { renderPaperResultsList(); return; }
+
+            try {
+                const snap = await db.collection('paperExamSubmissions').where('examId', '==', examId).get();
+                _paperResultsList.submissions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            } catch (e) {
+                console.error('تعذّر تحميل نتائج التصحيح الورقي:', e);
+                showToast('❌ فشل تحميل النتائج', 'error');
+                _paperResultsList.submissions = [];
+            }
+            renderPaperResultsList();
+        }
+
+        function closePaperResultsListModal() {
+            document.getElementById('paperResultsListModal').classList.add('hidden');
+        }
+
+        function renderPaperResultsExamInfo() {
+            const { programKey, courseKey, exam } = _paperResultsList;
+            const program = programsData[programKey];
+            const course  = (program?.courses || []).find(c => c.key === courseKey);
+            const typeInfo = (typeof EXAM_TYPES !== 'undefined') ? (EXAM_TYPES.find(t => t.key === exam?.examType) || EXAM_TYPES[0]) : null;
+            const infoEl = document.getElementById('paperResultsExamInfo');
+            if (!infoEl) return;
+            infoEl.innerHTML = `
+                <p class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ${typeInfo?.icon || 'ph-exam'} text-primary"></i> ${typeInfo?.ar || '—'}</p>
+                <p class="text-xs text-gray-400 mt-0.5">${program?.title || ''} · ${course?.code || courseKey || ''}${exam?.examDate ? ' · ' + exam.examDate : ''}</p>
+            `;
+        }
+
+        /* ---- تطبيق البحث والفرز على قائمة النتائج المحمّلة ---- */
+        function filterSortPaperResults() {
+            const { submissions, filterText, sortBy } = _paperResultsList;
+            const needle = (filterText || '').trim().toLowerCase();
+            let list = submissions.filter(s => !needle || (s.traineeName || '').toLowerCase().includes(needle));
+
+            list = list.slice().sort((a, b) => {
+                if (sortBy === 'name-asc')  return (a.traineeName || '').localeCompare(b.traineeName || '', 'ar');
+                if (sortBy === 'name-desc') return (b.traineeName || '').localeCompare(a.traineeName || '', 'ar');
+                if (sortBy === 'mark-desc') return (b.earnedMark || 0) - (a.earnedMark || 0);
+                if (sortBy === 'mark-asc')  return (a.earnedMark || 0) - (b.earnedMark || 0);
+                if (sortBy === 'date-desc') return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+                return 0;
+            });
+            return list;
+        }
+
+        function applyPaperResultsSearch(val) {
+            _paperResultsList.filterText = val;
+            renderPaperResultsList();
+        }
+
+        function applyPaperResultsSort(val) {
+            _paperResultsList.sortBy = val;
+            renderPaperResultsList();
+        }
+
+        /* ---- عرض قائمة نتائج الطلاب (بعد الفلترة والفرز) ---- */
+        function renderPaperResultsList() {
+            const list = filterSortPaperResults();
+            const container = document.getElementById('paperResultsListRows');
+            const countEl = document.getElementById('paperResultsCount');
+            if (countEl) countEl.textContent = `${list.length} من أصل ${_paperResultsList.submissions.length} نتيجة`;
+            if (!container) return;
+
+            if (!list.length) {
+                container.innerHTML = `<p class="text-xs text-gray-400 italic text-center py-8">${_paperResultsList.submissions.length ? 'لا توجد نتائج مطابقة للبحث' : 'لا توجد أوراق مُصحَّحة لهذا الامتحان بعد'}</p>`;
+                return;
+            }
+
+            container.innerHTML = list.map(s => {
+                const totalMark = s.totalMark || 0;
+                const pct = s.percentage ?? (totalMark > 0 ? Math.round(((s.earnedMark || 0) / totalMark) * 1000) / 10 : 0);
+                const pctClass = pct >= 60 ? 'text-green-600' : (pct >= 50 ? 'text-amber-600' : 'text-red-500');
+                return `
+                <div class="glass-element rounded-xl p-3 flex items-center justify-between gap-2">
+                    <div class="min-w-0 flex-1">
+                        <p class="font-semibold text-sm text-gray-800 truncate">${s.traineeName || '—'}</p>
+                        <p class="text-[11px] text-gray-400 mt-0.5">${s.earnedMark ?? 0} / ${totalMark} — <span class="${pctClass} font-semibold">${pct}%</span></p>
+                    </div>
+                    <button onclick="printPaperResultReport('${s.id}')" title="طباعة تقرير الطالب"
+                        class="glass-icon-btn w-8 h-8 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 shrink-0">
+                        <i class="ph ph-printer text-sm"></i>
+                    </button>
+                </div>`;
+            }).join('');
+        }
+
+        /* ---- طباعة تقرير فردي لطالب مُختار من قائمة النتائج ---- */
+        function printPaperResultReport(submissionId) {
+            const sub = _paperResultsList.submissions.find(s => s.id === submissionId);
+            if (!sub) { showToast('⚠️ تعذّر إيجاد بيانات الطالب', 'warning'); return; }
+            buildAndPrintPaperResultReport(sub, _paperResultsList.programKey, _paperResultsList.courseKey);
+        }
+
+        /* ---- طباعة كشف علامات جماعي لكل الطلاب المعروضين حالياً (حسب البحث/الفرز الحاليين) ---- */
+        function printPaperResultsSheet() {
+            const list = filterSortPaperResults();
+            if (!list.length) { showToast('⚠️ لا توجد نتائج لطباعتها', 'warning'); return; }
+
+            const { programKey, courseKey, exam } = _paperResultsList;
+            const program = programsData[programKey];
+            const course  = (program?.courses || []).find(c => c.key === courseKey);
+            const typeInfo = (typeof EXAM_TYPES !== 'undefined') ? (EXAM_TYPES.find(t => t.key === exam?.examType) || EXAM_TYPES[0]) : null;
+
+            const rows = list.map((s, i) => {
+                const totalMark = s.totalMark || 0;
+                const pct = s.percentage ?? (totalMark > 0 ? Math.round(((s.earnedMark || 0) / totalMark) * 1000) / 10 : 0);
+                const gradeInfo = (typeof getGradeLabel === 'function') ? getGradeLabel(pct) : null;
+                return `<tr><td>${i + 1}</td><td>${s.traineeName || '—'}</td><td>${s.earnedMark ?? 0}</td><td>${totalMark}</td><td>${pct}%</td><td>${gradeInfo?.label || '—'}</td></tr>`;
+            }).join('');
+
+            const avgPct = Math.round((list.reduce((sum, s) => {
+                const totalMark = s.totalMark || 0;
+                const pct = s.percentage ?? (totalMark > 0 ? ((s.earnedMark || 0) / totalMark) * 100 : 0);
+                return sum + pct;
+            }, 0) / list.length) * 10) / 10;
+
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head>
+<meta charset="UTF-8"><title>كشف نتائج — ${typeInfo?.ar || 'امتحان'}</title>
+<style>
+    body { font-family:'Cairo', Tahoma, sans-serif; font-size:11px; padding:20px; }
+    h2 { color:#0790AC; margin-bottom:4px; }
+    h4 { color:#666; font-weight:normal; margin-top:0; margin-bottom:14px; }
+    table { width:100%; border-collapse:collapse; }
+    th { background:#0790AC; color:#fff; padding:6px 8px; text-align:center; font-size:10px; }
+    td { padding:5px 8px; text-align:center; border-bottom:1px solid #eee; font-size:10px; }
+    tr:nth-child(even) { background:#f8fbfd; }
+    td:nth-child(2) { text-align:right; font-weight:bold; }
+    .summary { margin-top:14px; font-size:11px; color:#374151; }
+    @media print { body { padding:0; } }
+</style></head><body>
+<h2>كشف نتائج — ${typeInfo?.ar || 'امتحان'}</h2>
+<h4>${program?.title || ''} — ${course?.code || courseKey || ''}${exam?.examDate ? ' · ' + exam.examDate : ''} | ${new Date().toLocaleDateString('ar-EG')}</h4>
+<table>
+    <thead><tr><th>#</th><th>اسم الطالب</th><th>العلامة المستحقة</th><th>العلامة الكلية</th><th>النسبة</th><th>التقدير</th></tr></thead>
+    <tbody>${rows}</tbody>
+</table>
+<p class="summary">عدد الطلاب: ${list.length} — متوسط النسبة: ${avgPct}%</p>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`);
+            win.document.close();
+        }
+
+        // ======== نهاية المرحلة 3 (التصحيح الورقي) ========
+
         // التحقق من تسجيل الدخول قبل فتح ملف متدرب قادم من مسح رمز QR أو رابط مباشر
         // إن لم يكن المستخدم مسجلاً دخوله، يُفتح نموذج تسجيل الدخول، ويُفتح ملف المتدرب تلقائياً بعد نجاح الدخول
         function requireLoginThenOpenTraineeProfile(traineeId) {
@@ -25161,7 +26478,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     // ─── حالة EMS ───────────────────────────────────────────
     let emsCurrentProgramKey = null;
     let emsCurrentCourseKey  = null;
-    let emsExamCache         = {};   // { "programKey__courseKey": examDoc }
+    let emsExamCache         = {};   // { "programKey__courseKey": examDoc }  (أحدث امتحان لهذه الدورة — لأغراض التوافق مع الشاشات التي تعرض امتحاناً واحداً فقط)
+    let emsExamListCache     = {};   // { "programKey__courseKey": [examDoc, ...] } (جميع الامتحانات المسجلة لهذه الدورة)
     let emsEditingExamId     = null; // معرّف الامتحان أثناء التعديل
     let emsQuestions         = [];   // قائمة الأسئلة الحالية أثناء التصميم
 
@@ -25276,6 +26594,22 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         return emsExamCache[emsKey(pk, ck)] || null;
     }
 
+    // جميع الامتحانات المسجلة لدورة معيّنة (وليس امتحاناً واحداً فقط)
+    function getCachedExamList(pk, ck) {
+        return emsExamListCache[emsKey(pk, ck)] || null;
+    }
+
+    // إيجاد امتحان محدد بمعرّفه ضمن قائمة امتحانات الدورة، مع الرجوع
+    // للامتحان الافتراضي (الأحدث) إن لم يُحدَّد معرّف أو لم يُعثر عليه
+    function getCachedExamById(pk, ck, examId) {
+        if (examId) {
+            const list = getCachedExamList(pk, ck) || [];
+            const found = list.find(e => e.id === examId);
+            if (found) return found;
+        }
+        return getCachedExam(pk, ck);
+    }
+
     // ─── تحديد معرّف المتدرب الموحَّد (traineeId الحقيقي من registry_trainees) ──
     // المشكلة التي تحلّها هذه الدالة: عند تسليم الامتحان كان يُستخدم
     // currentUser?.traineeId || currentUser?.uid كحفظ احتياطي صامت. فإن لم
@@ -25351,8 +26685,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     }
 
     // طلب تعديل امتحان موجود: يتحقق أولاً من عدم وجود أي تسليم محفوظ له
-    async function emsRequestEditExam(pk, ck) {
-        const exam = getCachedExam(pk, ck);
+    async function emsRequestEditExam(pk, ck, examId) {
+        const exam = getCachedExamById(pk, ck, examId);
         if (!exam) return;
         const locked = await _emsCheckSubmissionLock(exam.id);
         if (locked) {
@@ -25384,26 +26718,17 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         return hasSome ? 'الامتحانات' : 'إنشاء امتحان';
     }
 
+    // زر الامتحانات في هيدر بيانات البرنامج (لوحة العرض الرئيسية): يفتح
+    // القائمة الجانبية (إن كانت مغلقة) ويعرض فيها جميع الامتحانات المحفوظة
+    // لهذا البرنامج بصرف النظر عن الدورة. إنشاء امتحان جديد أصبح متاحاً من
+    // زر "+" الموجود في هيدر اللوحة الجانبية نفسها.
     async function handleProgramExamBtnClick(pk) {
         emsCurrentProgramKey = pk;
         emsCurrentCourseKey  = null;
         const program = programsData[pk];
         if (!program) return;
 
-        // الدورات المسموح للمستخدم الحالي التعامل مع امتحاناتها فقط
-        // (المدير: كل الدورات — المدرب: فقط الدورات المسجل فيها كمدرب أساسي)
-        const allowedCourses = emsAllowedCoursesForProgram(pk);
-        if (allowedCourses.length === 0) {
-            showToast?.('⛔ لا توجد دورات مسجل فيها كمدرب أساسي ضمن هذا البرنامج', 'error');
-            return;
-        }
-
-        // تحميل امتحانات الدورات المسموحة فقط
-        await Promise.all(allowedCourses.map(c => emsLoadExam(pk, c.key)));
-
-        // دائماً نفتح نافذة تصميم امتحان جديد بصرف النظر عن وجود امتحان سابق —
-        // المستخدم يضغط "إنشاء امتحان" فيتوقع بحق فتح نموذج إنشاء نظيف في كل مرة
-        emsShowDesigner(pk, null);
+        await _buildSidebarExamPanelForProgram(pk);
     }
 
     // ─── قائمة امتحانات البرنامج (تُستخدم كزر "رجوع" من المصمم/العارض،
@@ -25484,29 +26809,38 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
     }
 
-    // ─── تحميل الامتحان من Firestore ─────────────────────────
+    // ─── تحميل جميع امتحانات الدورة من Firestore ─────────────
+    // ملاحظة: سابقاً كانت هذه الدالة تجلب امتحاناً واحداً فقط (limit(1))
+    // مما كان يتسبب باختفاء الامتحانات المحفوظة سابقاً من الواجهة عند
+    // إضافة امتحان جديد لنفس الدورة (رغم بقائها فعلياً في Firestore).
+    // الآن تُجلب كل الامتحانات المرتبطة بالدورة وتُخزَّن كقائمة كاملة،
+    // مع الإبقاء على emsExamCache كأحدث امتحان لأغراض التوافق مع
+    // الشاشات التي ما تزال تعرض امتحاناً واحداً فقط (مثل بطاقة الملخص).
     async function emsLoadExam(pk, ck) {
         if (!db) return;
         try {
-            // امتحان قد تكون هذه الدورة هي "المرساة" (courseKey) فيه...
-            const snap = await db.collection('examinations')
-                .where('programKey','==', pk)
-                .where('courseKey','==', ck)
-                .limit(1).get();
-            if (!snap.empty) {
-                const doc = snap.docs[0];
-                emsExamCache[emsKey(pk, ck)] = { id: doc.id, ...doc.data() };
-                return;
-            }
-            // ...أو قد تكون من ضمن دورات أخرى مشمولة في الامتحان (courseKeys)
-            const snap2 = await db.collection('examinations')
-                .where('programKey','==', pk)
-                .where('courseKeys','array-contains', ck)
-                .limit(1).get();
-            if (!snap2.empty) {
-                const doc = snap2.docs[0];
-                emsExamCache[emsKey(pk, ck)] = { id: doc.id, ...doc.data() };
-            }
+            const [snap, snap2] = await Promise.all([
+                // امتحانات هذه الدورة كـ"مرساة" (courseKey)
+                db.collection('examinations')
+                    .where('programKey','==', pk)
+                    .where('courseKey','==', ck)
+                    .get(),
+                // امتحانات مشمولة فيها هذه الدورة ضمن دورات أخرى (courseKeys)
+                db.collection('examinations')
+                    .where('programKey','==', pk)
+                    .where('courseKeys','array-contains', ck)
+                    .get()
+            ]);
+            const byId = {};
+            snap.docs.forEach(doc  => { byId[doc.id] = { id: doc.id, ...doc.data() }; });
+            snap2.docs.forEach(doc => { byId[doc.id] = { id: doc.id, ...doc.data() }; });
+            const list = Object.values(byId).sort((a, b) => {
+                const ta = new Date(a.updatedAt || a.createdAt || 0).getTime();
+                const tb = new Date(b.updatedAt || b.createdAt || 0).getTime();
+                return tb - ta; // الأحدث أولاً
+            });
+            emsExamListCache[emsKey(pk, ck)] = list;
+            emsExamCache[emsKey(pk, ck)] = list[0] || null;
         } catch(e) { console.warn('EMS load:', e); }
     }
 
@@ -26073,8 +27407,19 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             logActivity(isEditingExam ? 'edit' : 'add', 'exam', course?.code || ck, docId, `${payload.examType || 'امتحان'} — ضمن البرنامج: ${program?.title || ''}`);
             // تخزين الامتحان في الذاكرة المؤقتة تحت كل دورة من الدورات
             // المختارة، حتى تظهر بيانات الامتحان بشكل صحيح أينما عُرضت
-            // إحدى هذه الدورات
-            courseKeys.forEach(k => { emsExamCache[emsKey(pk, k)] = savedExam; });
+            // إحدى هذه الدورات. كما نحدّث قائمة الامتحانات الكاملة لكل
+            // دورة (إن كانت محمَّلة) بدل استبدالها بالكامل، حتى لا تختفي
+            // الامتحانات الأخرى المحفوظة سابقاً لنفس الدورة
+            courseKeys.forEach(k => {
+                const key = emsKey(pk, k);
+                emsExamCache[key] = savedExam;
+                if (emsExamListCache[key]) {
+                    const list = emsExamListCache[key];
+                    const idx = list.findIndex(e => e.id === docId);
+                    if (idx !== -1) list[idx] = savedExam;      // تعديل امتحان موجود
+                    else list.unshift(savedExam);               // امتحان جديد يُضاف لأعلى القائمة
+                }
+            });
 
             emsCurrentCourseKey = ck;
             emsShowExamViewer(pk, ck, savedExam);
@@ -26114,16 +27459,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         document.getElementById('examinationViewActions').innerHTML = `
             ${canManageView ? `
             <span id="${manageBtnsId}" class="flex items-center gap-1.5">
-            <button onclick="emsRequestEditExam('${pk}','${ck}')"
+            <button onclick="emsRequestEditExam('${pk}','${ck}','${exam.id || ''}')"
               class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
               <i class="ph ph-pencil-simple text-sm"></i> تعديل
             </button>
-            <button onclick="emsConfirmDeleteExam('${pk}','${ck}')"
+            <button onclick="emsConfirmDeleteExam('${pk}','${ck}','${exam.id || ''}')"
               class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors">
               <i class="ph ph-trash text-sm"></i> حذف
             </button>
             </span>` : ''}
-            <button onclick="emsPrintExam('${pk}','${ck}')"
+            <button onclick="emsPrintExam('${pk}','${ck}','${exam.id || ''}')"
               class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
               <i class="ph ph-printer text-sm"></i> طباعة
             </button>`;
@@ -26246,16 +27591,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         document.getElementById('examReviewModalActions').innerHTML = `
             ${canManageView ? `
             <span id="${manageBtnsId}" class="flex items-center gap-1.5">
-            <button onclick="closeExamReviewModal(); emsRequestEditExam('${pk}','${ck}')"
+            <button onclick="closeExamReviewModal(); emsRequestEditExam('${pk}','${ck}','${exam.id || ''}')"
               class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
               <i class="ph ph-pencil-simple text-sm"></i>
             </button>
-            <button onclick="closeExamReviewModal(); emsConfirmDeleteExam('${pk}','${ck}')"
+            <button onclick="closeExamReviewModal(); emsConfirmDeleteExam('${pk}','${ck}','${exam.id || ''}')"
               class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
               <i class="ph ph-trash text-sm"></i>
             </button>
             </span>` : ''}
-            <button onclick="emsPrintExam('${pk}','${ck}')"
+            <button onclick="emsPrintExam('${pk}','${ck}','${exam.id || ''}')"
               class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100" title="طباعة">
               <i class="ph ph-printer text-sm"></i>
             </button>`;
@@ -26345,8 +27690,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     }
 
     // ─── حذف الامتحان ────────────────────────────────────────
-    async function emsConfirmDeleteExam(pk, ck) {
-        const exam = getCachedExam(pk,ck);
+    async function emsConfirmDeleteExam(pk, ck, examId) {
+        const exam = getCachedExamById(pk, ck, examId);
         if (!exam?.id || !db) return;
         const locked = await _emsCheckSubmissionLock(exam.id);
         if (locked) {
@@ -26355,12 +27700,27 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
         if (!confirm('هل أنت متأكد من حذف هذا الامتحان؟')) return;
         db.collection('examinations').doc(exam.id).delete().then(()=>{
-            // إزالة الامتحان من الذاكرة المؤقتة تحت كل الدورات التي كان يشملها
+            // إزالة هذا الامتحان تحديداً من الذاكرة المؤقتة تحت كل الدورات
+            // التي كان يشملها، مع الإبقاء على أي امتحانات أخرى محفوظة لنفس
+            // الدورة (لا نحذف القائمة كاملة، فقط العنصر المحذوف منها)
             const coveredKeys = exam.courseKeys && exam.courseKeys.length ? exam.courseKeys : [ck];
-            coveredKeys.forEach(k => { delete emsExamCache[emsKey(pk, k)]; });
+            coveredKeys.forEach(k => {
+                const key = emsKey(pk, k);
+                if (emsExamListCache[key]) {
+                    emsExamListCache[key] = emsExamListCache[key].filter(e => e.id !== exam.id);
+                }
+                if (emsExamCache[key]?.id === exam.id) {
+                    emsExamCache[key] = (emsExamListCache[key] && emsExamListCache[key][0]) || null;
+                }
+            });
             const programForLog = programsData[pk];
             logActivity('delete', 'exam', exam.courseCode || ck, exam.id, `حذف امتحان — ضمن البرنامج: ${programForLog?.title || ''}`);
             emsEditingExamId = null;
+            // إن كانت لوحة الامتحانات الجانبية مفتوحة حالياً، حدِّثها لتعكس الحذف
+            const examPanel = document.getElementById('sidebarExamPanel');
+            if (examPanel && !examPanel.classList.contains('hidden')) {
+                _buildSidebarExamCard(pk, ck);
+            }
             // العودة لتفاصيل الدورة
             const program = programsData[pk];
             const course  = (program?.courses||[]).find(c=>c.key===ck);
@@ -26370,8 +27730,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     }
 
     // ─── طباعة الامتحان ───────────────────────────────────────
-    function emsPrintExam(pk, ck) {
-        const exam = getCachedExam(pk,ck);
+    function emsPrintExam(pk, ck, examId) {
+        const exam = getCachedExamById(pk, ck, examId);
         if (!exam) return;
         const program = programsData[pk];
         const course  = (program?.courses||[]).find(c=>c.key===ck);
@@ -26379,7 +27739,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const questions = exam.questions || [];
         const total = exam.totalMark || questions.reduce((s,q)=>s+(+q.mark||0),0);
 
-        const questionsHtml = groupQuestionsByType(questions).map(group => {
+        // نبني كل مجموعة أسئلة (حسب النوع) ككتلة HTML منفصلة، ثم نوزّع
+        // الكتل يدوياً على عمودين متوازنين (بدل الاعتماد على خاصية
+        // column-count في CSS، التي لا تُطبَّق بشكل موثوق عند الطباعة
+        // الفعلية عبر window.print() في كثير من المتصفحات وتُظهر كل
+        // الأسئلة في عمود واحد تحت بعضها رغم ظهورها بشكل صحيح في التبويب)
+        const groupBlocks = groupQuestionsByType(questions).map(group => {
             const itemsHtml = group.indexes.map(i => {
                 const q = questions[i];
                 let bodyHtml = '';
@@ -26397,19 +27762,35 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 return `<div class="exam-print-q">
               <div style="display:flex;align-items:flex-start;gap:10px">
                 <span style="background:#0790AC;color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex-shrink:0">${i+1}</span>
-                <span style="font-size:10px;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:12px;flex-shrink:0;margin-top:2px">${q.mark} علامة</span>
+                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px;flex-shrink:0;max-width:230px;overflow-wrap:break-word">
+                  <span style="font-size:10px;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:12px;white-space:nowrap">${q.mark} علامة</span>
+                  ${bodyHtml}
+                </div>
                 <div style="flex:1">
                   <p style="font-weight:600;font-size:13px;margin:0">${q.text}</p>
-                  ${bodyHtml}
                 </div>
               </div>
             </div>`;
             }).join('');
-            return `<div class="exam-type-group">
+            return {
+                count: group.indexes.length,
+                html: `<div class="exam-type-group">
               <h4 style="font-size:13px;font-weight:700;color:#0790AC;background:#e0f4f7;padding:6px 12px;border-radius:6px;margin-bottom:14px">${group.typeInfo.ar}</h4>
               ${itemsHtml}
-            </div>`;
-        }).join('');
+            </div>`
+            };
+        });
+
+        // توزيع متوازن: كل مجموعة تُضاف بالكامل إلى العمود الأقل امتلاءً حالياً
+        let leftCount = 0, rightCount = 0, leftColHtml = '', rightColHtml = '';
+        groupBlocks.forEach(g => {
+            if (leftCount <= rightCount) { leftColHtml += g.html; leftCount += g.count; }
+            else { rightColHtml += g.html; rightCount += g.count; }
+        });
+        const questionsHtml = `<div class="exam-columns-grid">
+          <div class="exam-col">${leftColHtml}</div>
+          <div class="exam-col">${rightColHtml}</div>
+        </div>`;
 
         // رابط رمز QR — بنفس صيغة الروابط التي يفهمها ماسح QR الداخلي للبرنامج
         // (program/course/exam)، بحيث يفتح مسحه: الدورة ثم مراجعة الامتحان مباشرة
@@ -26423,8 +27804,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 <meta charset="UTF-8">
 <title>نموذج امتحان — ${program?.title||''}</title>
 <style>
-  * { box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',Tahoma,Arial,sans-serif; }
-  body { padding: 24px; font-size: 13px; color: #1f2937; }
+  * {
+    box-sizing:border-box; margin:0; padding:0;
+    font-family:'Segoe UI', Tahoma, Arial, sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  html, body { font-family:'Segoe UI', Tahoma, Arial, sans-serif; }
+  body { padding: 24px; font-size: 13px; color: #1f2937; background:#fff; }
   .exam-print-qr { width: 62px; text-align:center; flex-shrink:0; }
   .exam-print-qr img { width: 62px; height: 62px; display:block; }
   .exam-print-qr span { display:block; font-size:7px; color:#9ca3af; margin-top:3px; }
@@ -26440,11 +27828,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   .student-box .field { flex:1; border-bottom:1px solid #9ca3af; padding-bottom:4px; min-height:28px; }
   .student-box .field .label { font-size:10px; color:#6b7280; }
   h3.section { font-size:14px; font-weight:700; color:#0790AC; margin-bottom:16px; border-bottom:2px solid #e0f4f7; padding-bottom:6px; }
-  .exam-columns { column-count:2; column-gap:28px; column-rule:1px dashed #d1d5db; }
+  .exam-columns-grid { display:grid; grid-template-columns:1fr 1fr; column-gap:28px; align-items:start; }
+  .exam-col:first-child { border-inline-end:1px dashed #d1d5db; padding-inline-end:14px; }
+  .exam-col:last-child { padding-inline-start:14px; }
   .exam-type-group { margin-bottom:24px; }
-  .exam-type-group h4 { break-after:avoid-column; page-break-after:avoid; }
-  .exam-print-q { break-inside:avoid-column; page-break-inside:avoid; margin-bottom:20px; }
-  @media print { body { padding:12px; } }
+  .exam-type-group h4 { break-after:avoid-page; page-break-after:avoid; }
+  .exam-print-q { break-inside:avoid-page; page-break-inside:avoid; margin-bottom:20px; }
+  @media print {
+    body { padding:12px; }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      font-family:'Segoe UI', Tahoma, Arial, sans-serif !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -26482,9 +27880,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 </div>
 
 <h3 class="section"><i>✎</i> أسئلة الامتحان</h3>
-<div class="exam-columns">
 ${questionsHtml}
-</div>
 
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`);
