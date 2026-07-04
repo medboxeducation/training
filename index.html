@@ -12543,7 +12543,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <div id="detailsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <!-- هيدر الدورة -->
                 <div class="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <button onclick="backToCoursesList()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 flex-shrink-0" title="رجوع">
+                    <button id="detailsBackBtn" onclick="backToCoursesList()" class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-primary hover:bg-primary/10 flex-shrink-0" title="رجوع">
                         <i class="ph ph-arrow-right text-lg"></i>
                     </button>
                     <div id="detailsHeaderIcon" class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-primary text-xl flex-shrink-0 shadow-sm border border-white/80 cursor-pointer hover:scale-105 transition-transform" title="عرض رمز QR بالحجم الكامل" onclick="openDetailsQRModal()">
@@ -20421,6 +20421,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }).join('، ') || '—';
             const realTrainees = course.traineesList || [];
 
+            // إظهار سهم الرجوع (يبقى ظاهراً في صفحة الدورة للعودة لقائمة الدورات)
+            const backBtn = document.getElementById('detailsBackBtn');
+            if (backBtn) backBtn.classList.remove('hidden');
+
             // ضبط هيدر عرض التفاصيل للدورة
             if (detailsTitle) {
                 detailsTitle.textContent = course.code || course.key;
@@ -20631,6 +20635,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const program = programsData[programKey];
             if (!program) return;
 
+            // إخفاء سهم الرجوع عند عرض بيانات برنامج (يظهر فقط داخل صفحة الدورة)
+            const backBtn = document.getElementById('detailsBackBtn');
+            if (backBtn) backBtn.classList.add('hidden');
+
             detailsTitle.textContent = program.title;
             detailsTitle.dataset.activeKey = programKey;
             delete detailsTitle.dataset.activeCourse;
@@ -20644,11 +20652,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             if (actionsBar) {
                 const isGuest2 = document.body.classList.contains('guest-mode');
                 actionsBar.innerHTML = !isGuest2 ? `
-                    <span class="hidden md:flex items-center gap-1">
-                        ${hasPermission('editProgram') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل البرنامج" onclick="editProgram('${programKey}')"><i class="ph ph-pencil-simple text-sm"></i></button>` : ''}
-                        ${hasPermission('deleteProgram') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف البرنامج" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash text-sm"></i></button>` : ''}
-                        ${hasPermission('addCourse') ? `<button class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="إضافة دورة جديدة" onclick="addCourse('${programKey}')"><i class="ph ph-plus text-sm"></i></button>` : ''}
-                        ${canCreateExamForProgram(programKey) ? `<button id="examPrgBtn_${programKey}" class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 hover:border-primary/40" title="${getProgramExamBtnLabel(programKey)}" onclick="handleProgramExamBtnClick('${programKey}')"><i class="ph ${getProgramExamBtnIcon(programKey)} text-sm"></i></button>` : ''}
+                    <span class="hidden md:flex items-center gap-1.5 flex-wrap">
+                        ${hasPermission('editProgram') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors" onclick="editProgram('${programKey}')"><i class="ph ph-pencil-simple text-sm"></i> تعديل</button>` : ''}
+                        ${hasPermission('deleteProgram') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash text-sm"></i> حذف</button>` : ''}
+                        ${hasPermission('addCourse') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300 transition-colors" onclick="addCourse('${programKey}')"><i class="ph ph-plus text-sm"></i> إضافة دورة</button>` : ''}
+                        ${canCreateExamForProgram(programKey) ? `<button id="examPrgBtn_${programKey}" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 hover:border-primary/40 transition-colors" onclick="handleProgramExamBtnClick('${programKey}')"><i class="ph ${getProgramExamBtnIcon(programKey)} text-sm"></i> ${getProgramExamBtnLabel(programKey)}</button>` : ''}
                     </span>
                 ` : '';
             }
@@ -20701,17 +20709,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                 <div class="text-sm text-gray-700 rich-content">${htmlizeStoredText(program.goal)}</div>
                             </div>` : ''}
                         </div>
-                        <!-- QR Code سريع للبرنامج -->
-                        <div class="glass-panel rounded-xl p-3 mt-4 flex items-center gap-3">
-                            <div id="inlineProgramQR_${programKey}" class="shrink-0"></div>
-                            <div>
-                                <p class="text-xs font-semibold text-gray-700 mb-0.5">رمز QR الخاص بالبرنامج</p>
-                                <p class="text-[10px] text-gray-400 mb-2">امسحه للوصول المباشر لصفحة البرنامج</p>
-                                <button onclick="openProgramQRModal('${programKey}')" class="glass-icon-btn px-3 py-1.5 rounded-lg text-[10px] font-semibold text-primary flex items-center gap-1 hover:border-primary/50">
-                                    <i class="ph ph-arrows-out text-xs"></i> عرض بالحجم الكامل
-                                </button>
-                            </div>
-                        </div>
                         ${!isGuest ? `` : ''}
                     </div>
 
@@ -20747,22 +20744,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
             `;
             showView('detailsView');
-
-            // توليد QR Code المصغّر المضمّن في بطاقة معلومات البرنامج
-            setTimeout(() => {
-                const inlineQREl = document.getElementById(`inlineProgramQR_${programKey}`);
-                if (inlineQREl && typeof QRCode !== 'undefined') {
-                    inlineQREl.innerHTML = '';
-                    new QRCode(inlineQREl, {
-                        text: getProgramProfileURL(programKey),
-                        width: 64,
-                        height: 64,
-                        colorDark: '#0790AC',
-                        colorLight: '#ffffff',
-                        correctLevel: QRCode.CorrectLevel.M
-                    });
-                }
-            }, 50);
         }
 
         // بناء القائمة الجانبية عند التحميل
