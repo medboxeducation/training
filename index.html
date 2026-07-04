@@ -13634,6 +13634,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         let pendingQRTrainerId = null; // معرف مدرب قادم من مسح رمز QR أو رابط مباشر، بانتظار تسجيل الدخول لعرض ملفه
         let pendingQRProgramKey = null; // مفتاح برنامج قادم من مسح رمز QR أو رابط مباشر لدورة، بانتظار تسجيل الدخول
         let pendingQRCourseKey  = null; // مفتاح دورة قادمة من مسح رمز QR أو رابط مباشر، بانتظار تسجيل الدخول لعرض تفاصيلها
+        let pendingQRExamId     = null; // معرف امتحان قادم من مسح رمز QR (ورقة طباعة الامتحان)، لعرض مراجعته بعد فتح الدورة
 
         // ألوان وأيقونات الأدوار
         const roleConfig = {
@@ -14059,9 +14060,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 if (pendingQRProgramKey && pendingQRCourseKey) {
                     const pKeyToOpen = pendingQRProgramKey;
                     const cKeyToOpen = pendingQRCourseKey;
+                    const examIdToOpen = pendingQRExamId;
                     pendingQRProgramKey = null;
                     pendingQRCourseKey = null;
-                    setTimeout(() => navigateToCourseProfile(pKeyToOpen, cKeyToOpen), 400);
+                    pendingQRExamId = null;
+                    setTimeout(() => navigateToCourseProfile(pKeyToOpen, cKeyToOpen, examIdToOpen), 400);
                 }
                 // المدرب: الانتقال مباشرة لشبكة البرامج
                 if (currentUser && currentUser.role === 'trainer') {
@@ -24824,14 +24827,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             let trainerId = null;
             let programKey = null;
             let courseKey = null;
+            let examId = null;
 
-            // استخراج trainee/trainer/program/course من الـ URL
+            // استخراج trainee/trainer/program/course/exam من الـ URL
             try {
                 const url = new URL(data);
                 traineeId  = url.searchParams.get('trainee');
                 trainerId  = url.searchParams.get('trainer');
                 programKey = url.searchParams.get('program');
                 courseKey  = url.searchParams.get('course');
+                examId     = url.searchParams.get('exam');
             } catch(e) { /* ليس URL صحيح */ }
 
             // إذا لم ينجح URL، جرّب مطابقة مباشرة بالـ ID أو الكود — المتدربون ثم المدربون ثم الدورات ثم البرامج
@@ -24868,7 +24873,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             } else if (trainerId) {
                 requireLoginThenOpenTrainerProfile(trainerId);
             } else if (programKey && courseKey) {
-                requireLoginThenOpenCourseProfile(programKey, courseKey);
+                requireLoginThenOpenCourseProfile(programKey, courseKey, examId);
             } else if (programKey) {
                 navigateToProgramProfile(programKey);
             } else {
@@ -24973,6 +24978,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const trainerId  = params.get('trainer');
             const programKey = params.get('program');
             const courseKey  = params.get('course');
+            const examId     = params.get('exam');
             if (traineeId) {
                 // تأخير لضمان تهيئة Firebase
                 setTimeout(() => requireLoginThenOpenTraineeProfile(traineeId), 2000);
@@ -24981,7 +24987,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 setTimeout(() => requireLoginThenOpenTrainerProfile(trainerId), 2000);
             } else if (programKey && courseKey) {
                 // تأخير لضمان تهيئة Firebase
-                setTimeout(() => requireLoginThenOpenCourseProfile(programKey, courseKey), 2000);
+                setTimeout(() => requireLoginThenOpenCourseProfile(programKey, courseKey, examId), 2000);
             } else if (programKey) {
                 // تأخير لضمان تهيئة Firebase
                 setTimeout(() => navigateToProgramProfile(programKey), 2000);
@@ -24992,14 +24998,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         // التحقق من تسجيل الدخول قبل فتح تفاصيل دورة قادمة من مسح رمز QR أو رابط مباشر
         // إن لم يكن المستخدم مسجلاً دخوله، يُفتح نموذج تسجيل الدخول، وتُفتح تفاصيل الدورة تلقائياً بعد نجاح الدخول
-        function requireLoginThenOpenCourseProfile(programKey, courseKey) {
+        function requireLoginThenOpenCourseProfile(programKey, courseKey, examId) {
             const isLoggedIn = !!currentUser && !document.body.classList.contains('guest-mode');
             if (isLoggedIn) {
-                navigateToCourseProfile(programKey, courseKey);
+                navigateToCourseProfile(programKey, courseKey, examId);
                 return;
             }
             pendingQRProgramKey = programKey;
             pendingQRCourseKey = courseKey;
+            pendingQRExamId = examId || null;
             showToast('🔒 يرجى تسجيل الدخول لعرض تفاصيل الدورة', 'info');
             openLoginModal();
         }
@@ -25019,7 +25026,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
 
         /* ---- التنقل لتفاصيل دورة ---- */
-        async function navigateToCourseProfile(programKey, courseKey) {
+        // examId اختياري: قادم من مسح رمز QR مطبوع على ورقة امتحان — إذا
+        // وُجد، تُفتح مراجعة الامتحان تلقائياً فوق تفاصيل الدورة بعد تحميلها
+        async function navigateToCourseProfile(programKey, courseKey, examId) {
             showToast('📂 جاري فتح تفاصيل الدورة...', 'info');
             // تحميل البيانات إذا لم تكن محملة
             if (Object.keys(programsData).length === 0) {
@@ -25032,6 +25041,27 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 return;
             }
             showDetails(programKey, courseKey);
+
+            if (examId) {
+                let exam = getCachedExam(programKey, courseKey);
+                // إن لم يكن الامتحان محملاً، أو كان المحمّل مختلفاً عن الامتحان
+                // المقصود فعلياً في رمز QR — نجلبه مباشرة بمعرّفه من Firestore
+                // (أوثق من البحث عبر برنامج/دورة الذي قد يفشل لو تغيّرت الدورة "المرساة")
+                if ((!exam || exam.id !== examId) && db) {
+                    try {
+                        const doc = await db.collection('examinations').doc(examId).get();
+                        if (doc.exists) {
+                            exam = { id: doc.id, ...doc.data() };
+                            emsExamCache[emsKey(programKey, courseKey)] = exam;
+                        }
+                    } catch(e) { console.warn('تعذّر جلب الامتحان بمعرّفه:', e); }
+                }
+                if (exam) {
+                    setTimeout(() => emsShowExamReview(programKey, courseKey, exam), 600);
+                } else {
+                    showToast('⚠️ لم يتم العثور على الامتحان المرتبط بهذا الرمز', 'warning');
+                }
+            }
         }
 
         // استدعاء الفحص بعد تحميل الصفحة
@@ -25569,6 +25599,25 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
               </div>
 
+              <!-- بيانات إضافية اختيارية (تظهر في عرض الامتحان وورقة الطباعة) -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">اسم المقرر <span class="text-gray-300">(اختياري)</span></label>
+                  <input id="emsExamSubjectName" type="text" value="${existingExam?.subjectName||''}" placeholder="مثال: مبادئ الإسعاف"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                </div>
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">اسم المركز <span class="text-gray-300">(اختياري)</span></label>
+                  <input id="emsExamCenterName" type="text" value="${existingExam?.centerName||''}" placeholder="مثال: المركز الرئيسي"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                </div>
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">السنة الدراسية <span class="text-gray-300">(اختياري)</span></label>
+                  <input id="emsExamAcademicYear" type="text" value="${existingExam?.academicYear||''}" placeholder="مثال: 2025 / 2026"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -25971,6 +26020,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const examTime = document.getElementById('emsExamTime')?.value;
         const duration = parseInt(document.getElementById('emsExamDuration')?.value) || 60;
         const examType = document.getElementById('emsExamType')?.value || 'quiz';
+        const subjectName   = document.getElementById('emsExamSubjectName')?.value.trim()   || '';
+        const centerName    = document.getElementById('emsExamCenterName')?.value.trim()    || '';
+        const academicYear  = document.getElementById('emsExamAcademicYear')?.value.trim()  || '';
 
         const courseCheckboxes = document.querySelectorAll('#emsCourseCheckboxes input[type="checkbox"]:checked');
         const courseKeys = Array.from(courseCheckboxes).map(c => c.value);
@@ -25996,6 +26048,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             duration,
             examDate:  examDate || '',
             examTime:  examTime || '',
+            subjectName,
+            centerName,
+            academicYear,
             totalMark,
             questions: emsQuestions,
             createdBy: currentUser?.uid || '',
@@ -26099,6 +26154,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
           <!-- بطاقة معلومات الامتحان -->
           <div class="glass-element rounded-xl p-5">
             <div class="grid grid-cols-2 gap-3">
+              ${exam.subjectName ? `
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">اسم المقرر</p>
+                <p class="font-bold text-sm text-gray-800">${exam.subjectName}</p>
+              </div>` : ''}
+              ${exam.centerName ? `
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">اسم المركز</p>
+                <p class="font-bold text-sm text-gray-800">${exam.centerName}</p>
+              </div>` : ''}
+              ${exam.academicYear ? `
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">السنة الدراسية</p>
+                <p class="font-bold text-sm text-gray-800" dir="rtl">${exam.academicYear}</p>
+              </div>` : ''}
               <div class="glass-panel p-3.5 rounded-lg">
                 <p class="text-[10px] text-gray-400 mb-1">نوع الامتحان</p>
                 <p class="font-bold text-sm text-gray-800">${typeInfo.ar}</p>
@@ -26324,7 +26394,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 } else if (q.type === 'match' && q.leftItems) {
                     bodyHtml = `<div style="margin-top:8px;display:flex;gap:12px"><div style="flex:1"><strong>العمود (أ)</strong>${q.leftItems.map((l,j)=>`<div style="margin-top:4px;padding:4px 8px;border:1px solid #ddd;border-radius:4px">${j+1}. ${l}</div>`).join('')}</div><div style="flex:1"><strong>العمود (ب)</strong>${(q.rightItems||[]).sort(()=>Math.random()-.5).map(r=>`<div style="margin-top:4px;padding:4px 8px;border:1px solid #ddd;border-radius:4px">${r}</div>`).join('')}</div></div>`;
                 }
-                return `<div style="margin-bottom:20px;page-break-inside:avoid">
+                return `<div class="exam-print-q">
               <div style="display:flex;align-items:flex-start;gap:10px">
                 <span style="background:#0790AC;color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex-shrink:0">${i+1}</span>
                 <span style="font-size:10px;background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:12px;flex-shrink:0;margin-top:2px">${q.mark} علامة</span>
@@ -26335,11 +26405,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
               </div>
             </div>`;
             }).join('');
-            return `<div style="margin-bottom:24px">
+            return `<div class="exam-type-group">
               <h4 style="font-size:13px;font-weight:700;color:#0790AC;background:#e0f4f7;padding:6px 12px;border-radius:6px;margin-bottom:14px">${group.typeInfo.ar}</h4>
               ${itemsHtml}
             </div>`;
         }).join('');
+
+        // رابط رمز QR — بنفس صيغة الروابط التي يفهمها ماسح QR الداخلي للبرنامج
+        // (program/course/exam)، بحيث يفتح مسحه: الدورة ثم مراجعة الامتحان مباشرة
+        const qrDeepLink = `${location.origin}${location.pathname}?program=${encodeURIComponent(pk)}&course=${encodeURIComponent(ck)}&exam=${encodeURIComponent(exam.id||'')}`;
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(qrDeepLink)}`;
 
         const win = window.open('','_blank');
         win.document.write(`<!DOCTYPE html>
@@ -26350,6 +26425,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 <style>
   * { box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',Tahoma,Arial,sans-serif; }
   body { padding: 24px; font-size: 13px; color: #1f2937; }
+  .exam-print-qr { width: 62px; text-align:center; flex-shrink:0; }
+  .exam-print-qr img { width: 62px; height: 62px; display:block; }
+  .exam-print-qr span { display:block; font-size:7px; color:#9ca3af; margin-top:3px; }
   .header { border: 2px solid #0790AC; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
   .header-top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #e5e7eb; padding-bottom:12px; margin-bottom:12px; }
   .logo-area { font-size:18px; font-weight:800; color:#0790AC; }
@@ -26362,6 +26440,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   .student-box .field { flex:1; border-bottom:1px solid #9ca3af; padding-bottom:4px; min-height:28px; }
   .student-box .field .label { font-size:10px; color:#6b7280; }
   h3.section { font-size:14px; font-weight:700; color:#0790AC; margin-bottom:16px; border-bottom:2px solid #e0f4f7; padding-bottom:6px; }
+  .exam-columns { column-count:2; column-gap:28px; column-rule:1px dashed #d1d5db; }
+  .exam-type-group { margin-bottom:24px; }
+  .exam-type-group h4 { break-after:avoid-column; page-break-after:avoid; }
+  .exam-print-q { break-inside:avoid-column; page-break-inside:avoid; margin-bottom:20px; }
   @media print { body { padding:12px; } }
 </style>
 </head>
@@ -26369,14 +26451,23 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 <div class="header">
   <div class="header-top">
     <div class="logo-area">MedBox.Education <span>نظام إدارة الامتحانات</span></div>
-    <div style="text-align:left;font-size:11px;color:#6b7280">
-      <div>التاريخ: ${exam.examDate||'—'}</div>
-      <div>التوقيت: ${exam.examTime||'—'}</div>
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="text-align:left;font-size:11px;color:#6b7280;padding-top:2px">
+        <div>التاريخ: ${exam.examDate||'—'}</div>
+        <div>التوقيت: ${exam.examTime||'—'}</div>
+      </div>
+      <div class="exam-print-qr">
+        <img src="${qrCodeUrl}" alt="QR" />
+        <span>${exam.id ? exam.id.slice(0,8) : ''}</span>
+      </div>
     </div>
   </div>
   <div class="header-grid">
-    <div class="info-cell"><div class="label">البرنامج التدريبي</div><div class="value">${program?.title||'—'}</div></div>
-    <div class="info-cell"><div class="label">رمز الدورة</div><div class="value">${course?.code||ck}</div></div>
+    ${exam.subjectName ? `<div class="info-cell"><div class="label">اسم المقرر</div><div class="value">${exam.subjectName}</div></div>` : ''}
+    ${exam.centerName ? `<div class="info-cell"><div class="label">اسم المركز</div><div class="value">${exam.centerName}</div></div>` : ''}
+    ${exam.academicYear ? `<div class="info-cell"><div class="label">السنة الدراسية</div><div class="value" dir="rtl">${exam.academicYear}</div></div>` : ''}
+    <div class="info-cell"><div class="label">اسم البرنامج</div><div class="value">${program?.title||'—'}</div></div>
+    <div class="info-cell"><div class="label">رمز الدورة/ الدفعة</div><div class="value">${course?.code||ck}</div></div>
     <div class="info-cell"><div class="label">نوع الامتحان</div><div class="value">${typeInfo.ar}</div></div>
     <div class="info-cell"><div class="label">مدة الامتحان</div><div class="value">${exam.duration||'—'} دقيقة</div></div>
     <div class="info-cell"><div class="label">العلامة الكلية</div><div class="value" style="color:#0790AC;font-size:16px">${total}</div></div>
@@ -26391,7 +26482,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 </div>
 
 <h3 class="section"><i>✎</i> أسئلة الامتحان</h3>
+<div class="exam-columns">
 ${questionsHtml}
+</div>
 
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`);
