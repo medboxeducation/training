@@ -25153,6 +25153,24 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         { key: 'match',    ar: 'وصل (Matching)',          icon: 'ph-arrows-left-right'},
     ];
 
+    // تجميع أسئلة الامتحان حسب نوعها (بترتيب ثابت حسب QUESTION_TYPES) مع الحفاظ على رقم كل سؤال الأصلي
+    // تُستخدم في أي مكان يُعرض فيه امتحان بأكثر من نوع أسئلة، لتجميع كل نوع تحت عنوان واحد بدل تفرقها
+    function groupQuestionsByType(questions) {
+        const groups = {};
+        (questions || []).forEach((q, i) => {
+            const key = q.type || 'other';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(i);
+        });
+        const orderedKeys = QUESTION_TYPES.map(t => t.key).filter(k => groups[k]);
+        Object.keys(groups).forEach(k => { if (!orderedKeys.includes(k)) orderedKeys.push(k); });
+        return orderedKeys.map(key => ({
+            key,
+            typeInfo: QUESTION_TYPES.find(t => t.key === key) || { key, ar: key, icon: 'ph-question' },
+            indexes: groups[key]
+        }));
+    }
+
     // ─── مساعدات ─────────────────────────────────────────────
     function emsKey(pk, ck) { return `${pk}__${ck}`; }
 
@@ -26117,8 +26135,19 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <h3 class="font-bold text-base mb-4 text-primary flex items-center gap-2">
               <i class="ph ph-list-bullets"></i> الأسئلة
             </h3>
-            <div class="space-y-4">
-              ${questions.map((q,i) => emsRenderViewerQuestion(q,i)).join('')}
+            <div class="space-y-5">
+              ${groupQuestionsByType(questions).map(group => `
+              <div>
+                <div class="flex items-center gap-2 mb-3">
+                  <i class="ph ${group.typeInfo.icon || 'ph-question'} text-primary"></i>
+                  <h4 class="font-bold text-sm text-gray-700">${group.typeInfo.ar}</h4>
+                  <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">${group.indexes.length}</span>
+                </div>
+                <div class="space-y-4">
+                  ${group.indexes.map(i => emsRenderViewerQuestion(questions[i], i)).join('')}
+                </div>
+              </div>
+              `).join('')}
             </div>
           </div>
 
@@ -27033,7 +27062,20 @@ ${questionsHtml}
         const questions = exam.questions || [];
         const totalMark = exam.totalMark || questions.reduce((s, q) => s + (+q.mark || 0), 0);
 
-        const questionsHtml = questions.map((q, i) => _buildExamQuestionHTML(q, i)).join('');
+        const questionsHtml = groupQuestionsByType(questions).map(group => `
+            <div class="exam-type-section" style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:10px;margin:0 0 12px 4px;">
+                    <div style="width:34px;height:34px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0;">
+                        <i class="ph ${group.typeInfo.icon || 'ph-question'}"></i>
+                    </div>
+                    <div>
+                        <p style="font-weight:800;font-size:15px;color:#1e1b4b;margin:0;">${group.typeInfo.ar}</p>
+                        <p style="font-size:11px;color:#6b7280;margin:0;">${group.indexes.length} سؤال</p>
+                    </div>
+                </div>
+                ${group.indexes.map(i => _buildExamQuestionHTML(questions[i], i)).join('')}
+            </div>
+        `).join('');
 
         const overlay = document.createElement('div');
         overlay.id = 'examSessionOverlay';
