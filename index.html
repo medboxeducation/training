@@ -10178,6 +10178,65 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             box-shadow: 0 4px 15px rgba(7, 144, 172, 0.15);
         }
 
+        /* ===== محرر نصوص مبسّط (Rich Text) — لحقول الرسالة/الرؤية/الهدف ===== */
+        .rich-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+        .rich-tb-btn {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            color: #374151;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .rich-tb-btn:hover {
+            background: #0790AC;
+            color: #fff;
+            border-color: #0790AC;
+        }
+        .rich-editable {
+            min-height: 64px;
+            max-height: 240px;
+            overflow-y: auto;
+            line-height: 1.7;
+            outline: none;
+        }
+        .rich-editable:empty:before,
+        .rich-content:empty:before {
+            content: attr(data-placeholder);
+            color: #9ca3af;
+        }
+        /* تنسيق التعدادات النقطية والترقيم داخل المحرر وفي عرض البيانات — دعم RTL */
+        .rich-editable ul, .rich-content ul {
+            list-style-type: disc;
+            padding-inline-start: 1.4rem;
+            margin: 4px 0;
+        }
+        .rich-editable ol, .rich-content ol {
+            list-style-type: decimal;
+            padding-inline-start: 1.4rem;
+            margin: 4px 0;
+        }
+        .rich-editable li, .rich-content li {
+            margin: 2px 0;
+        }
+        .rich-editable b, .rich-editable strong,
+        .rich-content b, .rich-content strong {
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .rich-content { white-space: normal; }
+
         /* بطاقات قسم "حول البرنامج" — Glassmorphism ملون */
         .about-feature-card {
             background: rgba(255, 255, 255, 0.55);
@@ -10909,11 +10968,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     class="glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors hover:text-primary"
                     title="الإشعارات">
                     <i id="notifBellIcon" class="ph ph-bell text-lg md:text-xl"></i>
-                    <span id="notifBadge"
-                        class="hidden absolute -top-1 -left-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm ring-2 ring-white">
-                        0
-                    </span>
                 </button>
+                <span id="notifBadge"
+                    class="hidden absolute -top-1.5 -left-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center shadow-md ring-2 ring-white pointer-events-none z-10">
+                    0
+                </span>
             </div>
             
             <!-- فاصل -->
@@ -13014,19 +13073,37 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 <!-- الرسالة -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">الرسالة</label>
-                    <textarea id="programMessageInput" rows="2" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" placeholder="رسالة البرنامج"></textarea>
+                    <div class="rich-toolbar">
+                        <button type="button" class="rich-tb-btn" title="عريض" onmousedown="event.preventDefault()" onclick="richExec('bold','programMessageInput')"><i class="ph ph-text-b"></i></button>
+                        <button type="button" class="rich-tb-btn" title="تعداد نقطي" onmousedown="event.preventDefault()" onclick="richExec('insertUnorderedList','programMessageInput')"><i class="ph ph-list-bullets"></i></button>
+                        <button type="button" class="rich-tb-btn" title="ترقيم" onmousedown="event.preventDefault()" onclick="richExec('insertOrderedList','programMessageInput')"><i class="ph ph-list-numbers"></i></button>
+                        <button type="button" class="rich-tb-btn" title="إزالة التنسيق" onmousedown="event.preventDefault()" onclick="richExec('removeFormat','programMessageInput')"><i class="ph ph-eraser"></i></button>
+                    </div>
+                    <div id="programMessageInput" contenteditable="true" data-placeholder="رسالة البرنامج" class="rich-editable w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"></div>
                 </div>
 
                 <!-- الرؤية -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">الرؤية</label>
-                    <textarea id="programVisionInput" rows="2" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" placeholder="رؤية البرنامج"></textarea>
+                    <div class="rich-toolbar">
+                        <button type="button" class="rich-tb-btn" title="عريض" onmousedown="event.preventDefault()" onclick="richExec('bold','programVisionInput')"><i class="ph ph-text-b"></i></button>
+                        <button type="button" class="rich-tb-btn" title="تعداد نقطي" onmousedown="event.preventDefault()" onclick="richExec('insertUnorderedList','programVisionInput')"><i class="ph ph-list-bullets"></i></button>
+                        <button type="button" class="rich-tb-btn" title="ترقيم" onmousedown="event.preventDefault()" onclick="richExec('insertOrderedList','programVisionInput')"><i class="ph ph-list-numbers"></i></button>
+                        <button type="button" class="rich-tb-btn" title="إزالة التنسيق" onmousedown="event.preventDefault()" onclick="richExec('removeFormat','programVisionInput')"><i class="ph ph-eraser"></i></button>
+                    </div>
+                    <div id="programVisionInput" contenteditable="true" data-placeholder="رؤية البرنامج" class="rich-editable w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"></div>
                 </div>
 
                 <!-- الهدف العام -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">الهدف العام</label>
-                    <textarea id="programGoalInput" rows="2" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" placeholder="الهدف العام للبرنامج"></textarea>
+                    <div class="rich-toolbar">
+                        <button type="button" class="rich-tb-btn" title="عريض" onmousedown="event.preventDefault()" onclick="richExec('bold','programGoalInput')"><i class="ph ph-text-b"></i></button>
+                        <button type="button" class="rich-tb-btn" title="تعداد نقطي" onmousedown="event.preventDefault()" onclick="richExec('insertUnorderedList','programGoalInput')"><i class="ph ph-list-bullets"></i></button>
+                        <button type="button" class="rich-tb-btn" title="ترقيم" onmousedown="event.preventDefault()" onclick="richExec('insertOrderedList','programGoalInput')"><i class="ph ph-list-numbers"></i></button>
+                        <button type="button" class="rich-tb-btn" title="إزالة التنسيق" onmousedown="event.preventDefault()" onclick="richExec('removeFormat','programGoalInput')"><i class="ph ph-eraser"></i></button>
+                    </div>
+                    <div id="programGoalInput" contenteditable="true" data-placeholder="الهدف العام للبرنامج" class="rich-editable w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"></div>
                 </div>
             </div>
 
@@ -13685,10 +13762,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             el.classList.toggle('hidden', !show);
         }
 
-        function showLoginError(msg) {
+        function showLoginError(msg, isHtml) {
             const el  = document.getElementById('loginError');
             const txt = document.getElementById('loginErrorMsg');
-            txt.textContent = msg;
+            if (isHtml) {
+                txt.innerHTML = msg;
+            } else {
+                txt.textContent = msg;
+            }
             el.classList.remove('hidden');
         }
 
@@ -13749,11 +13830,27 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }
 
             try {
+                // ── تحقّق من وجود البريد فعلياً في قاعدة بيانات المستخدمين (Firestore) قبل إرسال رابط إعادة التعيين ──
+                // ملاحظة: إعداد "Email Enumeration Protection" في Firebase يجعل sendPasswordResetEmail
+                // ينجح ظاهرياً حتى لو كان البريد غير مسجل إطلاقاً (لمنع تخمين البريد الالكتروني)،
+                // لذلك يجب التحقق يدوياً من مجموعة users في Firestore أولاً.
+                const emailLower = email.toLowerCase();
+                const usersSnap = await db.collection('users').where('email', '==', emailLower).limit(1).get();
+                let usersSnap2 = { empty: true };
+                if (usersSnap.empty) {
+                    // احتياطاً في حال كان البريد مخزناً بحالة أحرف مختلفة (Mixed Case) في قاعدة البيانات
+                    usersSnap2 = await db.collection('users').where('email', '==', email).limit(1).get();
+                }
+                if (usersSnap.empty && usersSnap2.empty) {
+                    showFPMsg('<i class="ph ph-x-circle flex-shrink-0 mt-0.5 text-sm"></i><span>البريد الذي أدخلته غير مسجل بعد، يرجى التأكد من صحة البريد الإلكتروني أو التواصل مع فريق الدعم:<br><a href="mailto:medbokeducation@gmail.com" class="underline font-semibold" dir="ltr">medbokeducation@gmail.com</a><br><a href="https://wa.me/963955323104" target="_blank" rel="noopener" class="underline font-semibold" dir="ltr">WhatsApp: +963-955 32 31 04</a></span>', 'error');
+                    return;
+                }
+
                 await firebase.auth().sendPasswordResetEmail(email);
                 showFPMsg('<i class="ph ph-check-circle flex-shrink-0 mt-0.5 text-sm"></i><span>✅ تم إرسال رابط إعادة تعيين كلمة المرور بنجاح إلى بريدك الإلكتروني <b dir="ltr">' + email + '</b>. يرجى التحقق من صندوق الوارد (Inbox)، وفي حال عدم وصول الرسالة يرجى التحقق من مجلد الرسائل غير المرغوب فيها (Junk / Spam).</span>', 'success');
             } catch (err) {
                 if (err.code === 'auth/user-not-found') {
-                    showFPMsg('<i class="ph ph-x-circle flex-shrink-0 mt-0.5 text-sm"></i><span>البريد الذي أدخلته غير مسجل بعد، يرجى التأكد من البريد الإلكتروني أو الاتصال بفريق الدعم.</span>', 'error');
+                    showFPMsg('<i class="ph ph-x-circle flex-shrink-0 mt-0.5 text-sm"></i><span>البريد الذي أدخلته غير مسجل بعد، يرجى التأكد من صحة البريد الإلكتروني أو التواصل مع فريق الدعم:<br><a href="mailto:medbokeducation@gmail.com" class="underline font-semibold" dir="ltr">medbokeducation@gmail.com</a><br><a href="https://wa.me/963955323104" target="_blank" rel="noopener" class="underline font-semibold" dir="ltr">WhatsApp: +963-955 32 31 04</a></span>', 'error');
                 } else if (err.code === 'auth/invalid-email') {
                     showFPMsg('<i class="ph ph-x-circle flex-shrink-0 mt-0.5 text-sm"></i><span>صيغة البريد الإلكتروني المُدخل غير صحيحة.</span>', 'error');
                 } else if (err.code === 'auth/too-many-requests') {
@@ -13825,12 +13922,22 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
             } catch (err) {
                 setLoginLoading(false);
+
+                // البريد غير مسجل بحساب مدرب / متدرب / مدير — رسالة تفصيلية مع طرق التواصل مع الدعم
+                const notRegisteredMsg =
+                    'البريد الذي أدخلته غير مسجل بعد، يرجى التأكد من صحة البريد الإلكتروني أو التواصل مع فريق الدعم:' +
+                    '<br><a href="mailto:medbokeducation@gmail.com" class="underline font-semibold" dir="ltr">medbokeducation@gmail.com</a>' +
+                    '<br><a href="https://wa.me/963955323104" target="_blank" rel="noopener" class="underline font-semibold" dir="ltr">WhatsApp: +963-955 32 31 04</a>';
+
+                if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+                    showLoginError(notRegisteredMsg, true);
+                    return;
+                }
+
                 const errorMap = {
-                    'auth/user-not-found':       'البريد الإلكتروني غير مسجل في النظام',
                     'auth/wrong-password':        'كلمة المرور غير صحيحة',
                     'auth/invalid-email':         'صيغة البريد الإلكتروني غير صحيحة',
                     'auth/too-many-requests':     'تم إيقاف الحساب مؤقتاً بسبب محاولات متعددة',
-                    'auth/invalid-credential':    'البريد الإلكتروني أو كلمة المرور غير صحيحة',
                     'auth/network-request-failed':'تعذّر الاتصال — تحقق من الإنترنت',
                 };
                 showLoginError(errorMap[err.code] || ('خطأ: ' + err.message));
@@ -20587,15 +20694,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             </div>
                             ${program.message ? `<div class="glass-panel p-3.5 rounded-lg col-span-2">
                                 <p class="text-[10px] text-gray-400 mb-1">الرسالة</p>
-                                <p class="text-sm text-gray-700">${program.message}</p>
+                                <div class="text-sm text-gray-700 rich-content">${htmlizeStoredText(program.message)}</div>
                             </div>` : ''}
                             ${program.vision ? `<div class="glass-panel p-3.5 rounded-lg col-span-2">
                                 <p class="text-[10px] text-gray-400 mb-1">الرؤية</p>
-                                <p class="text-sm text-gray-700">${program.vision}</p>
+                                <div class="text-sm text-gray-700 rich-content">${htmlizeStoredText(program.vision)}</div>
                             </div>` : ''}
                             ${program.goal ? `<div class="glass-panel p-3.5 rounded-lg col-span-2">
                                 <p class="text-[10px] text-gray-400 mb-1">الهدف العام</p>
-                                <p class="text-sm text-gray-700">${program.goal}</p>
+                                <div class="text-sm text-gray-700 rich-content">${htmlizeStoredText(program.goal)}</div>
                             </div>` : ''}
                         </div>
                         <!-- QR Code سريع للبرنامج -->
@@ -20750,6 +20857,45 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         let modalMode = 'add'; // 'add' | 'edit'
         let modalActiveKey = null;
 
+        // ===== أدوات المحرر المبسّط (Rich Text) لحقول الرسالة/الرؤية/الهدف =====
+        // تنفيذ أمر تنسيق (عريض / تعداد نقطي / ترقيم / إزالة تنسيق) على المحرر المحدد
+        function richExec(cmd, editorId) {
+            const editor = document.getElementById(editorId);
+            if (!editor) return;
+            editor.focus();
+            try { document.execCommand(cmd, false, null); } catch (e) { /* تجاهل عدم دعم الأمر */ }
+        }
+
+        // قراءة محتوى محرر Rich Text كـ HTML نظيف (يُعيد '' إذا كان فارغاً فعلياً)
+        function getRichValue(editorId) {
+            const editor = document.getElementById(editorId);
+            if (!editor) return '';
+            const html = editor.innerHTML.trim();
+            // اعتبار المحرر فارغاً إذا كان يحوي فقط وسوم فارغة (<br>, <div></div>, ...)
+            const plain = editor.textContent.replace(/\u200B/g, '').trim();
+            return plain ? html : '';
+        }
+
+        // تعبئة محرر Rich Text بمحتوى (HTML جديد أو نص قديم بأسطر عادية)
+        function setRichValue(editorId, value) {
+            const editor = document.getElementById(editorId);
+            if (!editor) return;
+            editor.innerHTML = htmlizeStoredText(value);
+        }
+
+        // تحويل نص مخزَّن (قديم كنص عادي بأسطر جديدة، أو جديد يحتوي وسوم HTML بالفعل) إلى HTML قابل للعرض
+        function htmlizeStoredText(text) {
+            if (!text) return '';
+            // إن كان يحتوي على وسم HTML فعلي، اعرضه كما هو (تم إنشاؤه عبر المحرر الجديد)
+            if (/<\/?[a-z][\s\S]*>/i.test(text)) return text;
+            // نص قديم عادي مخزّن قبل إضافة المحرر: نهرب الرموز الخاصة ونحوّل الأسطر الجديدة إلى فواصل أسطر
+            const esc = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            return esc.replace(/\r\n|\r|\n/g, '<br>');
+        }
+
         // تعبئة قائمة الفئات في القائمة المنسدلة
         function populateCategoryOptions() {
             programCategorySelect.innerHTML = '<option value="" disabled selected>اختر الفئة</option>' +
@@ -20805,9 +20951,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 programNameEnInput.value = program.titleEn || '';
                 programCategorySelect.value = program.category || '';
                 programCodeInput.value = program.code || '';
-                programMessageInput.value = program.message || '';
-                programVisionInput.value = program.vision || '';
-                programGoalInput.value = program.goal || '';
+                setRichValue('programMessageInput', program.message || '');
+                setRichValue('programVisionInput', program.vision || '');
+                setRichValue('programGoalInput', program.goal || '');
             } else {
                 modalMode = 'add';
                 modalActiveKey = null;
@@ -20816,9 +20962,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 programNameEnInput.value = '';
                 programCategorySelect.value = '';
                 programCodeInput.value = '';
-                programMessageInput.value = '';
-                programVisionInput.value = '';
-                programGoalInput.value = '';
+                setRichValue('programMessageInput', '');
+                setRichValue('programVisionInput', '');
+                setRichValue('programGoalInput', '');
             }
 
             programModal.classList.remove('hidden');
@@ -20845,9 +20991,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 titleEn: titleEn,
                 category: category,
                 code: code,
-                message: programMessageInput.value.trim(),
-                vision: programVisionInput.value.trim(),
-                goal: programGoalInput.value.trim()
+                message: getRichValue('programMessageInput'),
+                vision: getRichValue('programVisionInput'),
+                goal: getRichValue('programGoalInput')
             };
 
             if (modalMode === 'edit' && modalActiveKey) {
@@ -22806,7 +22952,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
         // ── إنشاء حساب Firebase Auth للمتدرب ──
         async function createTraineeAuthAccount(traineeId) {
-            if (!hasPermission('editTrainee')) { permissionDenied('إنشاء حساب دخول'); return; }
+            if (!hasPermission('editTrainee') && !hasPermission('addTrainee')) { permissionDenied('إنشاء حساب دخول'); return; }
 
             const trainee = registryTrainees.find(t => t.id === traineeId);
             if (!trainee) { console.error('[TraineeAuth] trainee not found:', traineeId); return; }
@@ -23043,7 +23189,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // إنشاء حساب Firebase Auth للمدرب
         // ══════════════════════════════════════════════
         async function createTrainerAuthAccount(trainerId) {
-            if (!hasPermission('editTrainer')) { permissionDenied('إنشاء حساب دخول'); return; }
+            if (!hasPermission('editTrainer') && !hasPermission('addTrainer')) { permissionDenied('إنشاء حساب دخول'); return; }
 
             const trainer = registryTrainers.find(t => t.id === trainerId);
             if (!trainer) { console.error('[TrainerAuth] trainer not found:', trainerId); return; }
@@ -23407,6 +23553,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         showTraineeDetail(newId);
                         showToast('✅ تم إضافة المتدرب بنجاح', 'success');
                     }
+
+                    // ── إنشاء حساب دخول تلقائياً وإرسال بريد إعادة تعيين كلمة المرور إلى بريد المتدرب ──
+                    createTraineeAuthAccount(newId);
                 } catch (e) {
                     console.error(e);
                     showToast('❌ فشل الحفظ في Firebase', 'error');
@@ -24024,6 +24173,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         if (lbl) lbl.textContent = `${registryTrainers.length} مدرب مسجل`;
                         showToast('✅ تم إضافة المدرب بنجاح', 'success');
                     }
+
+                    // ── إنشاء حساب دخول تلقائياً وإرسال بريد إعادة تعيين كلمة المرور إلى بريد المدرب ──
+                    createTrainerAuthAccount(newId);
                 } catch (e) {
                     console.error(e);
                     showToast('❌ فشل الحفظ في Firebase', 'error');
