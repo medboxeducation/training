@@ -20090,6 +20090,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 card.onclick = () => {
                     emsCurrentCourseKey = courseKey;
                     emsShowExamViewer(programKey, courseKey, _emsSidebarExamsCurrent[idx]);
+                    if (window.innerWidth < 768) closeSidebar();
                 };
                 card.innerHTML = `
                     <!-- صف النوع + اسم المقرر + أزرار -->
@@ -20248,6 +20249,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     emsCurrentProgramKey = programKey;
                     emsCurrentCourseKey  = courseKey;
                     emsShowExamViewer(programKey, courseKey, _emsSidebarProgramExamsCurrent[idx].exam);
+                    if (window.innerWidth < 768) closeSidebar();
                 };
                 card.innerHTML = `
                     <!-- صف النوع + اسم المقرر + أزرار -->
@@ -23207,6 +23209,22 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-graduation-cap text-primary text-xs"></i> الشهادة الجامعية</p>
                             <p class="font-semibold text-sm text-gray-700">${trainee.degree || '—'}</p>
                         </div>
+                        <div class="glass-panel rounded-xl p-3">
+                            <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-cake text-primary text-xs"></i> تاريخ الميلاد</p>
+                            <p class="font-semibold text-sm text-gray-800">${trainee.dob ? new Date(trainee.dob).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</p>
+                        </div>
+                        <div class="glass-panel rounded-xl p-3">
+                            <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-identification-card text-primary text-xs"></i> الرقم الوطني</p>
+                            <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${trainee.nationalId || '—'}</p>
+                        </div>
+                        <div class="glass-panel rounded-xl p-3">
+                            <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-person-simple text-primary text-xs"></i> اسم الأم</p>
+                            <p class="font-semibold text-sm text-gray-700">${trainee.motherName || '—'}</p>
+                        </div>
+                        <div class="glass-panel rounded-xl p-3">
+                            <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-map-pin text-primary text-xs"></i> العنوان</p>
+                            <p class="font-semibold text-sm text-gray-700">${trainee.address || '—'}</p>
+                        </div>
                     </div>
                     <!-- بطاقة الدورات المسجل بها (تتحدث تلقائياً) -->
                     <div class="glass-panel rounded-xl p-4 mb-3">
@@ -23390,6 +23408,81 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     'permission-denied':            'صلاحيات Firestore غير كافية — تحقق من Rules',
                 };
                 showToast('❌ ' + (errMap[err.code] || `${err.code}: ${err.message}`), 'error');
+            }
+        }
+
+        // ── إعادة إنشاء حساب Firebase Auth للمتدرب عند تغيّر بريده الإلكتروني ──
+        // ملاحظة: Firebase Auth (من طرف العميل) لا يسمح بتحديث بريد حساب مستخدم آخر مباشرة،
+        // لذا يتم إنشاء حساب جديد بالبريد الجديد وربطه بسجل المتدرب (authUid الجديد يحل محل القديم).
+        // الحساب القديم يبقى موجوداً في Firebase Auth لكن دون أي ربط به بعد الآن.
+        async function recreateTraineeAuthAccount(traineeId, oldAuthUid) {
+            const trainee = registryTrainees.find(t => t.id === traineeId);
+            if (!trainee || !trainee.email || !trainee.email.trim()) return;
+
+            showToast('⏳ جارٍ تحديث حساب الدخول بالبريد الجديد...', 'info');
+
+            let secondaryApp = null;
+            try {
+                const staleApps = firebase.apps.filter(a => a.name.startsWith('tc_'));
+                for (const a of staleApps) { try { await a.delete(); } catch(_) {} }
+
+                const appName = 'tc_' + Date.now();
+                secondaryApp = firebase.initializeApp(firebase.app().options, appName);
+                const secondaryAuth = secondaryApp.auth();
+
+                const rand = () => Math.random().toString(36).slice(2);
+                const tempPass = 'Ax!' + rand() + rand() + '#9';
+
+                console.log('[TraineeAuth] Recreating account with new email:', trainee.email.trim());
+                const cred = await secondaryAuth.createUserWithEmailAndPassword(trainee.email.trim(), tempPass);
+                const newUid = cred.user.uid;
+                console.log('[TraineeAuth] New account created, uid:', newUid);
+
+                await secondaryAuth.sendPasswordResetEmail(trainee.email.trim());
+                await secondaryAuth.signOut();
+                await secondaryApp.delete();
+                secondaryApp = null;
+
+                await db.collection('users').doc(newUid).set({
+                    role:      'trainee',
+                    traineeId: traineeId,
+                    email:     trainee.email.trim(),
+                    name:      trainee.nameAr || '',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await db.collection('registry_trainees').doc(traineeId).update({
+                    authUid: newUid,
+                    hasAuth: true
+                });
+
+                const idx = registryTrainees.findIndex(t => t.id === traineeId);
+                if (idx !== -1) {
+                    registryTrainees[idx].authUid = newUid;
+                    registryTrainees[idx].hasAuth = true;
+                }
+
+                // تنظيف اختياري: حذف مستند المستخدم القديم من Firestore (Auth القديم يبقى، فقط غير مرتبط)
+                if (oldAuthUid) {
+                    db.collection('users').doc(oldAuthUid).delete().catch(() => {});
+                }
+
+                showToast(`✅ تم تحديث حساب الدخول وإرسال رابط إعادة تعيين كلمة المرور إلى ${trainee.email}`, 'success');
+                showTraineeDetail(traineeId);
+                logActivity('edit', 'trainee', trainee.nameAr, traineeId, `تم تحديث بريد حساب الدخول (${trainee.email})`);
+
+            } catch (err) {
+                console.error('[TraineeAuth] recreate ERROR:', err.code, err.message);
+                if (secondaryApp) { try { await secondaryApp.delete(); } catch(_) {} }
+                const errMap = {
+                    'auth/email-already-in-use':   'هذا البريد مسجَّل مسبقاً في Firebase Auth',
+                    'auth/invalid-email':          'صيغة البريد الإلكتروني غير صحيحة',
+                    'auth/weak-password':          'كلمة المرور ضعيفة — حاول مرة أخرى',
+                    'auth/network-request-failed': 'تعذَّر الاتصال بالإنترنت',
+                    'auth/operation-not-allowed':  'تسجيل البريد الإلكتروني غير مفعَّل في Firebase Console',
+                    'auth/too-many-requests':      'طلبات كثيرة — انتظر قليلاً وحاول مرة أخرى',
+                };
+                showToast('❌ فشل تحديث حساب الدخول: ' + (errMap[err.code] || `${err.code}: ${err.message}`), 'error');
             }
         }
 
@@ -23596,6 +23689,78 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }
         }
 
+        // ── إعادة إنشاء حساب Firebase Auth للمدرب عند تغيّر بريده الإلكتروني ──
+        // (نفس منطق recreateTraineeAuthAccount — راجع الملاحظة هناك)
+        async function recreateTrainerAuthAccount(trainerId, oldAuthUid) {
+            const trainer = registryTrainers.find(t => t.id === trainerId);
+            if (!trainer || !trainer.email || !trainer.email.trim()) return;
+
+            showToast('⏳ جارٍ تحديث حساب الدخول بالبريد الجديد...', 'info');
+
+            let secondaryApp = null;
+            try {
+                const staleApps = firebase.apps.filter(a => a.name.startsWith('tc_'));
+                for (const a of staleApps) { try { await a.delete(); } catch(_) {} }
+
+                const appName = 'tc_' + Date.now();
+                secondaryApp = firebase.initializeApp(firebase.app().options, appName);
+                const secondaryAuth = secondaryApp.auth();
+
+                const rand = () => Math.random().toString(36).slice(2);
+                const tempPass = 'Ax!' + rand() + rand() + '#9';
+
+                console.log('[TrainerAuth] Recreating account with new email:', trainer.email.trim());
+                const cred = await secondaryAuth.createUserWithEmailAndPassword(trainer.email.trim(), tempPass);
+                const newUid = cred.user.uid;
+                console.log('[TrainerAuth] New account created, uid:', newUid);
+
+                await secondaryAuth.sendPasswordResetEmail(trainer.email.trim());
+                await secondaryAuth.signOut();
+                await secondaryApp.delete();
+                secondaryApp = null;
+
+                await db.collection('users').doc(newUid).set({
+                    role:      'trainer',
+                    trainerId: trainerId,
+                    email:     trainer.email.trim(),
+                    name:      trainer.nameAr || '',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await db.collection('registry_trainers').doc(trainerId).update({
+                    authUid: newUid,
+                    hasAuth: true
+                });
+
+                const idx = registryTrainers.findIndex(t => t.id === trainerId);
+                if (idx !== -1) {
+                    registryTrainers[idx].authUid = newUid;
+                    registryTrainers[idx].hasAuth = true;
+                }
+
+                if (oldAuthUid) {
+                    db.collection('users').doc(oldAuthUid).delete().catch(() => {});
+                }
+
+                showToast(`✅ تم تحديث حساب الدخول وإرسال رابط إعادة تعيين كلمة المرور إلى ${trainer.email}`, 'success');
+                showTrainerDetail(trainerId);
+                logActivity('edit', 'trainer', trainer.nameAr, trainerId, `تم تحديث بريد حساب الدخول (${trainer.email})`);
+
+            } catch (err) {
+                console.error('[TrainerAuth] recreate ERROR:', err.code, err.message);
+                if (secondaryApp) { try { await secondaryApp.delete(); } catch(_) {} }
+                const errMap = {
+                    'auth/email-already-in-use':   'هذا البريد مسجَّل مسبقاً في Firebase Auth',
+                    'auth/invalid-email':          'صيغة البريد الإلكتروني غير صحيحة',
+                    'auth/weak-password':          'كلمة المرور ضعيفة — حاول مرة أخرى',
+                    'auth/network-request-failed': 'تعذَّر الاتصال بالإنترنت',
+                    'auth/operation-not-allowed':  'تسجيل البريد الإلكتروني غير مفعَّل في Firebase Console',
+                    'auth/too-many-requests':      'طلبات كثيرة — انتظر قليلاً وحاول مرة أخرى',
+                };
+                showToast('❌ فشل تحديث حساب الدخول: ' + (errMap[err.code] || `${err.code}: ${err.message}`), 'error');
+            }
+        }
+
         function shareTrainerAccountWhatsApp(trainerId) {
             const trainer = registryTrainers.find(t => t.id === trainerId);
             if (!trainer) return;
@@ -23693,6 +23858,31 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <input id="rtCode" type="text" dir="ltr" readonly value="${isEdit ? editData.code : ''}"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm bg-gray-50/60 text-primary font-mono font-bold text-left focus:outline-none"
                                 placeholder="سيُولَّد تلقائياً">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم الأم</label>
+                                <input id="rtMotherName" type="text" value="${isEdit ? (editData.motherName||'') : ''}"
+                                    class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                    placeholder="مثال: فاطمة أحمد">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">تاريخ الميلاد</label>
+                                <input id="rtDob" type="date" value="${isEdit ? (editData.dob||'') : ''}"
+                                    class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">الرقم الوطني</label>
+                            <input id="rtNationalId" type="text" dir="ltr" value="${isEdit ? (editData.nationalId||'') : ''}"
+                                class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-left"
+                                placeholder="رقم الهوية / الرقم الوطني">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">العنوان</label>
+                            <input id="rtAddress" type="text" value="${isEdit ? (editData.address||'') : ''}"
+                                class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                placeholder="مثال: عمّان — الجبيهة">
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">رقم الهاتف <span class="text-red-500">*</span></label>
@@ -23806,6 +23996,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const nameAr    = document.getElementById('rtNameAr')?.value.trim() || '';
             const nameEn    = document.getElementById('rtNameEn')?.value.trim() || '';
             const code      = document.getElementById('rtCode')?.value.trim() || '';
+            const motherName = document.getElementById('rtMotherName')?.value.trim() || '';
+            const dob        = document.getElementById('rtDob')?.value || '';
+            const nationalId = document.getElementById('rtNationalId')?.value.trim() || '';
+            const address    = document.getElementById('rtAddress')?.value.trim() || '';
             const phone     = document.getElementById('rtPhone')?.value.trim() || '';
             const whatsappCode = document.getElementById('rtWhatsappCode')?.value || '+966';
             const whatsapp  = document.getElementById('rtWhatsapp')?.value.trim() || '';
@@ -23833,9 +24027,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
             errEl.classList.add('hidden');
 
-            const traineeData = { nameAr, nameEn, code, phone, whatsappCode, whatsapp, telegram, email, registrationDate: regDate, degree, otherCerts, experience, interests };
+            const traineeData = { nameAr, nameEn, code, motherName, dob, nationalId, address, phone, whatsappCode, whatsapp, telegram, email, registrationDate: regDate, degree, otherCerts, experience, interests };
 
             if (traineeModalEditId) {
+                // ── نحفظ البريد و authUid القديمين قبل التحديث، لاكتشاف تغيّر البريد لاحقاً ──
+                const existingIdx  = registryTrainees.findIndex(t => t.id === traineeModalEditId);
+                const prevEmail    = existingIdx !== -1 ? (registryTrainees[existingIdx].email || '') : '';
+                const prevAuthUid  = existingIdx !== -1 ? registryTrainees[existingIdx].authUid : null;
+
                 closeRegistryTraineeModal();
                 showToast('⏳ جاري الحفظ...', 'info');
                 try {
@@ -23848,6 +24047,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     showTraineeDetail(traineeModalEditId);
                     showToast('✅ تم تحديث بيانات المتدرب', 'success');
                     logActivity('edit', 'trainee', nameAr, traineeModalEditId, 'تعديل بيانات في سجل المتدربين');
+
+                    // ── إذا تغيّر البريد الإلكتروني ولدى المتدرب حساب دخول قائم: أعد إنشاء حساب Auth بالبريد الجديد ──
+                    if (prevAuthUid && email && prevEmail.trim().toLowerCase() !== email.trim().toLowerCase()) {
+                        recreateTraineeAuthAccount(traineeModalEditId, prevAuthUid);
+                    }
                 } catch (e) {
                     console.error(e);
                     showToast('❌ فشل الحفظ في Firebase', 'error');
@@ -24450,6 +24654,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const trainerData = { nameAr, nameEn, code, phone, whatsappCode, whatsapp, telegram, email, registrationDate: regDate, degree, otherCerts, experience, interests, certImages, cvFiles };
 
             if (trainerModalEditId) {
+                // ── نحفظ البريد و authUid القديمين قبل التحديث، لاكتشاف تغيّر البريد لاحقاً ──
+                const existingIdx  = registryTrainers.findIndex(t => t.id === trainerModalEditId);
+                const prevEmail    = existingIdx !== -1 ? (registryTrainers[existingIdx].email || '') : '';
+                const prevAuthUid  = existingIdx !== -1 ? registryTrainers[existingIdx].authUid : null;
+
                 closeRegistryTrainerModal();
                 showToast('⏳ جاري الحفظ...', 'info');
                 try {
@@ -24464,6 +24673,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     if (lbl) lbl.textContent = `${registryTrainers.length} مدرب مسجل`;
                     showToast('✅ تم تحديث بيانات المدرب', 'success');
                     logActivity('edit', 'trainer', nameAr, trainerModalEditId, 'تعديل بيانات في سجل المدربين');
+
+                    // ── إذا تغيّر البريد الإلكتروني ولدى المدرب حساب دخول قائم: أعد إنشاء حساب Auth بالبريد الجديد ──
+                    if (prevAuthUid && email && prevEmail.trim().toLowerCase() !== email.trim().toLowerCase()) {
+                        recreateTrainerAuthAccount(trainerModalEditId, prevAuthUid);
+                    }
                 } catch (e) {
                     console.error(e);
                     showToast('❌ فشل الحفظ في Firebase', 'error');
