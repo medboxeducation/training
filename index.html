@@ -11143,6 +11143,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                         <div class="flex flex-col items-end leading-tight">
                             <span id="navUserName" class="max-w-[100px] md:max-w-[120px] truncate">—</span>
                             <span id="navUserRole" class="text-[9px] md:text-[10px] font-normal text-gray-400 leading-none"></span>
+                            <span class="flex items-center gap-1 mt-0.5" title="حالة الاتصال بالإنترنت">
+                                <span id="navConnectionDot" class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                                <span id="navConnectionText" class="text-[9px] md:text-[10px] font-semibold leading-none text-gray-400">—</span>
+                                <span id="navConnectionPending" class="text-[9px] md:text-[10px] font-normal leading-none text-amber-500"></span>
+                            </span>
                         </div>
                         <i class="ph ph-user-circle text-primary text-base md:text-lg"></i>
                         <i class="ph ph-caret-down text-[10px] text-gray-400 hidden md:inline"></i>
@@ -14705,6 +14710,183 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             setTimeout(() => toast.remove(), 3500);
         }
         window.showToast = showToast; // تصدير للـ scripts الأخرى
+
+        // ======================================================================
+        // ======== نظام العمل بدون اتصال (Offline-first write queue) ========
+        // عند فقدان الاتصال بالإنترنت أثناء إضافة/تعديل بيانات (برامج، دورات...)،
+        // تُحفظ العملية في localStorage بدل أن تفشل، مع إشعار فوري للمستخدم،
+        // ثم تُرفع تلقائياً إلى Firestore بمجرد عودة الاتصال مع إشعار بذلك.
+        // البيانات نفسها تبقى محدَّثة فوراً في الواجهة (تحديث تفاؤلي) بصرف النظر
+        // عن حالة الاتصال، فتجربة المستخدم لا تتغير سوى بظهور الإشعارين.
+        // ======================================================================
+        const OFFLINE_QUEUE_KEY = 'medbox_offline_write_queue';
+        let isAppOnline = navigator.onLine;
+
+        function _getOfflineQueue() {
+            try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]'); }
+            catch(e) { return []; }
+        }
+        function _setOfflineQueue(q) {
+            try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q)); } catch(e) {}
+            _updateOfflinePendingBadge();
+        }
+        function _offlineQueuePush(item) {
+            const q = _getOfflineQueue();
+            q.push(item);
+            _setOfflineQueue(q);
+        }
+
+        // Firestore FieldValue (serverTimestamp/arrayUnion...) لا يمكن تخزينها في
+        // localStorage كـ JSON، فنستبدلها بقيمة عادية صالحة وقت عدم الاتصال
+        function _offlineSanitizeData(data) {
+            const out = {};
+            Object.keys(data || {}).forEach(k => {
+                const v = data[k];
+                out[k] = (v && typeof v === 'object' && typeof v._methodName === 'string')
+                    ? new Date().toISOString()
+                    : v;
+            });
+            return out;
+        }
+
+        // path: مصفوفة أزواج [collection, docId, subCollection, subDocId, ...]
+        function _buildFsDocRef(path) {
+            let ref = db.collection(path[0]).doc(path[1]);
+            for (let i = 2; i < path.length; i += 2) ref = ref.collection(path[i]).doc(path[i + 1]);
+            return ref;
+        }
+        // path لعملية "add": ينتهي دائماً باسم مجموعة بدون معرّف مستند، مثل
+        // ['registry_trainees'] أو ['programs', pk, 'courses']
+        function _buildFsCollRef(path) {
+            let ref = db.collection(path[0]);
+            for (let i = 1; i < path.length; i += 2) ref = ref.doc(path[i]).collection(path[i + 1]);
+            return ref;
+        }
+
+        // نقطة الدخول الموحّدة لأي عملية حفظ قد تتأثر بانقطاع الإنترنت.
+        // تحاول الحفظ مباشرة إن كان الاتصال متوفراً، وإلا (أو إن فشلت المحاولة
+        // لسبب شبكي) تُخزَّن العملية محلياً لتُرفع تلقائياً لاحقاً.
+        // method: 'set' | 'update' | 'delete' | 'add'
+        // - 'add': path ينتهي بمجموعة بدون معرّف (مستند جديد بمعرّف تلقائي).
+        //   عند عدم توفر الاتصال، يُولَّد معرّف محلي مؤقت وتُخزَّن العملية كـ
+        //   "set" بهذا المعرّف، بحيث يُنشأ المستند لاحقاً بنفس المعرّف تماماً.
+        async function offlineAwareWrite(path, method, data, options = {}) {
+            const { setOptions = {}, label = '', activity = null, successMsg = null, successType = 'success', localIdPrefix = 'local', silentOnlineSuccess = false } = options;
+
+            if (method === 'add') {
+                if (isAppOnline && db) {
+                    try {
+                        const colRef = _buildFsCollRef(path);
+                        const docRef = await colRef.add(data);
+                        if (activity) logActivity(activity.action, activity.type, activity.name, activity.id || docRef.id, activity.details);
+                        if (!silentOnlineSuccess) showToast(successMsg || '✅ تم الحفظ في Firestore', successType);
+                        return { queued: false, ok: true, id: docRef.id };
+                    } catch (err) {
+                        console.warn('offlineAwareWrite(add): فشلت المحاولة المباشرة، سيتم الحفظ محلياً:', err);
+                    }
+                }
+                const localId = `${localIdPrefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                _offlineQueuePush({
+                    id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                    path: [...path, localId], method: 'set', setOptions,
+                    data: _offlineSanitizeData(data),
+                    label, activity: activity ? { ...activity, id: activity.id || localId } : null,
+                    successMsg: successMsg || '✅ تم رفع التعديلات المحفوظة محلياً',
+                    queuedAt: new Date().toISOString()
+                });
+                showToast('📴 لا يوجد اتصال بالإنترنت — تم الحفظ محلياً' + (label ? ` (${label})` : '') + '، وسيتم رفعه تلقائياً عند عودة الاتصال', 'info');
+                return { queued: true, ok: true, id: localId };
+            }
+
+            if (isAppOnline && db) {
+                try {
+                    const ref = _buildFsDocRef(path);
+                    if (method === 'set') await ref.set(data, setOptions);
+                    else if (method === 'update') await ref.update(data);
+                    else if (method === 'delete') await ref.delete();
+                    if (activity) logActivity(activity.action, activity.type, activity.name, activity.id, activity.details);
+                    if (!silentOnlineSuccess) showToast(successMsg || '✅ تم الحفظ في Firestore', successType);
+                    return { queued: false, ok: true };
+                } catch (err) {
+                    console.warn('offlineAwareWrite: فشلت المحاولة المباشرة، سيتم الحفظ محلياً:', err);
+                }
+            }
+
+            _offlineQueuePush({
+                id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                path, method, setOptions,
+                data: method === 'delete' ? null : _offlineSanitizeData(data),
+                label,
+                activity,
+                successMsg: successMsg || '✅ تم رفع التعديلات المحفوظة محلياً',
+                queuedAt: new Date().toISOString()
+            });
+            showToast('📴 لا يوجد اتصال بالإنترنت — تم الحفظ محلياً' + (label ? ` (${label})` : '') + '، وسيتم رفعه تلقائياً عند عودة الاتصال', 'info');
+            return { queued: true, ok: true };
+        }
+
+        // رفع كل العمليات المحفوظة محلياً بمجرد توفر الاتصال وقاعدة البيانات
+        let _offlineSyncInProgress = false;
+        async function _processOfflineQueue() {
+            if (_offlineSyncInProgress || !db || !navigator.onLine) return;
+            const queue = _getOfflineQueue();
+            if (queue.length === 0) return;
+            _offlineSyncInProgress = true;
+
+            let successCount = 0;
+            const remaining = [];
+            for (const item of queue) {
+                try {
+                    const ref = _buildFsDocRef(item.path);
+                    if (item.method === 'set') await ref.set(item.data, item.setOptions || {});
+                    else if (item.method === 'update') await ref.update(item.data);
+                    else if (item.method === 'delete') await ref.delete();
+                    if (item.activity) logActivity(item.activity.action, item.activity.type, item.activity.name, item.activity.id, item.activity.details);
+                    successCount++;
+                } catch (err) {
+                    console.warn('offline queue: فشل رفع عنصر، ستُعاد المحاولة لاحقاً:', err);
+                    remaining.push(item);
+                }
+            }
+            _setOfflineQueue(remaining);
+            _offlineSyncInProgress = false;
+
+            if (successCount > 0) {
+                showToast(`✅ تم رفع ${successCount} من التعديلات المحفوظة محلياً بعد عودة الاتصال بنجاح`, 'success');
+            }
+        }
+
+        // ── مؤشر متصل/غير متصل تحت اسم المستخدم في شريط التنقل العلوي ──
+        function _updateOfflinePendingBadge() {
+            const countEl = document.getElementById('navConnectionPending');
+            if (!countEl) return;
+            const n = _getOfflineQueue().length;
+            countEl.textContent = n > 0 ? ` (${n} بالانتظار)` : '';
+        }
+        function _updateOnlineStatusUI() {
+            isAppOnline = navigator.onLine;
+            const dot  = document.getElementById('navConnectionDot');
+            const text = document.getElementById('navConnectionText');
+            if (dot)  dot.className  = 'w-1.5 h-1.5 rounded-full ' + (isAppOnline ? 'bg-emerald-500' : 'bg-red-500');
+            if (text) {
+                text.textContent = isAppOnline ? 'متصل' : 'غير متصل';
+                text.className = isAppOnline ? 'text-emerald-600' : 'text-red-500';
+            }
+            _updateOfflinePendingBadge();
+        }
+        window.addEventListener('online', () => {
+            _updateOnlineStatusUI();
+            showToast('🌐 عاد الاتصال بالإنترنت — جاري رفع أي تعديلات محفوظة محلياً...', 'info');
+            _processOfflineQueue();
+        });
+        window.addEventListener('offline', () => {
+            _updateOnlineStatusUI();
+            showToast('📴 انقطع الاتصال بالإنترنت — ستُحفظ أي تعديلات محلياً حتى تعود', 'error');
+        });
+        document.addEventListener('DOMContentLoaded', () => {
+            _updateOnlineStatusUI();
+            if (navigator.onLine) _processOfflineQueue();
+        });
 
         // ======== إعدادات Firebase الافتراضية المضمّنة داخل الكود ========
         // هذه هي بيانات الاتصال الأساسية لمشروع Firebase الخاص بالتطبيق، وهي مُضمّنة
@@ -19411,14 +19593,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
             // حفظ في Firestore (attendance فقط — الحالة الموحّدة مخزّنة فيه)
             if (db) {
-                db.collection('programs').doc(programKey).collection('courses').doc(courseKey)
-                  .update({ attendance: course.attendance })
-                  .then(() => {
-                      const traineeName = (course.traineesList && course.traineesList[traineeIndex]) || `متدرب #${traineeIndex}`;
-                      const statusLabel = (unifiedCellConfig(next).title || '').split('|')[0].trim() || 'بدون تسجيل';
-                      logActivity('edit', 'attendance', traineeName, null, `تحديث الحضور/المشاركة (جلسة ${parseInt(sessionIndex)+1}: ${statusLabel}) — دورة: ${course.code || courseKey}`);
-                  })
-                  .catch(err => console.error('toggleUnifiedCell error:', err));
+                const traineeName = (course.traineesList && course.traineesList[traineeIndex]) || `متدرب #${traineeIndex}`;
+                const statusLabel = (unifiedCellConfig(next).title || '').split('|')[0].trim() || 'بدون تسجيل';
+                offlineAwareWrite(
+                    ['programs', programKey, 'courses', courseKey], 'update', { attendance: course.attendance },
+                    {
+                        label: `حضور: ${traineeName}`,
+                        silentOnlineSuccess: true,
+                        activity: { action: 'edit', type: 'attendance', name: traineeName, id: null, details: `تحديث الحضور/المشاركة (جلسة ${parseInt(sessionIndex)+1}: ${statusLabel}) — دورة: ${course.code || courseKey}` }
+                    }
+                );
             }
         }
 
@@ -19786,19 +19970,22 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
             // حفظ في Firestore
             if (db) {
-                try {
-                    const program = programsData[programKey];
-                    const course  = program && program.courses ? program.courses.find(c => c.key === courseKey) : null;
-                    if (!course) return;
-                    if (!course.grades) course.grades = {};
-                    if (!course.grades[String(tIndex)]) course.grades[String(tIndex)] = {};
-                    if (!course.grades[String(tIndex)][typeKey]) course.grades[String(tIndex)][typeKey] = [];
-                    course.grades[String(tIndex)][typeKey][itemIndex] = parseFloat(value) || 0;
-                    await db.collection('programs').doc(programKey).collection('courses').doc(courseKey)
-                        .update({ grades: course.grades });
-                } catch(err) {
-                    console.error('saveTraineeGrade error:', err);
-                }
+                const program = programsData[programKey];
+                const course  = program && program.courses ? program.courses.find(c => c.key === courseKey) : null;
+                if (!course) return;
+                if (!course.grades) course.grades = {};
+                if (!course.grades[String(tIndex)]) course.grades[String(tIndex)] = {};
+                if (!course.grades[String(tIndex)][typeKey]) course.grades[String(tIndex)][typeKey] = [];
+                course.grades[String(tIndex)][typeKey][itemIndex] = parseFloat(value) || 0;
+                const traineeName = (course.traineesList && course.traineesList[tIndex]) || `متدرب #${tIndex}`;
+                await offlineAwareWrite(
+                    ['programs', programKey, 'courses', courseKey], 'update', { grades: course.grades },
+                    {
+                        label: `درجة: ${traineeName}`,
+                        silentOnlineSuccess: true,
+                        activity: { action: 'edit', type: 'examResult', name: traineeName, id: null, details: `تعديل درجة (${typeKey}) — دورة: ${course.code || courseKey}` }
+                    }
+                );
             }
         }
 
@@ -20662,14 +20849,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             clearTimeout(window._gradeSaveTimer);
             window._gradeSaveTimer = setTimeout(async () => {
                 if (db) {
-                    try {
-                        await db.collection('programs').doc(programKey).collection('courses').doc(courseKey)
-                            .update({ grades: course.grades });
-                        const traineeName = (course.traineesList && course.traineesList[tIndex]) || `متدرب #${tIndex}`;
-                        logActivity('edit', 'examResult', traineeName, null, `تعديل درجة (${typeKey}) — دورة: ${course.code || courseKey}`);
-                    } catch(err) {
-                        console.error('saveTraineeGradeField Firestore error:', err);
-                    }
+                    const traineeName = (course.traineesList && course.traineesList[tIndex]) || `متدرب #${tIndex}`;
+                    await offlineAwareWrite(
+                        ['programs', programKey, 'courses', courseKey], 'update', { grades: course.grades },
+                        {
+                            label: `درجة: ${traineeName}`,
+                            silentOnlineSuccess: true,
+                            activity: { action: 'edit', type: 'examResult', name: traineeName, id: null, details: `تعديل درجة (${typeKey}) — دورة: ${course.code || courseKey}` }
+                        }
+                    );
                 }
             }, 800);
         }
@@ -20690,15 +20878,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }
 
             if (db) {
-                try {
-                    await db.collection('programs').doc(programKey).collection('courses').doc(courseKey)
-                        .update({ grades: course.grades || {} });
-                    showToast('✅ تم حفظ جميع الدرجات بنجاح', 'success');
-                    logActivity('edit', 'examResult', course.code || courseKey, courseKey, `حفظ جميع الدرجات — ضمن البرنامج: ${program.title}`);
-                } catch(err) {
-                    console.error('saveAllGrades error:', err);
-                    showToast('❌ فشل حفظ الدرجات في Firestore', 'error');
-                }
+                await offlineAwareWrite(
+                    ['programs', programKey, 'courses', courseKey], 'update', { grades: course.grades || {} },
+                    {
+                        label: `حفظ كل الدرجات: ${course.code || courseKey}`,
+                        successMsg: '✅ تم حفظ جميع الدرجات بنجاح',
+                        activity: { action: 'edit', type: 'examResult', name: course.code || courseKey, id: courseKey, details: `حفظ جميع الدرجات — ضمن البرنامج: ${program.title}` }
+                    }
+                );
             } else {
                 showToast('✅ تم حفظ الدرجات (وضع دون اتصال)', 'success');
             }
@@ -21366,14 +21553,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 closeProgramModal();
 
                 if (db) {
-                    try {
-                        await db.collection('programs').doc(modalActiveKey).update(data);
-                        showToast('✅ تم حفظ التعديلات', 'success');
-                        logActivity('edit', 'program', titleAr, modalActiveKey);
-                    } catch (err) {
-                        console.error('updateProgram error:', err);
-                        showToast('❌ فشل حفظ التعديلات في Firestore', 'error');
-                    }
+                    await offlineAwareWrite(
+                        ['programs', modalActiveKey], 'update', data,
+                        {
+                            label: `تعديل برنامج: ${titleAr}`,
+                            successMsg: '✅ تم حفظ التعديلات',
+                            activity: { action: 'edit', type: 'program', name: titleAr, id: modalActiveKey }
+                        }
+                    );
                 }
             } else {
                 // ── إضافة برنامج جديد ──
@@ -21388,17 +21575,18 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 closeProgramModal();
 
                 if (db) {
-                    try {
-                        // نحفظ بنفس المعرف المحلي (doc id = newKey)، مع createdAt دقيق من السيرفر
-                        const { courses, createdAt, ...firestoreData } = newProgram;
-                        firestoreData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                        await db.collection('programs').doc(newKey).set(firestoreData);
-                        showToast('✅ تم حفظ البرنامج في Firestore', 'success');
-                        logActivity('add', 'program', titleAr, newKey);
-                    } catch (err) {
-                        console.error('addProgram error:', err);
-                        showToast('❌ فشل حفظ البرنامج في Firestore', 'error');
-                    }
+                    // نحفظ بنفس المعرف المحلي (doc id = newKey)، مع createdAt دقيق من السيرفر
+                    // (يُستبدل تلقائياً بتاريخ محلي إن تم الحفظ بدون اتصال، انظر offlineAwareWrite)
+                    const { courses, createdAt, ...firestoreData } = newProgram;
+                    firestoreData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await offlineAwareWrite(
+                        ['programs', newKey], 'set', firestoreData,
+                        {
+                            label: `إضافة برنامج: ${titleAr}`,
+                            successMsg: '✅ تم حفظ البرنامج في Firestore',
+                            activity: { action: 'add', type: 'program', name: titleAr, id: newKey }
+                        }
+                    );
                 }
             }
 
@@ -21571,15 +21759,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 closeCourseModal();
 
                 if (db) {
-                    try {
-                        await db.collection('programs').doc(courseModalProgramKey)
-                                .collection('courses').doc(courseModalActiveCourseKey).update(data);
-                        showToast('✅ تم حفظ تعديلات الدورة', 'success');
-                        logActivity('edit', 'course', data.code || courseModalActiveCourseKey, courseModalActiveCourseKey, `ضمن البرنامج: ${program.title}`);
-                    } catch (err) {
-                        console.error('updateCourse error:', err);
-                        showToast('❌ فشل حفظ تعديلات الدورة في Firestore', 'error');
-                    }
+                    await offlineAwareWrite(
+                        ['programs', courseModalProgramKey, 'courses', courseModalActiveCourseKey], 'update', data,
+                        {
+                            label: `تعديل دورة: ${data.code || courseModalActiveCourseKey}`,
+                            successMsg: '✅ تم حفظ تعديلات الدورة',
+                            activity: { action: 'edit', type: 'course', name: data.code || courseModalActiveCourseKey, id: courseModalActiveCourseKey, details: `ضمن البرنامج: ${program.title}` }
+                        }
+                    );
                 }
             } else {
                 // ── إضافة دورة جديدة ──
@@ -21597,17 +21784,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 closeCourseModal();
 
                 if (db) {
-                    try {
-                        const { key, createdAt, ...firestoreData } = newCourse;
-                        firestoreData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                        await db.collection('programs').doc(courseModalProgramKey)
-                                .collection('courses').doc(newKey).set(firestoreData);
-                        showToast('✅ تم حفظ الدورة في Firestore', 'success');
-                        logActivity('add', 'course', newCourse.code || newKey, newKey, `ضمن البرنامج: ${program.title}`);
-                    } catch (err) {
-                        console.error('addCourse error:', err);
-                        showToast('❌ فشل حفظ الدورة في Firestore', 'error');
-                    }
+                    const { key, createdAt, ...firestoreData } = newCourse;
+                    firestoreData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await offlineAwareWrite(
+                        ['programs', courseModalProgramKey, 'courses', newKey], 'set', firestoreData,
+                        {
+                            label: `إضافة دورة: ${newCourse.code || newKey}`,
+                            successMsg: '✅ تم حفظ الدورة في Firestore',
+                            activity: { action: 'add', type: 'course', name: newCourse.code || newKey, id: newKey, details: `ضمن البرنامج: ${program.title}` }
+                        }
+                    );
                 }
             }
 
@@ -23851,13 +24037,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const trainee = registryTrainees.find(t => t.id === id);
             if (!trainee) return;
             if (!confirm(`هل أنت متأكد من حذف المتدرب "${trainee.nameAr}"؟`)) return;
-            try {
-                if (db) await db.collection('registry_trainees').doc(id).delete();
-            } catch (e) {
-                console.error(e);
-                showToast('❌ فشل الحذف من Firebase', 'error');
-                return;
-            }
+
             registryTrainees = registryTrainees.filter(t => t.id !== id);
             if (activeTraineeId === id) {
                 activeTraineeId = null;
@@ -23865,8 +24045,20 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 document.getElementById('traineeSelectHint').classList.remove('hidden');
             }
             buildSidebarTrainees();
-            showToast('🗑️ تم حذف المتدرب', 'info');
-            logActivity('delete', 'trainee', trainee.nameAr, id, 'حذف من سجل المتدربين');
+
+            if (db) {
+                await offlineAwareWrite(
+                    ['registry_trainees', id], 'delete', null,
+                    {
+                        label: `حذف متدرب: ${trainee.nameAr}`,
+                        successMsg: '🗑️ تم حذف المتدرب',
+                        successType: 'info',
+                        activity: { action: 'delete', type: 'trainee', name: trainee.nameAr, id, details: 'حذف من سجل المتدربين' }
+                    }
+                );
+            } else {
+                showToast('🗑️ تم حذف المتدرب', 'info');
+            }
         }
 
         // تعديل بيانات متدرب
@@ -24129,57 +24321,64 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
                 closeRegistryTraineeModal();
                 showToast('⏳ جاري الحفظ...', 'info');
-                try {
-                    if (db) {
-                        await db.collection('registry_trainees').doc(traineeModalEditId).update(traineeData);
-                    }
-                    const idx = registryTrainees.findIndex(t => t.id === traineeModalEditId);
-                    if (idx !== -1) Object.assign(registryTrainees[idx], traineeData);
-                    buildSidebarTrainees();
-                    showTraineeDetail(traineeModalEditId);
-                    showToast('✅ تم تحديث بيانات المتدرب', 'success');
-                    logActivity('edit', 'trainee', nameAr, traineeModalEditId, 'تعديل بيانات في سجل المتدربين');
 
-                    // ── إذا تغيّر البريد الإلكتروني ولدى المتدرب حساب دخول قائم: أعد إنشاء حساب Auth بالبريد الجديد ──
-                    if (prevAuthUid && email && prevEmail.trim().toLowerCase() !== email.trim().toLowerCase()) {
-                        recreateTraineeAuthAccount(traineeModalEditId, prevAuthUid);
-                    }
-                } catch (e) {
-                    console.error(e);
-                    showToast('❌ فشل الحفظ في Firebase', 'error');
+                // تحديث محلي فوري بصرف النظر عن حالة الاتصال
+                const idx = registryTrainees.findIndex(t => t.id === traineeModalEditId);
+                if (idx !== -1) Object.assign(registryTrainees[idx], traineeData);
+                buildSidebarTrainees();
+                showTraineeDetail(traineeModalEditId);
+
+                if (db) {
+                    await offlineAwareWrite(
+                        ['registry_trainees', traineeModalEditId], 'update', traineeData,
+                        {
+                            label: `تعديل متدرب: ${nameAr}`,
+                            successMsg: '✅ تم تحديث بيانات المتدرب',
+                            activity: { action: 'edit', type: 'trainee', name: nameAr, id: traineeModalEditId, details: 'تعديل بيانات في سجل المتدربين' }
+                        }
+                    );
+                }
+
+                // ── إذا تغيّر البريد الإلكتروني ولدى المتدرب حساب دخول قائم: أعد إنشاء حساب Auth بالبريد الجديد ──
+                // (تتطلب اتصالاً فعلياً وقت التنفيذ، لذا لا تدخل ضمن طابور الحفظ دون اتصال)
+                if (isAppOnline && prevAuthUid && email && prevEmail.trim().toLowerCase() !== email.trim().toLowerCase()) {
+                    recreateTraineeAuthAccount(traineeModalEditId, prevAuthUid);
                 }
             } else {
                 traineeCodeCounter++;
                 const courseCtx = pendingCourseTraineeContext;
                 closeRegistryTraineeModal();
                 showToast('⏳ جاري الحفظ...', 'info');
-                try {
-                    let newId;
-                    if (db) {
-                        const docRef = await db.collection('registry_trainees').add(traineeData);
-                        newId = docRef.id;
-                    } else {
-                        newId = 'tr_' + Date.now();
-                    }
-                    const newTrainee = { id: newId, ...traineeData };
-                    registryTrainees.push(newTrainee);
-                    logActivity('add', 'trainee', nameAr, newId, 'إضافة جديدة لسجل المتدربين');
 
-                    if (courseCtx) {
-                        // تمت الإضافة من سياق دورة: اربط المتدرب الجديد بالدورة مباشرة بدل فتح سجل المتدربين
-                        addRegistryTraineeToCourse(courseCtx.programKey, courseCtx.courseKey, newTrainee);
-                    } else {
-                        buildSidebarTrainees();
-                        showTraineeDetail(newId);
-                        showToast('✅ تم إضافة المتدرب بنجاح', 'success');
-                    }
-
-                    // ── إنشاء حساب دخول تلقائياً وإرسال بريد إعادة تعيين كلمة المرور إلى بريد المتدرب ──
-                    createTraineeAuthAccount(newId);
-                } catch (e) {
-                    console.error(e);
-                    showToast('❌ فشل الحفظ في Firebase', 'error');
+                let newId;
+                if (db) {
+                    const result = await offlineAwareWrite(
+                        ['registry_trainees'], 'add', traineeData,
+                        {
+                            label: `إضافة متدرب: ${nameAr}`,
+                            successMsg: '✅ تم إضافة المتدرب بنجاح',
+                            localIdPrefix: 'trainee',
+                            activity: { action: 'add', type: 'trainee', name: nameAr, details: 'إضافة جديدة لسجل المتدربين' }
+                        }
+                    );
+                    newId = result.id;
+                } else {
+                    newId = 'tr_' + Date.now();
                 }
+                const newTrainee = { id: newId, ...traineeData };
+                registryTrainees.push(newTrainee);
+
+                if (courseCtx) {
+                    // تمت الإضافة من سياق دورة: اربط المتدرب الجديد بالدورة مباشرة بدل فتح سجل المتدربين
+                    addRegistryTraineeToCourse(courseCtx.programKey, courseCtx.courseKey, newTrainee);
+                } else {
+                    buildSidebarTrainees();
+                    showTraineeDetail(newId);
+                }
+
+                // ── إنشاء حساب دخول تلقائياً وإرسال بريد إعادة تعيين كلمة المرور إلى بريد المتدرب ──
+                // (يتطلب اتصالاً فعلياً؛ يُتخطى مؤقتاً دون اتصال ويمكن للمدير إعادة المحاولة يدوياً لاحقاً)
+                if (isAppOnline) createTraineeAuthAccount(newId);
             }
         }
 
@@ -24446,13 +24645,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const trainer = registryTrainers.find(t => t.id === id);
             if (!trainer) return;
             if (!confirm(`هل أنت متأكد من حذف المدرب "${trainer.nameAr}"؟`)) return;
-            try {
-                if (db) await db.collection('registry_trainers').doc(id).delete();
-            } catch (e) {
-                console.error(e);
-                showToast('❌ فشل الحذف من Firebase', 'error');
-                return;
-            }
+
             registryTrainers = registryTrainers.filter(t => t.id !== id);
             if (activeTrainerId === id) {
                 activeTrainerId = null;
@@ -24462,8 +24655,20 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const lbl = document.getElementById('trainersCountLabel');
             if (lbl) lbl.textContent = `${registryTrainers.length} مدرب مسجل`;
             buildSidebarTrainers();
-            showToast('🗑️ تم حذف المدرب', 'info');
-            logActivity('delete', 'trainer', trainer.nameAr, id, 'حذف من سجل المدربين');
+
+            if (db) {
+                await offlineAwareWrite(
+                    ['registry_trainers', id], 'delete', null,
+                    {
+                        label: `حذف مدرب: ${trainer.nameAr}`,
+                        successMsg: '🗑️ تم حذف المدرب',
+                        successType: 'info',
+                        activity: { action: 'delete', type: 'trainer', name: trainer.nameAr, id, details: 'حذف من سجل المدربين' }
+                    }
+                );
+            } else {
+                showToast('🗑️ تم حذف المدرب', 'info');
+            }
         }
 
         // تعديل بيانات مدرب
@@ -24755,63 +24960,70 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
                 closeRegistryTrainerModal();
                 showToast('⏳ جاري الحفظ...', 'info');
-                try {
-                    if (db) {
-                        await db.collection('registry_trainers').doc(trainerModalEditId).update(trainerData);
-                    }
-                    const idx = registryTrainers.findIndex(t => t.id === trainerModalEditId);
-                    if (idx !== -1) Object.assign(registryTrainers[idx], trainerData);
-                    buildSidebarTrainers();
-                    showTrainerDetail(trainerModalEditId);
-                    const lbl = document.getElementById('trainersCountLabel');
-                    if (lbl) lbl.textContent = `${registryTrainers.length} مدرب مسجل`;
-                    showToast('✅ تم تحديث بيانات المدرب', 'success');
-                    logActivity('edit', 'trainer', nameAr, trainerModalEditId, 'تعديل بيانات في سجل المدربين');
 
-                    // ── إذا تغيّر البريد الإلكتروني ولدى المدرب حساب دخول قائم: أعد إنشاء حساب Auth بالبريد الجديد ──
-                    if (prevAuthUid && email && prevEmail.trim().toLowerCase() !== email.trim().toLowerCase()) {
-                        recreateTrainerAuthAccount(trainerModalEditId, prevAuthUid);
-                    }
-                } catch (e) {
-                    console.error(e);
-                    showToast('❌ فشل الحفظ في Firebase', 'error');
+                // تحديث محلي فوري بصرف النظر عن حالة الاتصال
+                const idx = registryTrainers.findIndex(t => t.id === trainerModalEditId);
+                if (idx !== -1) Object.assign(registryTrainers[idx], trainerData);
+                buildSidebarTrainers();
+                showTrainerDetail(trainerModalEditId);
+                const lbl = document.getElementById('trainersCountLabel');
+                if (lbl) lbl.textContent = `${registryTrainers.length} مدرب مسجل`;
+
+                if (db) {
+                    await offlineAwareWrite(
+                        ['registry_trainers', trainerModalEditId], 'update', trainerData,
+                        {
+                            label: `تعديل مدرب: ${nameAr}`,
+                            successMsg: '✅ تم تحديث بيانات المدرب',
+                            activity: { action: 'edit', type: 'trainer', name: nameAr, id: trainerModalEditId, details: 'تعديل بيانات في سجل المدربين' }
+                        }
+                    );
+                }
+
+                // ── إذا تغيّر البريد الإلكتروني ولدى المدرب حساب دخول قائم: أعد إنشاء حساب Auth بالبريد الجديد ──
+                // (تتطلب اتصالاً فعلياً وقت التنفيذ، لذا لا تدخل ضمن طابور الحفظ دون اتصال)
+                if (isAppOnline && prevAuthUid && email && prevEmail.trim().toLowerCase() !== email.trim().toLowerCase()) {
+                    recreateTrainerAuthAccount(trainerModalEditId, prevAuthUid);
                 }
             } else {
                 const fieldCtx = pendingCourseTrainerFieldContext;
                 closeRegistryTrainerModal();
                 showToast('⏳ جاري الحفظ...', 'info');
-                try {
-                    let newId;
-                    if (db) {
-                        const docRef = await db.collection('registry_trainers').add(trainerData);
-                        newId = docRef.id;
-                    } else {
-                        newId = 'tr_' + Date.now();
-                    }
-                    const newTrainer = { id: newId, ...trainerData };
-                    registryTrainers.push(newTrainer);
-                    logActivity('add', 'trainer', nameAr, newId, 'إضافة جديدة لسجل المدربين');
 
-                    if (fieldCtx && fieldCtx.fieldId) {
-                        // تمت الإضافة من حقل مدرب داخل نافذة الدورة: اربط الاسم بالحقل مباشرة
-                        // بدل التنقل لسجل المدربين
-                        const targetInput = document.getElementById(fieldCtx.fieldId);
-                        if (targetInput) targetInput.value = newTrainer.nameAr;
-                        showToast('✅ تم إضافة المدرب وربطه بالحقل', 'success');
-                    } else {
-                        buildSidebarTrainers();
-                        showTrainerDetail(newId);
-                        const lbl = document.getElementById('trainersCountLabel');
-                        if (lbl) lbl.textContent = `${registryTrainers.length} مدرب مسجل`;
-                        showToast('✅ تم إضافة المدرب بنجاح', 'success');
-                    }
-
-                    // ── إنشاء حساب دخول تلقائياً وإرسال بريد إعادة تعيين كلمة المرور إلى بريد المدرب ──
-                    createTrainerAuthAccount(newId);
-                } catch (e) {
-                    console.error(e);
-                    showToast('❌ فشل الحفظ في Firebase', 'error');
+                let newId;
+                if (db) {
+                    const successMsg = (fieldCtx && fieldCtx.fieldId) ? '✅ تم إضافة المدرب وربطه بالحقل' : '✅ تم إضافة المدرب بنجاح';
+                    const result = await offlineAwareWrite(
+                        ['registry_trainers'], 'add', trainerData,
+                        {
+                            label: `إضافة مدرب: ${nameAr}`,
+                            successMsg,
+                            localIdPrefix: 'trainer',
+                            activity: { action: 'add', type: 'trainer', name: nameAr, details: 'إضافة جديدة لسجل المدربين' }
+                        }
+                    );
+                    newId = result.id;
+                } else {
+                    newId = 'tr_' + Date.now();
                 }
+                const newTrainer = { id: newId, ...trainerData };
+                registryTrainers.push(newTrainer);
+
+                if (fieldCtx && fieldCtx.fieldId) {
+                    // تمت الإضافة من حقل مدرب داخل نافذة الدورة: اربط الاسم بالحقل مباشرة
+                    // بدل التنقل لسجل المدربين
+                    const targetInput = document.getElementById(fieldCtx.fieldId);
+                    if (targetInput) targetInput.value = newTrainer.nameAr;
+                } else {
+                    buildSidebarTrainers();
+                    showTrainerDetail(newId);
+                    const lbl = document.getElementById('trainersCountLabel');
+                    if (lbl) lbl.textContent = `${registryTrainers.length} مدرب مسجل`;
+                }
+
+                // ── إنشاء حساب دخول تلقائياً وإرسال بريد إعادة تعيين كلمة المرور إلى بريد المدرب ──
+                // (يتطلب اتصالاً فعلياً؛ يُتخطى مؤقتاً دون اتصال ويمكن للمدير إعادة المحاولة يدوياً لاحقاً)
+                if (isAppOnline) createTrainerAuthAccount(newId);
             }
         }
 
@@ -29286,16 +29498,31 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             let docId;
             const isEditingExam = !!emsEditingExamId;
             if (emsEditingExamId) {
-                await db.collection('examinations').doc(emsEditingExamId).set(payload, {merge:true});
                 docId = emsEditingExamId;
+                await offlineAwareWrite(
+                    ['examinations', docId], 'set', payload,
+                    {
+                        setOptions: { merge: true },
+                        label: `تعديل امتحان: ${course?.code || ck}`,
+                        successMsg: '✅ تم حفظ الامتحان بنجاح',
+                        activity: { action: 'edit', type: 'exam', name: course?.code || ck, id: docId, details: `${payload.examType || 'امتحان'} — ضمن البرنامج: ${program?.title || ''}` }
+                    }
+                );
             } else {
                 payload.createdAt = new Date().toISOString();
-                const ref = await db.collection('examinations').add(payload);
-                docId = ref.id;
+                const result = await offlineAwareWrite(
+                    ['examinations'], 'add', payload,
+                    {
+                        label: `إنشاء امتحان: ${course?.code || ck}`,
+                        successMsg: '✅ تم حفظ الامتحان بنجاح',
+                        localIdPrefix: 'exam',
+                        activity: { action: 'add', type: 'exam', name: course?.code || ck, details: `${payload.examType || 'امتحان'} — ضمن البرنامج: ${program?.title || ''}` }
+                    }
+                );
+                docId = result.id;
                 emsEditingExamId = docId;
             }
             const savedExam = { id: docId, ...payload };
-            logActivity(isEditingExam ? 'edit' : 'add', 'exam', course?.code || ck, docId, `${payload.examType || 'امتحان'} — ضمن البرنامج: ${program?.title || ''}`);
             // تخزين الامتحان في الذاكرة المؤقتة تحت كل دورة من الدورات
             // المختارة، حتى تظهر بيانات الامتحان بشكل صحيح أينما عُرضت
             // إحدى هذه الدورات. كما نحدّث قائمة الامتحانات الكاملة لكل
@@ -29321,7 +29548,6 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
                 hBtn.querySelector('i').className = 'ph ph-eye text-sm';
                 hBtn.onclick = () => handleExamBtnClick(pk, ck);
             }
-            showToast?.('✅ تم حفظ الامتحان بنجاح', 'success');
         } catch(e) {
             alert('خطأ في الحفظ: ' + e.message);
         }
@@ -29651,9 +29877,17 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
     }
 
     // ─── حذف الامتحان ────────────────────────────────────────
+    // ملاحظة: حذف الامتحان يتطلب اتصالاً فعلياً بالإنترنت (وليس ضمن نظام
+    // الحفظ دون اتصال) لأنه يعتمد على التحقق اللحظي من عدم وجود أي تسليم
+    // مسبق للامتحان من أي متدرب؛ حذفه دون التأكد من ذلك قد يؤدي لفقدان
+    // نتائج متدرب قام بالتسليم فعلاً من جهاز آخر.
     async function emsConfirmDeleteExam(pk, ck, examId) {
         const exam = getCachedExamById(pk, ck, examId);
         if (!exam?.id || !db) return;
+        if (!isAppOnline) {
+            showToast?.('📴 حذف الامتحان يتطلب اتصالاً بالإنترنت (للتحقق من عدم وجود تسليمات مسبقة) — أعد المحاولة بعد عودة الاتصال', 'error');
+            return;
+        }
         const locked = await _emsCheckSubmissionLock(exam.id);
         if (locked) {
             showToast?.('🔒 لا يمكن حذف هذا الامتحان — قام أحد المتدربين بتسليمه فعلاً', 'error');
@@ -30103,6 +30337,10 @@ ${questionsHtml}
     /* ── فتح modal كلمة السر ── */
     async function openExamPasswordModal(pk, ck) {
         if (!db) return;
+        if (!isAppOnline) {
+            showToast?.('🔒 دخول الامتحان يتطلب اتصالاً بالإنترنت — تحقّق من اتصالك وحاول مجدداً', 'error');
+            return;
+        }
         let exam = emsExamCache[emsKey(pk, ck)];
         if (!exam) {
             try {
@@ -30189,6 +30427,12 @@ ${questionsHtml}
         const input = document.getElementById('examPasswordInput').value.trim().toUpperCase();
         const errDiv = document.getElementById('examPasswordError');
         const errMsg = document.getElementById('examPasswordErrorMsg');
+
+        if (!isAppOnline) {
+            errMsg.textContent = '🔒 لا يوجد اتصال بالإنترنت — التحقق من كلمة السر ودخول الامتحان يتطلبان اتصالاً فعلياً';
+            errDiv.classList.remove('hidden');
+            return;
+        }
 
         if (!input) {
             errMsg.textContent = 'الرجاء إدخال كلمة السر';
@@ -30346,6 +30590,10 @@ ${questionsHtml}
     function startExamSession(pk, ck, exam) {
         if (!exam || !exam.questions || exam.questions.length === 0) {
             showToast?.('لا توجد أسئلة في هذا الامتحان', 'error');
+            return;
+        }
+        if (!isAppOnline) {
+            showToast?.('🔒 لا يمكن بدء الامتحان بدون اتصال بالإنترنت — تحقّق من اتصالك وحاول مجدداً', 'error');
             return;
         }
 
@@ -30980,6 +31228,19 @@ ${questionsHtml}
     async function _examDoSubmit(isAutomatic, isCheatPenalty = false) {
         if (!_examSession) return;
 
+        if (!isAppOnline) {
+            if (isAutomatic) {
+                // تسليم تلقائي (انتهاء الوقت / عقوبة غش): لا يمكن التخلي عنه،
+                // فنُبقي محاولة إعادة التسليم قائمة كل 5 ثوانٍ حتى تعود الشبكة
+                showToast?.('🔒 انتهى الوقت لكن لا يوجد اتصال بالإنترنت — سيُعاد تسليم الامتحان تلقائياً بمجرد عودة الاتصال. الرجاء عدم إغلاق الصفحة', 'error');
+                setTimeout(() => _examDoSubmit(isAutomatic, isCheatPenalty), 5000);
+            } else {
+                showToast?.('🔒 تعذّر تسليم الامتحان — لا يوجد اتصال بالإنترنت حالياً. إجاباتك محفوظة، حاول التسليم مرة أخرى بمجرد عودة الاتصال', 'error');
+                _closeConfirmSubmitModal();
+            }
+            return;
+        }
+
         // إيقاف نظام مكافحة الغش أولاً لتجنب أي حلقة تكرار
         _acDeactivate();
 
@@ -31049,6 +31310,17 @@ ${questionsHtml}
             }
         } catch(e) {
             console.warn('EMS submit save error:', e);
+        }
+
+        if (!sessionSaved) {
+            // فشل الحفظ الفعلي (غالباً انقطاع اتصال أثناء الإرسال) — لا نعرض
+            // شاشة "تم التسليم" وهمية؛ نُبقي الجلسة قائمة ونعيد تفعيل المؤقت
+            // ليتمكن الطالب من إعادة المحاولة بمجرد استقرار الاتصال
+            showToast?.('🔒 تعذّر حفظ تسليم الامتحان — تحقّق من اتصالك بالإنترنت وحاول التسليم مرة أخرى', 'error');
+            if (_examSession) {
+                _examSession.timerInterval = setInterval(_examTickTimer, 1000);
+            }
+            return;
         }
 
         // المرحلة 4: التصحيح الآلي
