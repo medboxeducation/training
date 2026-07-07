@@ -10898,18 +10898,18 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <div class="hidden lg:flex items-center gap-1.5 border-r-2 border-white/40 pr-4 mr-1">
                 <button class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all" onclick="showProgramsGrid()">
                     <i class="ph ph-books"></i>
-                    <span class="flex flex-col items-start leading-tight">
+                    <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
                         <span>البرامج التدريبية</span>
-                        <span class="text-[10px] font-normal text-gray-400">Training Programs</span>
+                        <span style="font-size:10px;font-weight:400;color:#9ca3af;">Training Programs</span>
                     </span>
                 </button>
                 <!-- Academic Pedia Dropdown -->
                 <div class="relative" id="academicPediaWrapper">
                     <button onclick="toggleAcademicPediaDropdown()" class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all">
                         <i class="ph ph-graduation-cap"></i>
-                        <span class="flex flex-col items-start leading-tight">
+                        <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
                             <span>الموسوعة الأكاديمية</span>
-                            <span class="text-[10px] font-normal text-gray-400">Academic Pedia</span>
+                            <span style="font-size:10px;font-weight:400;color:#9ca3af;">Academic Pedia</span>
                         </span>
                         <i class="ph ph-caret-down text-[10px] text-gray-400"></i>
                     </button>
@@ -10927,9 +10927,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 <div class="hidden" id="virtualSessionsWrapper">
                     <button onclick="showVirtualSessionsGrid()" class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all">
                         <i class="ph ph-video-camera"></i>
-                        <span class="flex flex-col items-start leading-tight">
+                        <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
                             <span>الجلسات الافتراضية</span>
-                            <span class="text-[10px] font-normal text-gray-400">Virtual Sessions</span>
+                            <span style="font-size:10px;font-weight:400;color:#9ca3af;">Virtual Sessions</span>
                         </span>
                     </button>
                 </div>
@@ -11185,9 +11185,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <div class="relative flex-1" id="academicPediaMobileWrapper">
                 <button onclick="toggleAcademicPediaMobileDropdown()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
                     <i class="ph ph-graduation-cap text-base"></i>
-                    <span class="flex flex-col items-center leading-tight">
+                    <span style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">
                         <span>الموسوعة</span>
-                        <span class="text-[9px] font-normal text-gray-400">Academic Pedia</span>
+                        <span style="font-size:9px;font-weight:400;color:#9ca3af;">Academic Pedia</span>
                     </span>
                 </button>
                 <div id="academicPediaMobileDropdown" class="hidden absolute top-full right-0 mt-2 w-52 glass-panel rounded-2xl shadow-xl z-50 py-2" dir="rtl">
@@ -11204,9 +11204,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <div class="flex-1 hidden" id="virtualSessionsMobileWrapper">
                 <button onclick="showVirtualSessionsGrid()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
                     <i class="ph ph-video-camera text-base"></i>
-                    <span class="flex flex-col items-center leading-tight">
+                    <span style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">
                         <span>الجلسات</span>
-                        <span class="text-[9px] font-normal text-gray-400">Virtual Sessions</span>
+                        <span style="font-size:9px;font-weight:400;color:#9ca3af;">Virtual Sessions</span>
                     </span>
                 </button>
             </div>
@@ -11721,6 +11721,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2" id="comingSoonTitle">القسم</h2>
                 <p class="text-gray-500 max-w-md">سيتم توفير هذا القسم قريباً، نعمل حالياً على إضافة محتوى وأدوات هذه الصفحة.</p>
+            </div>
+
+            <!-- تلميح: اختيار عنصر من قائمة الإعدادات لعرضه في اللوحة الرئيسية -->
+            <div id="settingsHintView" class="hidden min-h-full flex flex-col items-center justify-center text-center">
+                <div class="glass-icon-tile w-24 h-24 rounded-3xl flex items-center justify-center text-primary text-5xl mb-6">
+                    <i class="ph ph-gear-six"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">الإعدادات</h2>
+                <p class="text-gray-500 max-w-md">قم باختيار عنصر من القائمة الجانبية لعرضه في هذه اللوحة</p>
             </div>
 
             <!-- هـ. عرض بيانات Firebase (Firebase Settings View) - مخفي افتراضياً -->
@@ -13306,6 +13315,17 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <div id="courseDaysOptions" class="flex flex-wrap gap-2"></div>
                 </div>
 
+                <!-- رابط مجموعة الواتساب -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">رابط مجموعة الواتساب</label>
+                    <div class="relative">
+                        <input id="courseWhatsappGroupInput" type="url" dir="ltr"
+                            class="w-full glass-panel rounded-lg pr-3 pl-9 py-2 text-sm text-left focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            placeholder="https://chat.whatsapp.com/...">
+                        <i class="ph ph-whatsapp-logo absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 text-sm pointer-events-none"></i>
+                    </div>
+                </div>
+
                 <!-- المدرب الأساسي -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم المدرب الأساسي <span class="text-red-500">*</span></label>
@@ -14885,7 +14905,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView'];
+        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -16930,6 +16950,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
             if (quickNewBtn)    quickNewBtn.classList.add('hidden');
             if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
+            showView('settingsHintView');
             openSidebar();
         }
 
@@ -17052,6 +17073,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const header = document.createElement('div');
             header.className = 'flex items-center gap-2 px-1 pb-2 mb-1 border-b border-white/40';
             header.innerHTML = `
+                <button class="w-7 h-7 rounded-full glass-icon-btn flex items-center justify-center text-primary shrink-0" onclick="showSettingsSidebar()" title="رجوع">
+                    <i class="ph ph-arrow-right text-sm"></i>
+                </button>
                 <i class="ph ph-users text-primary text-lg"></i>
                 <span class="font-bold text-sm text-gray-700">المستخدمون</span>
                 <span class="mr-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">${appUsersData.length}</span>
@@ -17656,7 +17680,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 permissionDenied('الاطلاع على سجل التدقيق');
                 return;
             }
-            closeSidebar();
+            closeSidebarOnMobile();
             showView('auditLogView');
             buildAuditEntityFilterOptions();
             loadAuditLog();
@@ -17873,7 +17897,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 return;
             }
             showView('syncView');
-            closeSidebar();
+            closeSidebarOnMobile();
             // تحميل GAPI إذا لم يكن جاهزاً
             if (!gapiReady) initGapi();
             // تحميل الإعدادات من Firebase والواجهة
@@ -18535,7 +18559,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // عرض بطاقات "حول البرنامج" في لوحة العرض الرئيسية عند الضغط على زر الإعدادات المقابل
         function showAboutProgramView() {
             showView('aboutProgramView');
-            closeSidebar();
+            closeSidebarOnMobile();
         }
 
         function showFirebaseSettings() {
@@ -18546,7 +18570,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             loadFirebaseConfigToForm();
             setFirebaseFormEditMode(false);
             showView('firebaseSettingsView');
-            closeSidebar();
+            closeSidebarOnMobile();
         }
 
         // قراءة البيانات المحفوظة وتعبئة الحقول
@@ -18756,13 +18780,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             }
         }
 
+        // دالة مساعدة: تحويل قيمة تاريخ (قد تكون Firestore Timestamp أو Date أو نص) إلى رقم زمني قابل للمقارنة
+        function toComparableTime(val) {
+            if (!val) return 0;
+            if (typeof val.toDate === 'function') return val.toDate().getTime(); // Firestore Timestamp
+            const t = new Date(val).getTime();
+            return isNaN(t) ? 0 : t;
+        }
+
         // دالة مساعدة: ترتيب مصفوفة حسب الخيار الحالي
         function sortItems(arr, getTitle, getDate) {
             return [...arr].sort((a, b) => {
                 if (currentSortOption === 'alpha-asc')  return (getTitle(a) || '').localeCompare(getTitle(b) || '', 'ar');
                 if (currentSortOption === 'alpha-desc') return (getTitle(b) || '').localeCompare(getTitle(a) || '', 'ar');
-                if (currentSortOption === 'date-desc')  return new Date(getDate(b) || 0) - new Date(getDate(a) || 0);
-                if (currentSortOption === 'date-asc')   return new Date(getDate(a) || 0) - new Date(getDate(b) || 0);
+                if (currentSortOption === 'date-desc')  return toComparableTime(getDate(b)) - toComparableTime(getDate(a));
+                if (currentSortOption === 'date-asc')   return toComparableTime(getDate(a)) - toComparableTime(getDate(b));
                 return 0;
             });
         }
@@ -20844,19 +20876,28 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                     <p class="font-bold text-sm text-gray-800">${daysLabel}</p>
                                 </div>
                                 <div class="glass-panel p-3.5 rounded-lg col-span-2">
-                                    <p class="text-[10px] text-gray-400 mb-1">المدرب الأساسي</p>
-                                    <p class="font-bold text-sm text-gray-800">${course.mainTrainer || '—'}</p>
+                                    <p class="text-[10px] text-gray-400 mb-1">رابط مجموعة الواتساب</p>
+                                    ${course.whatsappGroupLink ? `<a href="${course.whatsappGroupLink}" target="_blank" rel="noopener" class="font-bold text-sm text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1.5 break-all"><i class="ph ph-whatsapp-logo"></i> ${course.whatsappGroupLink}</a>` : `<p class="font-bold text-sm text-gray-800">—</p>`}
                                 </div>
-                                ${course.assistTrainer1 ? `
-                                <div class="glass-panel p-3.5 rounded-lg">
-                                    <p class="text-[10px] text-gray-400 mb-1">المدرب المساعد الأول</p>
-                                    <p class="font-bold text-sm text-gray-800">${course.assistTrainer1}</p>
-                                </div>` : ''}
-                                ${course.assistTrainer2 ? `
-                                <div class="glass-panel p-3.5 rounded-lg">
-                                    <p class="text-[10px] text-gray-400 mb-1">المدرب المساعد الثاني</p>
-                                    <p class="font-bold text-sm text-gray-800">${course.assistTrainer2}</p>
-                                </div>` : ''}
+                                <div class="glass-panel p-3.5 rounded-lg col-span-2">
+                                    <p class="text-[10px] text-gray-400 mb-1">المدربون</p>
+                                    <div class="flex flex-wrap items-stretch gap-2">
+                                        <div class="bg-white/60 rounded-lg px-3 py-1.5">
+                                            <p class="text-[9px] text-gray-400 mb-0.5">أساسي</p>
+                                            <p class="font-bold text-sm text-gray-800">${course.mainTrainer || '—'}</p>
+                                        </div>
+                                        ${course.assistTrainer1 ? `
+                                        <div class="bg-white/60 rounded-lg px-3 py-1.5">
+                                            <p class="text-[9px] text-gray-400 mb-0.5">مساعد أول</p>
+                                            <p class="font-bold text-sm text-gray-800">${course.assistTrainer1}</p>
+                                        </div>` : ''}
+                                        ${course.assistTrainer2 ? `
+                                        <div class="bg-white/60 rounded-lg px-3 py-1.5">
+                                            <p class="text-[9px] text-gray-400 mb-0.5">مساعد ثاني</p>
+                                            <p class="font-bold text-sm text-gray-800">${course.assistTrainer2}</p>
+                                        </div>` : ''}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -21341,15 +21382,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 let i = 2;
                 while (programsData[newKey]) { newKey = `${baseKey}-${i}`; i++; }
 
-                const newProgram = Object.assign({ supervisor: '', traineesCount: 0, courses: [] }, data);
+                const newProgram = Object.assign({ supervisor: '', traineesCount: 0, courses: [], createdAt: new Date() }, data);
                 programsData[newKey] = newProgram;
                 addProgramCardToUI(newKey, newProgram);
                 closeProgramModal();
 
                 if (db) {
                     try {
-                        // نحفظ بنفس المعرف المحلي (doc id = newKey)
-                        const { courses, ...firestoreData } = newProgram;
+                        // نحفظ بنفس المعرف المحلي (doc id = newKey)، مع createdAt دقيق من السيرفر
+                        const { courses, createdAt, ...firestoreData } = newProgram;
+                        firestoreData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                         await db.collection('programs').doc(newKey).set(firestoreData);
                         showToast('✅ تم حفظ البرنامج في Firestore', 'success');
                         logActivity('add', 'program', titleAr, newKey);
@@ -21370,6 +21412,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const courseSessionsInput = document.getElementById('courseSessionsInput');
         const courseHoursInput = document.getElementById('courseHoursInput');
         const courseDaysOptions = document.getElementById('courseDaysOptions');
+        const courseWhatsappGroupInput = document.getElementById('courseWhatsappGroupInput');
         const courseMainTrainerInput = document.getElementById('courseMainTrainerInput');
         const courseAssistTrainer1Input = document.getElementById('courseAssistTrainer1Input');
         const courseAssistTrainer2Input = document.getElementById('courseAssistTrainer2Input');
@@ -21455,6 +21498,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 courseSessionsInput.value = course.sessions || '';
                 courseHoursInput.value = course.hours || '';
                 populateCourseDaysOptions(course.days || []);
+                courseWhatsappGroupInput.value = course.whatsappGroupLink || '';
                 courseMainTrainerInput.value = course.mainTrainer || '';
                 courseAssistTrainer1Input.value = course.assistTrainer1 || '';
                 courseAssistTrainer2Input.value = course.assistTrainer2 || '';
@@ -21465,6 +21509,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 courseSessionsInput.value = '';
                 courseHoursInput.value = '';
                 populateCourseDaysOptions([]);
+                courseWhatsappGroupInput.value = '';
                 courseMainTrainerInput.value = '';
                 courseAssistTrainer1Input.value = '';
                 courseAssistTrainer2Input.value = '';
@@ -21500,6 +21545,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 sessions: sessions,
                 hours: hours,
                 days: days,
+                whatsappGroupLink: courseWhatsappGroupInput.value.trim(),
                 mainTrainer: mainTrainer,
                 assistTrainer1: courseAssistTrainer1Input.value.trim(),
                 assistTrainer2: courseAssistTrainer2Input.value.trim()
@@ -21542,7 +21588,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 let newKey = baseKey + i;
                 while (program.courses.find(c => c.key === newKey)) { i++; newKey = baseKey + i; }
 
-                const newCourse = Object.assign({ key: newKey, traineesCount: 0, status: 'active', traineesList: [], attendance: {} }, data);
+                const newCourse = Object.assign({ key: newKey, traineesCount: 0, status: 'active', traineesList: [], attendance: {}, createdAt: new Date() }, data);
                 program.courses.push(newCourse);
 
                 // إعادة بناء القائمة الجانبية لمستوى الدورات
@@ -21552,7 +21598,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
                 if (db) {
                     try {
-                        const { key, ...firestoreData } = newCourse;
+                        const { key, createdAt, ...firestoreData } = newCourse;
+                        firestoreData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                         await db.collection('programs').doc(courseModalProgramKey)
                                 .collection('courses').doc(newKey).set(firestoreData);
                         showToast('✅ تم حفظ الدورة في Firestore', 'success');
@@ -22289,6 +22336,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 showSidebarBtn.style.display = 'flex';
             }, 300);
             isSidebarOpen = false;
+        }
+
+        // إغلاق القائمة الجانبية فقط في الشاشات الصغيرة (موبايل/تابلت) — تُستخدم عند
+        // الضغط على عنصر داخل القائمة الجانبية حتى لا تُخفى القائمة تلقائياً في الشاشات الكبيرة
+        function closeSidebarOnMobile() {
+            if (window.innerWidth < 768) closeSidebar();
         }
 
         function toggleSidebar() {
@@ -23110,6 +23163,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <div class="flex items-center gap-1 mb-2">
                         ${trainee.phone ? `<a href="tel:${trainee.phone}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-50 hover:border-green-300" title="اتصال"><i class="ph ph-phone text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-phone text-sm text-gray-400"></i></span>`}
                         ${trainee.phone ? `<a href="sms:${trainee.phone}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-300" title="رسالة نصية"><i class="ph ph-chat-circle text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-chat-circle text-sm text-gray-400"></i></span>`}
+                        <button onclick="event.stopPropagation(); openTraineeChat('${trainee.id}')" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="محادثة"><i class="ph ph-chats-circle text-sm"></i></button>
                         ${trainee.whatsapp ? `<a href="https://wa.me/${(trainee.whatsappCode||'+966').replace('+','')}${trainee.whatsapp.replace(/^0/,'')}" target="_blank" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="واتساب"><i class="ph ph-whatsapp-logo text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-whatsapp-logo text-sm text-gray-400"></i></span>`}
                         ${trainee.email ? `<a href="mailto:${trainee.email}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-orange-600 hover:bg-orange-50 hover:border-orange-300" title="إيميل"><i class="ph ph-envelope text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-envelope text-sm text-gray-400"></i></span>`}
                     </div>
@@ -23135,6 +23189,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const trainee = registryTrainees.find(t => t.id === id);
             if (!trainee) return;
 
+            showView('traineesRegistryView');
             buildSidebarTrainees();
 
             document.getElementById('traineeSelectHint').classList.add('hidden');
@@ -23150,13 +23205,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-0.5">
+                                <div id="traineeHeaderQR_${trainee.id}" class="w-10 h-10 rounded-lg glass-element flex items-center justify-center overflow-hidden cursor-pointer hover:shadow-md transition-shadow shrink-0" title="عرض رمز QR بالحجم الكامل" onclick="openTraineeQRModal('${trainee.id}')"></div>
                                 <button onclick="${trainee.authUid ? `openAccountInfoModal('trainee','${trainee.id}')` : `createTraineeAuthAccount('${trainee.id}')`}" 
                                     class="w-3 h-3 rounded-full shrink-0 ${trainee.authUid ? 'bg-green-500 hover:scale-125' : 'bg-red-400 hover:scale-125 hover:bg-red-500'} cursor-pointer transition-transform ring-1 ring-white shadow-sm"
                                     title="${trainee.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'اضغط هنا لإنشاء حساب'}"></button>
                                 <h3 class="text-lg font-bold text-gray-800 flex-1">${trainee.nameAr}</h3>
                                 <!-- أزرار الإجراءات — كبير: مقابل الاسم على اليسار -->
                                 <div class="items-center gap-1.5 hidden md:flex shrink-0">
-                                    <button onclick="openTraineeQRModal('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors"><i class="ph ph-qr-code text-sm"></i> QR</button>
                                     ${trainee.authUid ? `<button data-reset-pwd-btn="trainee_${trainee.id}" onclick="sendPasswordResetHeader('trainee','${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-sky-700 flex items-center gap-1.5 hover:bg-sky-50 hover:border-sky-300 transition-colors"><i class="ph ph-key text-sm"></i> نسيت كلمة المرور</button>` : ''}
                                     <button onclick="editRegistryTrainee('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors"><i class="ph ph-pencil-simple text-sm"></i> تعديل</button>
                                     <button onclick="deleteRegistryTrainee('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors"><i class="ph ph-trash text-sm"></i> حذف</button>
@@ -23166,7 +23221,6 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold mr-5">${trainee.code}</span>
                             <!-- أزرار الإجراءات للشاشات الصغيرة — تحت الاسم -->
                             <div class="flex items-center gap-1.5 mt-2 md:hidden flex-wrap">
-                                <button onclick="openTraineeQRModal('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10 transition-colors"><i class="ph ph-qr-code"></i> QR</button>
                                 ${trainee.authUid ? `<button data-reset-pwd-btn="trainee_${trainee.id}" onclick="sendPasswordResetHeader('trainee','${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-sky-700 flex items-center justify-center gap-1.5 hover:bg-sky-50 hover:border-sky-300 transition-colors"><i class="ph ph-key"></i> نسيت كلمة المرور</button>` : ''}
                                 <button onclick="editRegistryTrainee('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10 transition-colors"><i class="ph ph-pencil-simple"></i> تعديل</button>
                                 <button onclick="deleteRegistryTrainee('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center justify-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors"><i class="ph ph-trash"></i> حذف</button>
@@ -23175,6 +23229,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <div class="flex flex-wrap items-center gap-1.5 mt-2">
                                 ${trainee.phone ? `<a href="tel:${trainee.phone}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-green-600 flex items-center justify-center gap-1 hover:border-green-400 hover:bg-green-50 transition-colors"><i class="ph ph-phone"></i> اتصال</a>` : ''}
                                 ${trainee.phone ? `<a href="sms:${trainee.phone}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-blue-600 flex items-center justify-center gap-1 hover:border-blue-400 hover:bg-blue-50 transition-colors"><i class="ph ph-chat-circle"></i> رسالة</a>` : ''}
+                                <button onclick="openTraineeChat('${trainee.id}')" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1 hover:border-primary/40 hover:bg-primary/10 transition-colors"><i class="ph ph-chats-circle"></i> محادثة</button>
                                 ${trainee.whatsapp ? `<a href="https://wa.me/${(trainee.whatsappCode||'+966').replace('+','')}${trainee.whatsapp.replace(/^0/,'')}" target="_blank" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1 hover:border-emerald-400 hover:bg-emerald-50 transition-colors"><i class="ph ph-whatsapp-logo"></i> واتساب</a>` : ''}
                                 ${trainee.email ? `<a href="mailto:${trainee.email}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-orange-600 flex items-center justify-center gap-1 hover:border-orange-400 hover:bg-orange-50 transition-colors"><i class="ph ph-envelope"></i> إيميل</a>` : ''}
                             </div>
@@ -23290,6 +23345,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
             `;
 
+            // توليد رمز QR المصغّر بجانب اسم المتدرب في هيدر لوحة العرض الرئيسية
+            setTimeout(() => {
+                const headerQREl = document.getElementById(`traineeHeaderQR_${trainee.id}`);
+                if (headerQREl && typeof QRCode !== 'undefined') {
+                    headerQREl.innerHTML = '';
+                    new QRCode(headerQREl, {
+                        text: getTraineeProfileURL(trainee.id),
+                        width: 40,
+                        height: 40,
+                        colorDark: '#0790AC',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                }
+            }, 50);
         }
 
         // ── إنشاء حساب Firebase Auth للمتدرب ──
@@ -23806,6 +23876,28 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             openNewTraineeModal(trainee);
         }
 
+        // فتح محادثة مع متدرب (نظام الجلسات الافتراضية) من لوحة العرض أو القائمة الجانبية
+        function openTraineeChat(id) {
+            const trainee = registryTrainees.find(t => t.id === id);
+            if (!trainee) return;
+            if (!trainee.authUid) {
+                showToast('هذا المتدرب ليس لديه حساب دخول مُفعّل بعد، لا يمكن بدء محادثة معه', 'error');
+                return;
+            }
+            selectChatContact({ ...trainee, _type: 'trainee' });
+        }
+
+        // فتح محادثة مع مدرب (نظام الجلسات الافتراضية) من لوحة العرض أو القائمة الجانبية
+        function openTrainerChat(id) {
+            const trainer = registryTrainers.find(t => t.id === id);
+            if (!trainer) return;
+            if (!trainer.authUid) {
+                showToast('هذا المدرب ليس لديه حساب دخول مُفعّل بعد، لا يمكن بدء محادثة معه', 'error');
+                return;
+            }
+            selectChatContact({ ...trainer, _type: 'trainer' });
+        }
+
         // فتح نافذة إضافة / تعديل متدرب في السجل
         let traineeModalEditId = null;
         // سياق الدورة بانتظار الربط: إن تم تمريره، يُضاف المتدرب الجديد مباشرة لهذه الدورة بعد الحفظ
@@ -24195,6 +24287,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     <div class="flex items-center gap-1">
                         ${trainer.phone ? `<a href="tel:${trainer.phone}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-50 hover:border-green-300" title="اتصال"><i class="ph ph-phone text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-phone text-sm text-gray-400"></i></span>`}
                         ${trainer.phone ? `<a href="sms:${trainer.phone}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-300" title="رسالة نصية"><i class="ph ph-chat-circle text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-chat-circle text-sm text-gray-400"></i></span>`}
+                        <button onclick="event.stopPropagation(); openTrainerChat('${trainer.id}')" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="محادثة"><i class="ph ph-chats-circle text-sm"></i></button>
                         ${trainer.whatsapp ? `<a href="https://wa.me/${(trainer.whatsappCode||'+966').replace('+','')}${trainer.whatsapp.replace(/^0/,'')}" target="_blank" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="واتساب"><i class="ph ph-whatsapp-logo text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-whatsapp-logo text-sm text-gray-400"></i></span>`}
                         ${trainer.email ? `<a href="mailto:${trainer.email}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-orange-600 hover:bg-orange-50 hover:border-orange-300" title="إيميل"><i class="ph ph-envelope text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-envelope text-sm text-gray-400"></i></span>`}
                     </div>
@@ -24277,6 +24370,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <div class="flex flex-wrap items-center gap-1.5 mt-2">
                                 ${trainer.phone ? `<a href="tel:${trainer.phone}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-green-600 flex items-center justify-center gap-1 hover:border-green-400 hover:bg-green-50 transition-colors"><i class="ph ph-phone"></i> اتصال</a>` : ''}
                                 ${trainer.phone ? `<a href="sms:${trainer.phone}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-blue-600 flex items-center justify-center gap-1 hover:border-blue-400 hover:bg-blue-50 transition-colors"><i class="ph ph-chat-circle"></i> رسالة</a>` : ''}
+                                <button onclick="openTrainerChat('${trainer.id}')" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1 hover:border-primary/40 hover:bg-primary/10 transition-colors"><i class="ph ph-chats-circle"></i> محادثة</button>
                                 ${trainer.whatsapp ? `<a href="https://wa.me/${(trainer.whatsappCode||'+966').replace('+','')}${trainer.whatsapp.replace(/^0/,'')}" target="_blank" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1 hover:border-emerald-400 hover:bg-emerald-50 transition-colors"><i class="ph ph-whatsapp-logo"></i> واتساب</a>` : ''}
                                 ${trainer.email ? `<a href="mailto:${trainer.email}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-orange-600 flex items-center justify-center gap-1 hover:border-orange-400 hover:bg-orange-50 transition-colors"><i class="ph ph-envelope"></i> إيميل</a>` : ''}
                             </div>
@@ -26040,7 +26134,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             loadGeminiSettingsToForm();
             setGeminiFormEditMode(false);
             showView('geminiSettingsView');
-            closeSidebar();
+            closeSidebarOnMobile();
         }
 
         async function loadGeminiSettingsToForm() {
@@ -28386,69 +28480,6 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
         await _buildSidebarExamPanelForProgram(pk);
     }
 
-    // ─── قائمة امتحانات البرنامج (تُستخدم كزر "رجوع" من المصمم/العارض،
-    // وأيضاً عند وجود أكثر من امتحان واحد ضمن دورات مختلفة بالبرنامج) ───
-    function emsShowProgramExamSelector(pk) {
-        const program = programsData[pk];
-        if (!program) return;
-        showView('examinationView');
-        document.getElementById('examinationViewTitle').textContent = 'امتحانات البرنامج';
-        document.getElementById('examinationViewSubtitle').textContent = program.title || '';
-        document.getElementById('examinationViewActions').innerHTML = `
-            <button onclick="showProgramDetails('${pk}')"
-              class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100" title="رجوع">
-              <i class="ph ph-arrow-right text-sm"></i>
-            </button>`;
-
-        // الدورات المسموحة فقط (المدير: الكل — المدرب: دوراته الأساسية فقط)
-        const courses = emsAllowedCoursesForProgram(pk);
-        if (courses.length === 0) {
-            document.getElementById('examinationViewBody').innerHTML = `
-            <div class="text-center py-16 text-gray-400">
-              <i class="ph ph-graduation-cap text-4xl block mb-3 text-gray-300"></i>
-              <p>لا توجد دورات متاحة لك في هذا البرنامج</p>
-            </div>`;
-            return;
-        }
-
-        document.getElementById('examinationViewBody').innerHTML = `
-        <div class="space-y-4 pb-10">
-          <div class="flex items-center justify-between mb-2">
-            <p class="text-xs text-gray-500">امتحانات الدورات المتاحة لك في هذا البرنامج:</p>
-            <button onclick="emsShowDesigner('${pk}', null)"
-              class="glass-icon-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 hover:border-primary/40">
-              <i class="ph ph-plus-circle"></i> إنشاء امتحان جديد
-            </button>
-          </div>
-          ${courses.map(c => {
-            const exam = getCachedExam(pk, c.key);
-            const typeInfo = exam ? (EXAM_TYPES.find(t=>t.key===exam.examType)||EXAM_TYPES[0]) : null;
-            if (!exam) return ''; // لا نعرض دورة دون امتحان هنا — زر الإنشاء أعلى القائمة
-            const examLocked = exam?.id ? !!_emsSubmissionLockCache[exam.id] : false;
-            const canMng = (typeof canCreateExam === 'function') ? canCreateExam(c) && !examLocked : false;
-            return `
-            <div class="glass-panel rounded-xl p-4 cursor-pointer hover:border-primary/50 hover:-translate-y-0.5 transition-all"
-                onclick="emsCurrentCourseKey='${c.key}'; emsShowExamViewer('${pk}','${c.key}', getCachedExam('${pk}','${c.key}'))">
-              <div class="flex items-center gap-3 mb-2">
-                <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-primary/10 border border-primary/30">
-                  <i class="ph ph-exam text-primary text-xl"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="font-bold text-sm text-gray-800">${c.code || c.key}</p>
-                  <p class="text-xs text-gray-400">${c.mainTrainer || '—'}</p>
-                </div>
-                <i class="ph ph-arrow-left text-gray-300 text-sm shrink-0"></i>
-              </div>
-              <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${typeInfo?.ar||''} · ${exam.questions?.length||0} سؤال · ${exam.totalMark||0} علامة</span>
-            </div>`;
-          }).join('') || `
-            <div class="text-center py-12 text-gray-400">
-              <i class="ph ph-exam text-3xl block mb-2 text-gray-300"></i>
-              <p class="text-sm">لا توجد امتحانات محفوظة بعد — استخدم زر "إنشاء امتحان جديد" أعلاه</p>
-            </div>`}
-        </div>`;
-    }
-
     async function handleExamBtnClick(pk, ck) {
         emsCurrentProgramKey = pk;
         emsCurrentCourseKey  = ck;
@@ -28507,20 +28538,16 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
         if (!program) return;
         const course = ck ? (program.courses || []).find(c => c.key === ck) : null;
 
-        emsEditingExamId = existingExam?.id || null;
-        emsQuestions     = existingExam?.questions ? JSON.parse(JSON.stringify(existingExam.questions)) : [];
+        emsEditingExamId     = existingExam?.id || null;
+        emsQuestions         = existingExam?.questions ? JSON.parse(JSON.stringify(existingExam.questions)) : [];
+        emsCurrentProgramKey = pk;
 
         showView('examinationView');
         document.getElementById('examinationViewTitle').textContent = existingExam ? 'تعديل الامتحان' : 'تصميم امتحان جديد';
         document.getElementById('examinationViewSubtitle').textContent = course
             ? `${program.title} · ${course.code || ck}`
             : (program.title || '');
-        document.getElementById('examinationViewActions').innerHTML = `
-            <button onclick="emsShowProgramExamSelector('${pk}')"
-                class="w-8 h-8 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100"
-                title="رجوع">
-                <i class="ph ph-arrow-right text-sm"></i>
-            </button>`;
+        document.getElementById('examinationViewActions').innerHTML = '';
 
         // الدورات المتاحة لاختيارها داخل نافذة التصميم: فقط الدورات المسموح
         // للمستخدم الحالي التعامل معها (المدير: كل دورات البرنامج —
@@ -28528,6 +28555,12 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
         // أخرى غير مسجل فيها تماماً ولا تظهر في القائمة)
         const allCourses = emsAllowedCoursesForProgram(pk);
         const selectedCourses = existingExam?.courseKeys || (ck ? [ck] : (allCourses.length === 1 ? [allCourses[0].key] : []));
+
+        // نطاق الامتحان: هل يستهدف كل طلاب الدورة/الدورات المختارة، أم فقط
+        // مجموعة محددة من الطلاب داخلها (يُستخدم مثلاً لإعادة امتحان لطالب
+        // بعينه أو مجموعة صغيرة دون الحاجة لدورة منفصلة)
+        const emsExamScope      = existingExam?.assignmentScope === 'students' ? 'students' : 'course';
+        const emsAssignedNamesSet = new Set(existingExam?.assignedTraineeNames || []);
 
         const examTypeOpts = EXAM_TYPES.map(t =>
             `<option value="${t.key}" ${(existingExam?.examType||'quiz')===t.key?'selected':''}>${t.ar}</option>`
@@ -28552,12 +28585,39 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
                 <div class="flex flex-wrap gap-2" id="emsCourseCheckboxes">
                   ${allCourses.map(c => `
                     <label class="glass-panel flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm hover:border-primary/40 transition-colors">
-                      <input type="checkbox" value="${c.key}" class="accent-primary"
+                      <input type="checkbox" value="${c.key}" class="accent-primary" onchange="emsRefreshStudentsPicker()"
                         ${selectedCourses.includes(c.key)?'checked':''}>
                       <span>${c.code || c.key}</span>
                     </label>`).join('')}
                 </div>`}
               </div>
+
+              <!-- نطاق الامتحان: كل طلاب الدورة/الدورات، أو طلاب محددون فقط -->
+              ${allCourses.length === 0 ? '' : `
+              <div>
+                <label class="text-xs text-gray-500 mb-1 block">نطاق الامتحان <span class="text-red-500">*</span></label>
+                <div class="flex gap-2">
+                  <label class="flex-1 glass-panel flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm hover:border-primary/40 transition-colors">
+                    <input type="radio" name="emsExamScope" value="course" class="accent-primary"
+                      ${emsExamScope !== 'students' ? 'checked' : ''} onchange="emsToggleExamScopeUI()">
+                    <span>كل طلاب الدورة/الدورات المشمولة</span>
+                  </label>
+                  <label class="flex-1 glass-panel flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm hover:border-primary/40 transition-colors">
+                    <input type="radio" name="emsExamScope" value="students" class="accent-primary"
+                      ${emsExamScope === 'students' ? 'checked' : ''} onchange="emsToggleExamScopeUI()">
+                    <span>طلاب محددون فقط</span>
+                  </label>
+                </div>
+                <div id="emsStudentsPickerWrap" class="mt-2 ${emsExamScope === 'students' ? '' : 'hidden'}">
+                  <input type="text" id="emsStudentsSearch" placeholder="ابحث عن اسم طالب..."
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:border-primary"
+                    oninput="emsFilterStudentsPicker(this.value)">
+                  <div id="emsStudentsCheckboxes" class="max-h-48 overflow-y-auto flex flex-col gap-0.5 glass-panel rounded-lg p-2">
+                    ${emsRenderStudentsCheckboxesHTML(emsBuildStudentsPoolNames(pk, selectedCourses), emsAssignedNamesSet)}
+                  </div>
+                  <p class="text-[11px] text-gray-400 mt-1.5">سيظهر هذا الامتحان فقط للطلاب المحددين أعلاه، حتى لو كانوا مسجلين ضمن نفس الدورة.</p>
+                </div>
+              </div>`}
 
               <!-- نوع الامتحان + المدة -->
               <div class="grid grid-cols-2 gap-3">
@@ -29096,6 +29156,66 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
     }
 
     // ─── حفظ الامتحان كاملاً في Firestore ───────────────────
+    // ─── مساعدات نطاق الامتحان (كل طلاب الدورة / طلاب محددون) ─────
+    // تجميع أسماء كل الطلاب المسجَّلين ضمن الدورات المختارة حالياً (بدون تكرار)
+    function emsBuildStudentsPoolNames(pk, courseKeysArr) {
+        const program = programsData[pk];
+        if (!program) return [];
+        const names = new Set();
+        (courseKeysArr || []).forEach(ck => {
+            const course = (program.courses || []).find(c => c.key === ck);
+            (course?.traineesList || []).forEach(n => { if (n) names.add(n); });
+        });
+        return Array.from(names).sort((a, b) => a.localeCompare(b, 'ar'));
+    }
+
+    function emsRenderStudentsCheckboxesHTML(names, checkedSet) {
+        if (!names || names.length === 0) {
+            return '<p class="text-xs text-gray-400 px-2 py-3 text-center">لا يوجد طلاب مسجَّلون في الدورة/الدورات المختارة أعلاه</p>';
+        }
+        return names.map(n => `
+            <label class="ems-student-row flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
+                <input type="checkbox" value="${n.replace(/"/g,'&quot;')}" class="accent-primary ems-student-cb"
+                    ${checkedSet && checkedSet.has(n) ? 'checked' : ''}>
+                <span>${n}</span>
+            </label>`).join('');
+    }
+
+    // إظهار/إخفاء قائمة اختيار الطلاب حسب نطاق الامتحان المختار
+    function emsToggleExamScopeUI() {
+        const scope = document.querySelector('input[name="emsExamScope"]:checked')?.value || 'course';
+        const wrap = document.getElementById('emsStudentsPickerWrap');
+        if (wrap) wrap.classList.toggle('hidden', scope !== 'students');
+        if (scope === 'students') emsRefreshStudentsPicker();
+    }
+
+    // إعادة بناء قائمة الطلاب عند تغيير الدورات المختارة، مع الحفاظ على
+    // اختيارات الطلاب السابقة إن كانوا لا يزالون ضمن الدورات المختارة حالياً
+    function emsRefreshStudentsPicker() {
+        const scope = document.querySelector('input[name="emsExamScope"]:checked')?.value || 'course';
+        const box = document.getElementById('emsStudentsCheckboxes');
+        if (!box || scope !== 'students') return;
+        const previouslyChecked = new Set(
+            Array.from(document.querySelectorAll('#emsStudentsCheckboxes .ems-student-cb:checked')).map(c => c.value)
+        );
+        const checkedCourseKeys = Array.from(
+            document.querySelectorAll('#emsCourseCheckboxes input[type="checkbox"]:checked')
+        ).map(c => c.value);
+        const names = emsBuildStudentsPoolNames(emsCurrentProgramKey, checkedCourseKeys);
+        box.innerHTML = emsRenderStudentsCheckboxesHTML(names, previouslyChecked);
+        const search = document.getElementById('emsStudentsSearch');
+        if (search && search.value) emsFilterStudentsPicker(search.value);
+    }
+
+    // تصفية قائمة الطلاب المعروضة حسب نص البحث دون فقدان الاختيارات
+    function emsFilterStudentsPicker(query) {
+        const q = (query || '').trim();
+        document.querySelectorAll('#emsStudentsCheckboxes .ems-student-row').forEach(row => {
+            const name = row.querySelector('.ems-student-cb')?.value || '';
+            row.classList.toggle('hidden', !!q && !name.includes(q));
+        });
+    }
+
     async function emsSaveExam(pk, ck) {
         if (!db) { alert('لم يتم الاتصال بـ Firebase — يرجى ضبط الإعدادات أولاً'); return; }
         if (emsQuestions.length === 0) { alert('الرجاء إضافة سؤال واحد على الأقل'); return; }
@@ -29112,6 +29232,24 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
         const courseKeys = Array.from(courseCheckboxes).map(c => c.value);
         if (courseKeys.length === 0) { alert('الرجاء اختيار دورة واحدة على الأقل'); return; }
 
+        // نطاق الامتحان: كل طلاب الدورة/الدورات، أو طلاب محددون فقط منها
+        const assignmentScope = document.querySelector('input[name="emsExamScope"]:checked')?.value === 'students'
+            ? 'students' : 'course';
+        let assignedTraineeNames = [];
+        let assignedTraineeIds   = [];
+        if (assignmentScope === 'students') {
+            assignedTraineeNames = Array.from(
+                document.querySelectorAll('#emsStudentsCheckboxes .ems-student-cb:checked')
+            ).map(c => c.value);
+            if (assignedTraineeNames.length === 0) {
+                alert('الرجاء اختيار طالب واحد على الأقل، أو التبديل إلى "كل طلاب الدورة/الدورات المشمولة"');
+                return;
+            }
+            assignedTraineeIds = assignedTraineeNames
+                .map(n => registryTrainees.find(t => t.nameAr === n)?.id)
+                .filter(Boolean);
+        }
+
         // إن لم يكن هناك مفتاح دورة "مرساة" محدد مسبقاً (حالة الإنشاء المباشر
         // من زر "إنشاء امتحان")، نعتمد أول دورة من الدورات المختارة
         if (!ck) ck = courseKeys[0];
@@ -29124,6 +29262,9 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             programKey: pk,
             courseKey:  ck,
             courseKeys,
+            assignmentScope,
+            assignedTraineeNames,
+            assignedTraineeIds,
             programTitle:  program?.title || '',
             programCode:   program?.code  || '',
             courseCode:    course?.code   || ck,
@@ -29302,6 +29443,18 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
               <div class="glass-panel p-3.5 rounded-lg col-span-2">
                 <p class="text-[10px] text-gray-400 mb-1">المدرب الأساسي</p>
                 <p class="font-bold text-sm text-gray-800">${exam.mainTrainer || '—'}</p>
+              </div>
+              <div class="glass-panel p-3.5 rounded-lg col-span-2">
+                <p class="text-[10px] text-gray-400 mb-1">نطاق الامتحان</p>
+                ${exam.assignmentScope === 'students' ? `
+                <p class="font-bold text-sm text-amber-600 flex items-center gap-1.5">
+                  <i class="ph ph-users-three"></i> طلاب محددون فقط (${(exam.assignedTraineeNames||[]).length})
+                </p>
+                <p class="text-xs text-gray-500 mt-1">${(exam.assignedTraineeNames||[]).join('، ') || '—'}</p>
+                ` : `
+                <p class="font-bold text-sm text-gray-800 flex items-center gap-1.5">
+                  <i class="ph ph-users"></i> كل طلاب الدورة/الدورات المشمولة
+                </p>`}
               </div>
             </div>
           </div>
@@ -29529,11 +29682,8 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             if (examPanel && !examPanel.classList.contains('hidden')) {
                 _buildSidebarExamCard(pk, ck);
             }
-            // العودة لتفاصيل الدورة
-            const program = programsData[pk];
-            const course  = (program?.courses||[]).find(c=>c.key===ck);
-            if (program && course) emsShowProgramExamSelector(pk);
-            else showProgramDetails(pk);
+            // العودة لتفاصيل البرنامج (صفحة "امتحانات البرنامج" لم تعد مستخدمة)
+            showProgramDetails(pk);
         }).catch(e=>alert('خطأ في الحذف: '+e.message));
     }
 
@@ -29835,6 +29985,15 @@ ${questionsHtml}
                 }
                 if (!exam) continue;
 
+                // إن كان الامتحان مخصصاً لطلاب محددين فقط (وليس لكل طلاب
+                // الدورة)، تجاهله إن لم يكن الطالب الحالي من ضمن القائمة
+                if (exam.assignmentScope === 'students') {
+                    const isAssigned =
+                        (exam.assignedTraineeIds || []).includes(trainee.id) ||
+                        (exam.assignedTraineeNames || []).includes(trainee.nameAr);
+                    if (!isAssigned) continue;
+                }
+
                 // تحقق: هل سبق للطالب تسليم هذا الامتحان؟ إن كان كذلك لا يحق
                 // له الدخول إليه مرة أخرى مهما كان توقيت الامتحان
                 let alreadySubmitted = false;
@@ -29955,6 +30114,22 @@ ${questionsHtml}
             } catch(e) {}
         }
         if (!exam) { showToast?.('لم يُعثر على الامتحان', 'error'); return; }
+
+        // تحقق إضافي للحماية: إن كان الامتحان مخصصاً لطلاب محددين فقط،
+        // امنع الدخول عن أي طالب آخر حتى لو كان مسجلاً في نفس الدورة
+        if (exam.assignmentScope === 'students') {
+            try {
+                const resolvedId = await _emsResolveTraineeId();
+                const trainee = registryTrainees.find(t => t.id === resolvedId);
+                const isAssigned =
+                    (exam.assignedTraineeIds || []).includes(resolvedId) ||
+                    (exam.assignedTraineeNames || []).includes(trainee?.nameAr || '');
+                if (!isAssigned) {
+                    showToast?.('هذا الامتحان غير متاح لك — إنه مخصص لطلاب محددين فقط', 'error');
+                    return;
+                }
+            } catch(e) {}
+        }
 
         // تحقق إضافي للحماية: منع الدخول إن كان الطالب قد سلَّم هذا الامتحان فعلاً
         if (exam.id) {
@@ -31693,7 +31868,11 @@ ${questionsHtml}
                     const course = prog?.courses?.find(c => c.key === courseKey);
                     if (!course) continue;
 
-                    for (const tName of (course.traineesList || [])) {
+                    const eligibleNames = exam.assignmentScope === 'students'
+                        ? (exam.assignedTraineeNames || [])
+                        : (course.traineesList || []);
+
+                    for (const tName of eligibleNames) {
                         const trainee = registryTrainees.find(t => t.nameAr === tName);
                         if (!trainee) continue;
                         if (submittedIds.has(trainee.id)) continue;
@@ -32082,23 +32261,6 @@ ${questionsHtml}
     // نهاية المرحلة 6
     // ══════════════════════════════════════════════════════════════════
 
-    /* ── زر عائم لفتح أداة الإصلاح — يظهر فقط للمدير بعد تسجيل الدخول ── */
-    function _p6InjectFloatingButton() {
-        if (!currentUser || !emsIsAdmin()) return;
-        if (document.getElementById('p6FloatingRepairBtn')) return;
-
-        const btn = document.createElement('button');
-        btn.id = 'p6FloatingRepairBtn';
-        btn.title = 'إصلاح جلسات الامتحانات التالفة';
-        btn.onclick = openExamSessionRepairTool;
-        btn.style = 'position:fixed;bottom:18px;left:18px;z-index:9000;background:#1f2937;color:#fff;width:46px;height:46px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.3);font-size:18px;';
-        btn.innerHTML = '<i class="ph ph-wrench"></i>';
-        document.body.appendChild(btn);
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        setInterval(_p6InjectFloatingButton, 1500);
-    });
     // ══════════════════════════════════════════════════════════════════
     const _origRenderCourseDetails = renderCourseDetailsContent;
     // نستدعي emsPreloadExam بعد رسم الدورة
