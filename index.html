@@ -20524,6 +20524,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             const sessions = getCourseSessionDates(course);
             const canEdit  = hasPermission('editTrainee');
 
+            // في حال دخول متدرب: نحدد اسمه المطابق ضمن قائمة متدربي الدورة
+            // لعرض صفّه فقط لاحقاً في جدول الدرجات الشامل (إخفاء بيانات بقية المتدربين)
+            const _isTraineeUser = !!(currentUser && currentUser.role === 'trainee');
+            const _myGradesRowName = _isTraineeUser
+                ? ((registryTrainees.find(t => t.id === currentUser.traineeId) || {}).nameAr || '')
+                : '';
+
             const isConfigured = cfg.configured === true;
             const hasTrainees  = trainees.length > 0;
 
@@ -20600,6 +20607,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
             // بناء صفوف المتدربين
             const bodyRows = trainees.map((name, tIndex) => {
+                // إخفاء صفوف بقية المتدربين عن المتدرب المسجّل — يظهر له صفّه فقط
+                if (_isTraineeUser && name !== _myGradesRowName) return '';
                 const tKey   = String(tIndex);
                 const tGrades = ((course.grades || {})[tKey]) || {};
 
@@ -20757,7 +20766,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <i class=\"ph ph-floppy-disk\"></i> حفظ الكل
                         </button>` : ''}
                         <button type=\"button\"
-                            class=\"text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:border-primary hover:text-primary transition\"
+                            class=\"staff-only text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:border-primary hover:text-primary transition\"
                             onclick=\"printGradesTable('${programKey}','${course.key}')\">
                             <i class=\"ph ph-printer\"></i> طباعة
                         </button>
@@ -21156,13 +21165,17 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 </div>
                 <!-- /الصف العلوي -->
 
-                <!-- جدول الحضور والغياب — عرض كامل -->
+                <!-- جدول الحضور والغياب — عرض كامل (مخفي بالكامل عن المتدرب) -->
+                <div class="staff-only">
                 ${buildAttendanceTableHTML(programKey, course)}
+                </div>
 
-                <!-- جدول التقييم — عرض كامل -->
+                <!-- جدول التقييم — عرض كامل (مخفي بالكامل عن المتدرب) -->
+                <div class="staff-only">
                 ${buildAssessmentSetupHTML(programKey, course)}
+                </div>
 
-                <!-- جدول الدرجات الشامل — عرض كامل -->
+                <!-- جدول الدرجات الشامل — عرض كامل (يُظهر للمتدرب صفّه فقط) -->
                 ${buildGradesTableHTML(programKey, course)}
 
                 </div>
@@ -30062,6 +30075,8 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
   .exam-print-q--flow { break-inside:auto; page-break-inside:auto; }
   .exam-print-q-sep { border-bottom:1px dashed #d1d5db; margin:0 0 16px 0; }
   .exam-print-q-sep:last-child { display:none; }
+  .exam-print-warning { border:1.5px dashed #dc2626; border-radius:6px; padding:8px 14px; margin-bottom:16px; background:#fef2f2; color:#b91c1c; font-size:11px; font-weight:600; line-height:1.7; text-align:center; }
+  .exam-print-end { text-align:center; font-weight:700; font-size:14px; color:#0790AC; margin-top:28px; padding-top:14px; border-top:2px solid #e0f4f7; }
   @media print {
     body { padding:12px; }
     * {
@@ -30101,6 +30116,10 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
   </div>
 </div>
 
+<div class="exam-print-warning">
+  قم بطمس الاجابة بشكل جيد ولا تضع أي إشارات حول الإجابات مثل: صح، خطأ، خربشات... الخ، ولا تترك أي ملاحظات حول الأسئلة نهائياً. وفي حال المخالفة ستُحذف علامة السؤال بشكل كامل.
+</div>
+
 <div class="student-box">
   <div class="field"><div class="label">اسم المتدرب / الطالب</div></div>
   <div class="field" style="max-width:120px"><div class="label">التوقيع</div></div>
@@ -30109,6 +30128,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
 
 <h3 class="section"><i>✎</i> أسئلة الامتحان</h3>
 ${questionsHtml}
+<div class="exam-print-end">انتهت الأسئلة ..... بالتوفيق والنجاح لطلابنا الأعزاء</div>
 
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`);
