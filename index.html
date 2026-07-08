@@ -13799,6 +13799,24 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // entityLabel: اسم/عنوان العنصر المتأثر لعرضه في السجل (مثال: اسم المتدرب)
         // entityId:   معرف العنصر (اختياري)
         // details:    نص أو كائن إضافي يوضّح ما الذي تغيّر (اختياري)
+        // إشعار عند التعديل/الإضافة على جدول الحضور والمشاركة أو جدول الدرجات
+        // الشامل — يظهر ضمن نظام الإشعارات (الجرس/القائمة) لا كتوست عابر فقط،
+        // ويوضّح اسم الدورة والمستخدم الذي قام بالتعديل
+        function _notifyCourseTableEdit(course, program, tableLabel) {
+            const userName   = (currentUser && (currentUser.displayName || currentUser.nameAr || currentUser.email)) || 'مستخدم غير معروف';
+            const courseName = (course && (course.title || course.code)) || (program && program.title) || 'الدورة';
+            if (typeof addNotification === 'function') {
+                addNotification({
+                    type  : 'course',
+                    action: 'update',
+                    title : `✏️ تعديل ${tableLabel}`,
+                    body  : `دورة: ${courseName} — بواسطة: ${userName}`
+                });
+            } else {
+                showToast(`✏️ تعديل على ${tableLabel} — دورة: ${courseName} — بواسطة: ${userName}`, 'info');
+            }
+        }
+
         async function logActivity(action, entityType, entityLabel, entityId, details) {
             try {
                 if (!db) return; // لا يوجد اتصال بقاعدة البيانات بعد
@@ -19591,6 +19609,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             // تحديث عدّادات الصف
             _updateAttendanceRowCounters(courseKey, traineeIndex, course);
 
+            // إشعار فوري باسم الدورة والمستخدم الذي قام بالتعديل
+            _notifyCourseTableEdit(course, program, 'جدول الحضور والمشاركة');
+
             // حفظ في Firestore (attendance فقط — الحالة الموحّدة مخزّنة فيه)
             if (db) {
                 const traineeName = (course.traineesList && course.traineesList[traineeIndex]) || `متدرب #${traineeIndex}`;
@@ -20854,6 +20875,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 
             recalcTraineeFinalScore(programKey, courseKey, tIndex);
 
+            // إشعار فوري باسم الدورة والمستخدم الذي قام بالتعديل
+            _notifyCourseTableEdit(course, program, 'جدول الدرجات الشامل');
+
             // حفظ في Firestore (debounced)
             clearTimeout(window._gradeSaveTimer);
             window._gradeSaveTimer = setTimeout(async () => {
@@ -20885,6 +20909,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     // تجاهل الحقول الفارغة
                 });
             }
+
+            // إشعار فوري باسم الدورة والمستخدم الذي قام بالتعديل
+            _notifyCourseTableEdit(course, program, 'جدول الدرجات الشامل');
 
             if (db) {
                 await offlineAwareWrite(
@@ -28403,6 +28430,14 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
               allow read, write: if isAdmin();
             }
 
+            // ── نظام الإشعارات المشترك بين الحسابات ──
+            // (كل حساب مسجَّل يقرأ/يضيف إشعارات، ويحذف أي إشعار — الحذف
+            // يُطبَّق على وثيقة Firestore مباشرة فيختفي فوراً من كل الحسابات)
+            match /notifications/{notifId} {
+              allow read, create, delete: if isAuth();
+              allow update: if false;
+            }
+
             // ── الجلسات المتزامنة (Live Sync Sessions) ──
             match /liveSessions/{sessionId} {
               allow read: if isAuth();
@@ -33426,6 +33461,7 @@ let   _notifItems     = [];          // المصفوفة الرئيسية
 let   _notifFilter    = 'all';       // الفلتر الحالي
 let   _notifOpen      = false;       // هل اللوحة مفتوحة؟
 let   _notifChatListener = null;     // مستمع رسائل الدردشة
+let   _notifFirestoreListener = null; // مستمع مجموعة notifications الحي (مزامنة بين الحسابات)
 let   _notifInitDone  = false;       // هل تمّ التهيئة؟
 
 // ═══════════════════════════════════════════════════
@@ -33467,6 +33503,7 @@ function initNotificationSystem() {
     _renderNotifList();
     _updateNotifBadge();
     _listenChatForNotif();
+    _listenNotificationsFromFirebase();
     // طلب إذن إشعارات المتصفح (OS-level) ثم تحديث الزر
     _requestBrowserNotifPermission().then(() => _updateBrowserNotifBtn());
     // استمع لتغيّر حالة الإذن (Chrome 93+)
@@ -33497,7 +33534,9 @@ function _loadNotifFromStorage() {
 }
 
 // ═══════════════════════════════════════════════════
-//  إضافة إشعار جديد
+//  إضافة إشعار جديد — يُحفظ في Firestore (مجموعة notifications)
+//  ليصل فورياً لبقية الحسابات المسجّلة عبر مستمع _listenNotificationsFromFirebase،
+//  وليُحذف من القاعدة تلقائياً لدى الجميع عند حذفه من أي حساب
 //  type: 'program' | 'course' | 'trainee' | 'trainer' | 'message' | 'call' | 'feature'
 //  action: 'add' | 'update'
 // ═══════════════════════════════════════════════════
@@ -33506,15 +33545,21 @@ function addNotification({ type, action, title, body, icon, targetRole }) {
     const role = currentUser?.role || '';
     if (!_shouldShowNotif(type, action, targetRole, role)) return;
 
+    // نولّد مرجع Firestore مسبقاً (دون انتظار الشبكة) للحصول على معرّف موحّد
+    // يُستخدم محلياً فوراً، ونفس المعرّف يصل به بقية الحسابات عبر المستمع الحي
+    const ref = db ? db.collection('notifications').doc() : null;
+    const id  = ref ? ref.id : ('n_' + Date.now() + '_' + Math.random().toString(36).slice(2,6));
+
     const notif = {
-        id       : 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+        id,
         type,       // فئة الإشعار
         action,     // نوع الحدث
         title,      // عنوان الإشعار
         body,       // نص الإشعار
         icon : icon || _defaultIcon(type),
         ts   : Date.now(),
-        read : false
+        read : false,
+        actorUid : currentUser?.uid || null
     };
 
     _notifItems.unshift(notif);
@@ -33525,25 +33570,35 @@ function addNotification({ type, action, title, body, icon, targetRole }) {
     _updateNotifBadge();
     _ringBell();
     _showNotifToast(notif);
+
+    // حفظ في Firestore ليصل لبقية الحسابات ولضمان إمكانية حذفه من القاعدة لاحقاً
+    if (ref) {
+        ref.set({
+            type, action, title, body,
+            icon       : notif.icon,
+            targetRole : targetRole || null,
+            actorUid   : currentUser?.uid || null,
+            actorName  : (currentUser && (currentUser.displayName || currentUser.nameAr || currentUser.email)) || 'مستخدم غير معروف',
+            actorRole  : currentUser?.role || null,
+            clientTs   : notif.ts,
+            createdAt  : firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(err => console.warn('addNotification: فشل الحفظ في Firestore:', err));
+    }
 }
 
 // تحديد ما إذا كان يجب عرض الإشعار للمستخدم الحالي
 function _shouldShowNotif(type, action, targetRole, userRole) {
     if (!userRole) return false; // غير مسجل
+    // إذا حُدِّدت فئة مستهدفة صراحةً، فهي تتحكم بالعرض بصرف النظر عن النوع
+    if (targetRole && Array.isArray(targetRole)) return targetRole.includes(userRole);
     // الميزات الجديدة — للجميع
     if (type === 'feature') return true;
     // الرسائل والمكالمات — للجميع المسجلين
     if (type === 'message' || type === 'call') return true;
     // البرامج والدورات — للجميع المسجلين
     if (type === 'program' || type === 'course') return true;
-    // المدرب/المتدرب الجديد أو تحديثهم
-    if (type === 'trainer' || type === 'trainee') {
-        // الأدمن يرى دائماً
-        if (userRole === 'admin') return true;
-        // إذا كان targetRole يحدد الفئة المستهدفة
-        if (targetRole && Array.isArray(targetRole)) return targetRole.includes(userRole);
-        return true;
-    }
+    // المدرب/المتدرب الجديد أو تحديثهم — تظهر للجميع افتراضياً
+    if (type === 'trainer' || type === 'trainee') return true;
     return true;
 }
 
@@ -33634,6 +33689,72 @@ function _listenChatForNotif() {
                 }
             });
         }, err => console.warn('[Notif] chat listener error', err));
+}
+
+// ═══════════════════════════════════════════════════
+//  مستمع مجموعة notifications الحي في Firestore
+//  — يستقبل إشعارات الحسابات الأخرى فور حدوثها (مثل تعديل حساب آخر
+//    لجدول الحضور/المشاركة أو جدول الدرجات الشامل)، ويزيل الإشعار محلياً
+//    فور حذفه من القاعدة من أي حساب
+// ═══════════════════════════════════════════════════
+function _listenNotificationsFromFirebase() {
+    const cu = currentUser;
+    if (!db || !cu) return;
+
+    if (_notifFirestoreListener) _notifFirestoreListener();
+    _notifFirestoreListener = db.collection('notifications')
+        .orderBy('clientTs', 'desc')
+        .limit(_NOTIF_MAX)
+        .onSnapshot(snap => {
+            snap.docChanges().forEach(change => {
+                const id   = change.doc.id;
+                const data = change.doc.data() || {};
+
+                if (change.type === 'removed') {
+                    // حُذف الإشعار من القاعدة (من أي حساب) — نزيله محلياً أيضاً
+                    const existed = _notifItems.some(n => n.id === id);
+                    if (existed) {
+                        _notifItems = _notifItems.filter(n => n.id !== id);
+                        _saveNotifToStorage();
+                        _renderNotifList();
+                        _updateNotifBadge();
+                    }
+                    return;
+                }
+
+                if (change.type !== 'added') return;
+                // تجاهل الإشعار إن كان مضافاً محلياً بالفعل (تمّت إضافته فوراً
+                // من نفس الجلسة عبر addNotification قبل وصول رد الشبكة)
+                if (_notifItems.some(n => n.id === id)) return;
+
+                const role = cu.role || '';
+                if (!_shouldShowNotif(data.type, data.action, data.targetRole, role)) return;
+
+                const notif = {
+                    id,
+                    type    : data.type,
+                    action  : data.action,
+                    title   : data.title,
+                    body    : data.body,
+                    icon    : data.icon || _defaultIcon(data.type),
+                    ts      : data.clientTs || Date.now(),
+                    read    : false,
+                    actorUid: data.actorUid || null
+                };
+
+                _notifItems.unshift(notif);
+                if (_notifItems.length > _NOTIF_MAX) _notifItems = _notifItems.slice(0, _NOTIF_MAX);
+                _saveNotifToStorage();
+                _renderNotifList();
+                _updateNotifBadge();
+
+                // نبّه المستخدم فقط إذا كان الإشعار من حساب آخر (وليس نفس المستخدم الحالي)
+                if (data.actorUid && data.actorUid !== cu.uid) {
+                    _ringBell();
+                    _showNotifToast(notif);
+                }
+            });
+        }, err => console.warn('[Notif] Firestore notifications listener error', err));
 }
 
 // ═══════════════════════════════════════════════════
@@ -33775,6 +33896,11 @@ function dismissNotif(id) {
     _saveNotifToStorage();
     _renderNotifList();
     _updateNotifBadge();
+    // حذف من Firestore — يختفي بذلك من قاعدة البيانات ومن كل الحسابات
+    if (db) {
+        db.collection('notifications').doc(id).delete()
+            .catch(err => console.warn('dismissNotif: فشل الحذف من Firestore:', err));
+    }
 }
 
 function markAllNotifRead() {
@@ -33786,10 +33912,17 @@ function markAllNotifRead() {
 
 function clearAllNotif() {
     if (!confirm('هل تريد مسح جميع الإشعارات؟')) return;
+    const idsToDelete = _notifItems.map(n => n.id);
     _notifItems = [];
     _saveNotifToStorage();
     _renderNotifList();
     _updateNotifBadge();
+    // حذف كل الإشعارات من Firestore — تختفي بذلك من القاعدة ومن كل الحسابات
+    if (db && idsToDelete.length) {
+        const batch = db.batch();
+        idsToDelete.forEach(id => batch.delete(db.collection('notifications').doc(id)));
+        batch.commit().catch(err => console.warn('clearAllNotif: فشل الحذف الجماعي من Firestore:', err));
+    }
 }
 
 // ═══════════════════════════════════════════════════
