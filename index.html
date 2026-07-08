@@ -13474,6 +13474,198 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         </div>
     </div>
 
+    <!-- ============================================================
+         نظام القياس والتقييم (Skill Assessment / Measurement Cards)
+    ============================================================ -->
+
+    <!-- ١) نافذة الاختيار: إنشاء بطاقة جديدة / بحث في البطاقات المخزنة -->
+    <div id="measureEvalChoiceModal" class="hidden fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeMeasureEvalChoiceModal()">
+        <div class="glass-panel bg-white/90 w-full max-w-sm rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-5 pb-4 border-b border-white/40">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-ruler text-primary"></i> القياس والتقييم
+                </h2>
+                <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeMeasureEvalChoiceModal()">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 mb-4">اختر طريقة إضافة تقييم للمتدرب <span id="measureEvalChoiceTraineeName" class="font-semibold text-gray-700"></span></p>
+            <div class="space-y-3">
+                <button onclick="openMeasureEvalCreateModal()" class="w-full glass-panel hover:border-primary hover:bg-primary/5 rounded-xl p-4 flex items-center gap-3 text-right transition-colors">
+                    <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <i class="ph ph-plus-circle text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm text-gray-800">إنشاء بطاقة قياس وتقييم جديدة</p>
+                        <p class="text-[11px] text-gray-500">تعريف مهارة سريرية جديدة وعناصر تقييمها</p>
+                    </div>
+                </button>
+                <button onclick="openMeasureEvalSearchModal()" class="w-full glass-panel hover:border-primary hover:bg-primary/5 rounded-xl p-4 flex items-center gap-3 text-right transition-colors">
+                    <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+                        <i class="ph ph-magnifying-glass text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm text-gray-800">بحث في البطاقات المخزنة</p>
+                        <p class="text-[11px] text-gray-500">استخدام بطاقة مهارة محفوظة مسبقاً</p>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ٢) نافذة إنشاء بطاقة قياس وتقييم جديدة (تعريف المهارة وعناصرها) -->
+    <div id="measureEvalCreateModal" class="hidden fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeMeasureEvalCreateModal()">
+        <div class="glass-panel bg-white/95 w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-5 pb-4 border-b border-white/40">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-clipboard-text text-primary"></i> بطاقة قياس وتقييم جديدة
+                </h2>
+                <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeMeasureEvalCreateModal()">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم المهارة السريرية (الإجراء) <span class="text-red-500">*</span></label>
+                    <input id="mevSkillNameInput" type="text" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="مثال: قياس ضغط الدم">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">الدرجة الكاملة <span class="text-red-500">*</span></label>
+                    <input id="mevFullScoreInput" type="number" min="1" step="0.5" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="مثال: 20">
+                    <p class="text-[10px] text-gray-400 mt-1">ستُحتسب الدرجة النهائية بناءً على هذه الدرجة، حسب نسبة الأداء في كل عنصر</p>
+                </div>
+
+                <div class="pt-2 border-t border-white/40">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-sm font-semibold text-gray-700">عناصر المهارة</label>
+                        <button onclick="addMevElementRow()" class="glass-icon-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-primary flex items-center gap-1 hover:bg-primary/10">
+                            <i class="ph ph-plus"></i> إضافة عنصر
+                        </button>
+                    </div>
+                    <div id="mevElementsList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 mt-6 pt-4 border-t border-white/40">
+                <button class="flex-1 bg-primary text-white py-2.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2" onclick="saveMevTemplate()">
+                    <i class="ph ph-check-circle"></i> حفظ
+                </button>
+                <button class="flex-1 glass-panel py-2.5 rounded-lg font-semibold hover:border-gray-400 transition-colors" onclick="closeMeasureEvalCreateModal()">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ٣) نافذة البحث في بطاقات المهارات المخزنة -->
+    <div id="measureEvalSearchModal" class="hidden fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeMeasureEvalSearchModal()">
+        <div class="glass-panel bg-white/95 w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4 pb-4 border-b border-white/40">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-magnifying-glass text-primary"></i> بحث في بطاقات المهارات
+                </h2>
+                <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeMeasureEvalSearchModal()">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            <input id="mevSearchInput" type="text" oninput="renderMevSearchResults()" class="w-full glass-panel rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="ابحث باسم المهارة...">
+            <div id="mevSearchResultsList" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- ٤) نافذة تعبئة التقييم للمتدرب (بيانات الجلسة + تقدير كل عنصر) -->
+    <div id="measureEvalFillModal" class="hidden fixed inset-0 z-[170] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeMeasureEvalFillModal()">
+        <div class="glass-panel bg-white/95 w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-5 pb-4 border-b border-white/40">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-ruler text-primary"></i> <span id="mevFillSkillName">تقييم المهارة</span>
+                </h2>
+                <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeMeasureEvalFillModal()">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- بيانات المتدرب (معبأة تلقائياً) -->
+                <div class="glass-panel rounded-xl p-3 flex items-center justify-between gap-2">
+                    <div>
+                        <p class="text-[10px] text-gray-400 mb-0.5">المتدرب</p>
+                        <p id="mevFillTraineeName" class="font-bold text-sm text-gray-800"></p>
+                    </div>
+                    <span id="mevFillTraineeCode" class="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold"></span>
+                </div>
+
+                <!-- المدرب: بحث بقائمة المدربين -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم المدرب <span class="text-red-500">*</span></label>
+                    <input id="mevTrainerSearchInput" type="text" oninput="renderMevTrainerSuggestions()" onfocus="renderMevTrainerSuggestions()" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="ابحث عن اسم المدرب...">
+                    <div id="mevTrainerSuggestions" class="hidden mt-1 glass-panel rounded-lg overflow-hidden max-h-40 overflow-y-auto"></div>
+                </div>
+
+                <!-- نوع التقييم -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">نوع التقييم <span class="text-red-500">*</span></label>
+                    <div class="flex items-center gap-2">
+                        <select id="mevAssessmentTypeSelect" class="flex-1 w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                            <option value="">اختر نوع التقييم...</option>
+                        </select>
+                        <button onclick="addMevAssessmentType()" title="إضافة نوع جديد" class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 shrink-0">
+                            <i class="ph ph-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- تاريخ التقييم -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">تاريخ التقييم <span class="text-red-500">*</span></label>
+                    <input id="mevAssessmentDateInput" type="date" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                </div>
+
+                <!-- عناصر التقييم -->
+                <div class="pt-2 border-t border-white/40">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">تقدير الأداء لكل عنصر</label>
+                    <div id="mevFillElementsList" class="space-y-3"></div>
+                </div>
+
+                <!-- الدرجة النهائية (تحدث تلقائياً) -->
+                <div class="glass-panel rounded-xl p-3 flex items-center justify-between bg-primary/5">
+                    <span class="text-sm font-semibold text-gray-700 flex items-center gap-1.5"><i class="ph ph-medal text-primary"></i> الدرجة النهائية</span>
+                    <span id="mevFinalScoreDisplay" class="font-bold text-primary text-lg">٠ / ٠</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 mt-6 pt-4 border-t border-white/40">
+                <button class="flex-1 bg-primary text-white py-2.5 rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2" onclick="saveMevAssessment()">
+                    <i class="ph ph-check-circle"></i> حفظ التقييم
+                </button>
+                <button class="flex-1 glass-panel py-2.5 rounded-lg font-semibold hover:border-gray-400 transition-colors" onclick="closeMeasureEvalFillModal()">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ٥) نافذة عرض تفاصيل تقييم محفوظ -->
+    <div id="measureEvalDetailModal" class="hidden fixed inset-0 z-[170] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onclick="if(event.target === this) closeMevDetailModal()">
+        <div class="glass-panel bg-white/95 w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4 pb-4 border-b border-white/40">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph ph-clipboard-text text-primary"></i> تفاصيل التقييم
+                </h2>
+                <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeMevDetailModal()">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            <div id="mevDetailContent" class="space-y-3"></div>
+            <div class="flex items-center gap-3 mt-5 pt-4 border-t border-white/40">
+                <button id="mevDetailDeleteBtn" onclick="deleteMevAssessment()" class="flex-1 glass-panel py-2.5 rounded-lg font-semibold text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors flex items-center justify-center gap-2">
+                    <i class="ph ph-trash"></i> حذف التقييم
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- نافذة منبثقة: اختيار طريقة إضافة مدرب للدورة (المدرب الأساسي / المساعد الأول / المساعد الثاني) -->
     <div id="courseTrainerChoiceModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onclick="if(event.target === this) closeCourseTrainerChoiceModal()">
         <div class="glass-panel bg-white/90 w-full max-w-sm rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
@@ -23487,6 +23679,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                                 <!-- أزرار الإجراءات — كبير: مقابل الاسم على اليسار -->
                                 <div class="items-center gap-1.5 hidden md:flex shrink-0">
                                     ${trainee.authUid ? `<button data-reset-pwd-btn="trainee_${trainee.id}" onclick="sendPasswordResetHeader('trainee','${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-sky-700 flex items-center gap-1.5 hover:bg-sky-50 hover:border-sky-300 transition-colors"><i class="ph ph-key text-sm"></i> نسيت كلمة المرور</button>` : ''}
+                                    ${_mevCanManage() ? `<button onclick="openMeasureEvalChoiceModal('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-teal-700 flex items-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors"><i class="ph ph-ruler text-sm"></i> قياس وتقييم</button>` : ''}
                                     <button onclick="editRegistryTrainee('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors"><i class="ph ph-pencil-simple text-sm"></i> تعديل</button>
                                     <button onclick="deleteRegistryTrainee('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors"><i class="ph ph-trash text-sm"></i> حذف</button>
                                 </div>
@@ -23496,6 +23689,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                             <!-- أزرار الإجراءات للشاشات الصغيرة — تحت الاسم -->
                             <div class="flex items-center gap-1.5 mt-2 md:hidden flex-wrap">
                                 ${trainee.authUid ? `<button data-reset-pwd-btn="trainee_${trainee.id}" onclick="sendPasswordResetHeader('trainee','${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-sky-700 flex items-center justify-center gap-1.5 hover:bg-sky-50 hover:border-sky-300 transition-colors"><i class="ph ph-key"></i> نسيت كلمة المرور</button>` : ''}
+                                ${_mevCanManage() ? `<button onclick="openMeasureEvalChoiceModal('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-teal-700 flex items-center justify-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors"><i class="ph ph-ruler"></i> قياس وتقييم</button>` : ''}
                                 <button onclick="editRegistryTrainee('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10 transition-colors"><i class="ph ph-pencil-simple"></i> تعديل</button>
                                 <button onclick="deleteRegistryTrainee('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center justify-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors"><i class="ph ph-trash"></i> حذف</button>
                             </div>
@@ -23616,6 +23810,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     ${trainee.otherCerts ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">شهادات أخرى</p><p class="text-sm text-gray-700">${trainee.otherCerts}</p></div>` : ''}
                     ${trainee.experience ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الخبرات السابقة</p><p class="text-sm text-gray-700">${trainee.experience}</p></div>` : ''}
                     ${trainee.interests ? `<div class="glass-panel rounded-xl p-3 mb-3"><p class="text-[10px] text-gray-400 mb-1">الاهتمامات</p><p class="text-sm text-gray-700">${trainee.interests}</p></div>` : ''}
+
+                    <!-- قسم القياس والتقييم -->
+                    <div class="glass-panel rounded-xl p-4 mb-3">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                                <i class="ph ph-ruler text-teal-600"></i> القياس والتقييم
+                            </h4>
+                            <span id="mevCountBadge" class="text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full font-bold">٠</span>
+                        </div>
+                        <div id="mevAssessmentsList" class="space-y-2">
+                            <div class="text-center py-4 text-gray-400">
+                                <i class="ph ph-spinner animate-spin text-lg"></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
 
@@ -23634,6 +23843,435 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                     });
                 }
             }, 50);
+
+            // تحميل بطاقات القياس والتقييم الخاصة بهذا المتدرب
+            loadMevAssessmentsForTrainee(trainee.id, trainee.nameAr, trainee.code);
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // ======== نظام القياس والتقييم (Skill Assessment / Measurement) ========
+        // بطاقات مهارات سريرية قابلة لإعادة الاستخدام (skillAssessmentTemplates)
+        // + تقييمات فعلية لكل متدرب (traineeAssessments)
+        // + أنواع تقييم قابلة لإعادة الاستخدام (assessmentTypes)
+        // ══════════════════════════════════════════════════════════════════
+
+        let _mevCurrentTraineeId = null, _mevCurrentTraineeName = '', _mevCurrentTraineeCode = '';
+        let _mevElements = [];              // عناصر البطاقة أثناء الإنشاء
+        let _mevTemplates = [];             // كاش لبطاقات المهارات المخزنة
+        let _mevTemplatesLoaded = false;
+        let _mevAssessmentTypes = [];       // كاش لأنواع التقييم
+        let _mevAssessmentTypesLoaded = false;
+        let _mevSelectedTemplate = null;    // البطاقة المستخدمة حالياً في نافذة التعبئة
+        let _mevSelectedTrainerName = '';
+        let _mevTraineeAssessmentsCache = {}; // { traineeId: [records] }
+        let _mevDetailCurrentId = null;
+        let _mevDetailCurrentTraineeId = null;
+
+        function _mevCanManage() {
+            return !!(currentUser && (currentUser.role === 'admin' || currentUser.role === 'trainer'));
+        }
+
+        // ── ١) نافذة الاختيار ──
+        function openMeasureEvalChoiceModal(traineeId) {
+            if (!_mevCanManage()) return;
+            const trainee = registryTrainees.find(t => t.id === traineeId);
+            if (!trainee) return;
+            _mevCurrentTraineeId = traineeId;
+            _mevCurrentTraineeName = trainee.nameAr;
+            _mevCurrentTraineeCode = trainee.code;
+            document.getElementById('measureEvalChoiceTraineeName').textContent = trainee.nameAr;
+            document.getElementById('measureEvalChoiceModal').classList.remove('hidden');
+        }
+        function closeMeasureEvalChoiceModal() {
+            document.getElementById('measureEvalChoiceModal').classList.add('hidden');
+        }
+
+        // ── ٢) إنشاء بطاقة قياس وتقييم جديدة ──
+        function openMeasureEvalCreateModal() {
+            closeMeasureEvalChoiceModal();
+            document.getElementById('mevSkillNameInput').value = '';
+            document.getElementById('mevFullScoreInput').value = '';
+            _mevElements = [];
+            addMevElementRow();
+            document.getElementById('measureEvalCreateModal').classList.remove('hidden');
+        }
+        function closeMeasureEvalCreateModal() {
+            document.getElementById('measureEvalCreateModal').classList.add('hidden');
+        }
+
+        function addMevElementRow() {
+            _mevElements.push({ id: 'el_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name: '', score: '', method: 'yesno' });
+            renderMevElementsList();
+        }
+        function removeMevElementRow(id) {
+            _mevElements = _mevElements.filter(e => e.id !== id);
+            renderMevElementsList();
+        }
+        function updateMevElementField(id, field, value) {
+            const el = _mevElements.find(e => e.id === id);
+            if (el) el[field] = value;
+        }
+        function renderMevElementsList() {
+            const list = document.getElementById('mevElementsList');
+            if (!list) return;
+            list.innerHTML = _mevElements.map(el => `
+                <div class="glass-panel rounded-lg p-2.5 flex items-center gap-2">
+                    <input type="text" value="${el.name.replace(/"/g,'&quot;')}" placeholder="اسم العنصر" oninput="updateMevElementField('${el.id}','name', this.value)" class="flex-1 min-w-0 bg-transparent border-b border-gray-300 focus:border-primary text-xs px-1 py-1 focus:outline-none">
+                    <input type="number" min="0" step="0.5" value="${el.score}" placeholder="الدرجة" oninput="updateMevElementField('${el.id}','score', this.value)" class="w-16 shrink-0 bg-transparent border-b border-gray-300 focus:border-primary text-xs px-1 py-1 text-center focus:outline-none">
+                    <select onchange="updateMevElementField('${el.id}','method', this.value)" class="shrink-0 bg-transparent border-b border-gray-300 focus:border-primary text-[11px] px-1 py-1 focus:outline-none">
+                        <option value="yesno" ${el.method==='yesno'?'selected':''}>نعم / لا</option>
+                        <option value="likert5" ${el.method==='likert5'?'selected':''}>ليكرت (٥ درجات)</option>
+                    </select>
+                    <button onclick="removeMevElementRow('${el.id}')" class="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50"><i class="ph ph-trash text-xs"></i></button>
+                </div>
+            `).join('');
+        }
+
+        async function saveMevTemplate() {
+            const skillName = document.getElementById('mevSkillNameInput').value.trim();
+            const fullScore = parseFloat(document.getElementById('mevFullScoreInput').value);
+            if (!skillName) { showToast('يرجى إدخال اسم المهارة السريرية', 'error'); return; }
+            if (!fullScore || fullScore <= 0) { showToast('يرجى إدخال الدرجة الكاملة', 'error'); return; }
+            const cleanElements = _mevElements
+                .map(e => ({ id: e.id, name: (e.name || '').trim(), score: parseFloat(e.score) || 0, method: e.method }))
+                .filter(e => e.name && e.score > 0);
+            if (cleanElements.length === 0) { showToast('يرجى إضافة عنصر واحد على الأقل بدرجة صحيحة', 'error'); return; }
+
+            const template = {
+                skillName, fullScore,
+                elements: cleanElements,
+                createdAt: new Date().toISOString(),
+                createdBy: (currentUser && (currentUser.displayName || currentUser.email)) || ''
+            };
+            try {
+                const result = await offlineAwareWrite(['skillAssessmentTemplates'], 'add', template, {
+                    label: `بطاقة مهارة: ${skillName}`,
+                    successMsg: '✅ تم حفظ بطاقة المهارة',
+                    silentOnlineSuccess: false
+                });
+                template.id = result.id;
+            } catch (e) {
+                showToast('تعذر حفظ البطاقة', 'error');
+                return;
+            }
+            _mevTemplates.unshift(template);
+            closeMeasureEvalCreateModal();
+            openMevFillModal(template);
+        }
+
+        // ── ٣) البحث في البطاقات المخزنة ──
+        async function openMeasureEvalSearchModal() {
+            closeMeasureEvalChoiceModal();
+            document.getElementById('mevSearchInput').value = '';
+            document.getElementById('measureEvalSearchModal').classList.remove('hidden');
+            document.getElementById('mevSearchResultsList').innerHTML = '<div class="text-center py-4 text-gray-400"><i class="ph ph-spinner animate-spin"></i></div>';
+            if (!_mevTemplatesLoaded) {
+                try {
+                    const snap = await db.collection('skillAssessmentTemplates').get();
+                    _mevTemplates = [];
+                    snap.forEach(doc => _mevTemplates.push({ id: doc.id, ...doc.data() }));
+                    _mevTemplatesLoaded = true;
+                } catch (e) {
+                    document.getElementById('mevSearchResultsList').innerHTML = '<p class="text-center text-xs text-red-400 py-3">تعذر تحميل البطاقات</p>';
+                    return;
+                }
+            }
+            renderMevSearchResults();
+        }
+        function closeMeasureEvalSearchModal() {
+            document.getElementById('measureEvalSearchModal').classList.add('hidden');
+        }
+        function renderMevSearchResults() {
+            const q = (document.getElementById('mevSearchInput').value || '').trim().toLowerCase();
+            const list = document.getElementById('mevSearchResultsList');
+            const filtered = q ? _mevTemplates.filter(t => (t.skillName || '').toLowerCase().includes(q)) : _mevTemplates;
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="text-center py-6 text-gray-400"><i class="ph ph-clipboard-text text-2xl block mb-1.5 mx-auto text-gray-300"></i><p class="text-xs">لا توجد بطاقات مطابقة</p></div>';
+                return;
+            }
+            list.innerHTML = filtered.map(t => `
+                <button onclick="selectMevTemplateFromSearch('${t.id}')" class="w-full glass-element rounded-lg p-3 text-right hover:border-primary/50 hover:-translate-y-0.5 transition-all flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-gray-800 truncate">${t.skillName}</p>
+                        <p class="text-[10px] text-gray-400 mt-0.5">${(t.elements||[]).length} عنصر · الدرجة الكاملة ${t.fullScore}</p>
+                    </div>
+                    <i class="ph ph-caret-left text-gray-400 shrink-0"></i>
+                </button>
+            `).join('');
+        }
+        function selectMevTemplateFromSearch(id) {
+            const template = _mevTemplates.find(t => t.id === id);
+            if (!template) return;
+            closeMeasureEvalSearchModal();
+            openMevFillModal(template);
+        }
+
+        // ── ٤) نافذة تعبئة التقييم للمتدرب ──
+        async function openMevFillModal(template) {
+            _mevSelectedTemplate = template;
+            _mevSelectedTrainerName = '';
+            document.getElementById('mevFillSkillName').textContent = template.skillName;
+            document.getElementById('mevFillTraineeName').textContent = _mevCurrentTraineeName;
+            document.getElementById('mevFillTraineeCode').textContent = _mevCurrentTraineeCode;
+            document.getElementById('mevTrainerSearchInput').value = '';
+            document.getElementById('mevTrainerSuggestions').classList.add('hidden');
+            document.getElementById('mevAssessmentDateInput').value = new Date().toISOString().slice(0, 10);
+            renderMevFillElements(template.elements);
+            updateMevFinalScore();
+            document.getElementById('measureEvalFillModal').classList.remove('hidden');
+
+            if (!_mevAssessmentTypesLoaded) {
+                try {
+                    const snap = await db.collection('assessmentTypes').get();
+                    _mevAssessmentTypes = [];
+                    snap.forEach(doc => _mevAssessmentTypes.push(doc.data().name));
+                    _mevAssessmentTypesLoaded = true;
+                } catch (e) { /* تجاهل، ستبقى القائمة فارغة قابلة للإضافة */ }
+            }
+            populateMevAssessmentTypeSelect();
+        }
+        function closeMeasureEvalFillModal() {
+            document.getElementById('measureEvalFillModal').classList.add('hidden');
+        }
+
+        function populateMevAssessmentTypeSelect() {
+            const sel = document.getElementById('mevAssessmentTypeSelect');
+            const current = sel.value;
+            sel.innerHTML = '<option value="">اختر نوع التقييم...</option>' +
+                _mevAssessmentTypes.map(name => `<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`).join('');
+            if (current && _mevAssessmentTypes.includes(current)) sel.value = current;
+        }
+
+        async function addMevAssessmentType() {
+            const name = window.prompt('أدخل اسم نوع التقييم الجديد (مثال: مذاكرة، فحص):');
+            if (!name || !name.trim()) return;
+            const trimmed = name.trim();
+            if (_mevAssessmentTypes.includes(trimmed)) {
+                document.getElementById('mevAssessmentTypeSelect').value = trimmed;
+                return;
+            }
+            try {
+                await offlineAwareWrite(['assessmentTypes'], 'add', { name: trimmed, createdAt: new Date().toISOString() }, {
+                    label: `نوع تقييم: ${trimmed}`, successMsg: '✅ تم إضافة نوع التقييم', silentOnlineSuccess: true
+                });
+            } catch (e) { showToast('تعذر حفظ نوع التقييم', 'error'); return; }
+            _mevAssessmentTypes.push(trimmed);
+            populateMevAssessmentTypeSelect();
+            document.getElementById('mevAssessmentTypeSelect').value = trimmed;
+        }
+
+        function renderMevTrainerSuggestions() {
+            const box = document.getElementById('mevTrainerSuggestions');
+            const q = (document.getElementById('mevTrainerSearchInput').value || '').trim().toLowerCase();
+            const run = () => {
+                let results = registryTrainers;
+                if (q) results = registryTrainers.filter(t => (t.nameAr || '').toLowerCase().includes(q) || (t.nameEn || '').toLowerCase().includes(q));
+                results = results.slice(0, 8);
+                if (results.length === 0) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+                box.innerHTML = results.map(t => `
+                    <button type="button" onclick="selectMevTrainer('${t.nameAr.replace(/'/g,"\\'")}')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-b border-white/40 last:border-0 flex items-center gap-2">
+                        <i class="ph ph-chalkboard-teacher text-primary/60"></i> ${t.nameAr}
+                    </button>
+                `).join('');
+                box.classList.remove('hidden');
+            };
+            if (registryTrainers.length === 0) { loadTrainersFromFirebase().then(run).catch(() => {}); }
+            else run();
+        }
+        function selectMevTrainer(name) {
+            _mevSelectedTrainerName = name;
+            document.getElementById('mevTrainerSearchInput').value = name;
+            document.getElementById('mevTrainerSuggestions').classList.add('hidden');
+        }
+
+        const MEV_LIKERT_LABELS = ['عدم القيام', 'كفاءة ضعيفة إلى متوسطة', 'كفاءة جيدة', 'كفاءة جيدة جداً', 'كفاءة ممتازة'];
+
+        function renderMevFillElements(elements) {
+            const list = document.getElementById('mevFillElementsList');
+            list.innerHTML = elements.map(el => {
+                let optionsHtml = '';
+                if (el.method === 'yesno') {
+                    optionsHtml = `
+                        <div class="flex items-center gap-4 mt-1.5">
+                            <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="radio" name="mev_el_${el.id}" value="1" onchange="updateMevFinalScore()"> نعم</label>
+                            <label class="flex items-center gap-1.5 text-xs cursor-pointer"><input type="radio" name="mev_el_${el.id}" value="0" onchange="updateMevFinalScore()"> لا</label>
+                        </div>`;
+                } else {
+                    optionsHtml = `
+                        <div class="grid grid-cols-1 gap-1 mt-1.5">
+                            ${MEV_LIKERT_LABELS.map((label, i) => `
+                                <label class="flex items-center gap-1.5 text-[11px] cursor-pointer">
+                                    <input type="radio" name="mev_el_${el.id}" value="${i}" onchange="updateMevFinalScore()"> ${label}
+                                </label>
+                            `).join('')}
+                        </div>`;
+                }
+                return `
+                    <div class="glass-panel rounded-lg p-3">
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs font-bold text-gray-700">${el.name}</p>
+                            <span class="text-[10px] text-gray-400">الدرجة: ${el.score}</span>
+                        </div>
+                        ${optionsHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateMevFinalScore() {
+            if (!_mevSelectedTemplate) return 0;
+            let sumEarned = 0, sumMax = 0;
+            _mevSelectedTemplate.elements.forEach(el => {
+                sumMax += Number(el.score) || 0;
+                const checked = document.querySelector(`input[name="mev_el_${el.id}"]:checked`);
+                if (checked) {
+                    const val = parseFloat(checked.value);
+                    const maxVal = el.method === 'yesno' ? 1 : 4;
+                    sumEarned += (val / maxVal) * (Number(el.score) || 0);
+                }
+            });
+            const fullScore = Number(_mevSelectedTemplate.fullScore) || 0;
+            const final = sumMax > 0 ? (sumEarned / sumMax) * fullScore : 0;
+            const rounded = Math.round(final * 100) / 100;
+            const disp = document.getElementById('mevFinalScoreDisplay');
+            if (disp) disp.textContent = `${rounded} / ${fullScore}`;
+            return rounded;
+        }
+
+        async function saveMevAssessment() {
+            if (!_mevSelectedTemplate || !_mevCurrentTraineeId) return;
+            const trainerName = _mevSelectedTrainerName || document.getElementById('mevTrainerSearchInput').value.trim();
+            const assessmentType = document.getElementById('mevAssessmentTypeSelect').value;
+            const assessmentDate = document.getElementById('mevAssessmentDateInput').value;
+            if (!trainerName) { showToast('يرجى تحديد اسم المدرب', 'error'); return; }
+            if (!assessmentType) { showToast('يرجى تحديد نوع التقييم', 'error'); return; }
+            if (!assessmentDate) { showToast('يرجى تحديد تاريخ التقييم', 'error'); return; }
+
+            const elementsResult = [];
+            for (const el of _mevSelectedTemplate.elements) {
+                const checked = document.querySelector(`input[name="mev_el_${el.id}"]:checked`);
+                if (!checked) { showToast(`يرجى تقدير عنصر: ${el.name}`, 'error'); return; }
+                elementsResult.push({ id: el.id, name: el.name, maxScore: el.score, method: el.method, rating: parseFloat(checked.value) });
+            }
+            const finalScore = updateMevFinalScore();
+
+            const record = {
+                traineeId: _mevCurrentTraineeId, traineeName: _mevCurrentTraineeName, traineeCode: _mevCurrentTraineeCode,
+                templateId: _mevSelectedTemplate.id || null, skillName: _mevSelectedTemplate.skillName, fullScore: Number(_mevSelectedTemplate.fullScore) || 0,
+                trainerName, assessmentType, assessmentDate,
+                elements: elementsResult,
+                finalScore,
+                createdAt: new Date().toISOString(),
+                createdBy: (currentUser && (currentUser.displayName || currentUser.email)) || ''
+            };
+            try {
+                await offlineAwareWrite(['traineeAssessments'], 'add', record, {
+                    label: `تقييم مهارة: ${record.skillName} — ${_mevCurrentTraineeName}`,
+                    successMsg: '✅ تم حفظ التقييم بنجاح'
+                });
+            } catch (e) {
+                showToast('تعذر حفظ التقييم', 'error');
+                return;
+            }
+            closeMeasureEvalFillModal();
+            loadMevAssessmentsForTrainee(_mevCurrentTraineeId, _mevCurrentTraineeName, _mevCurrentTraineeCode);
+        }
+
+        // ── ٥) قسم "القياس والتقييم" في بيانات المتدرب ──
+        async function loadMevAssessmentsForTrainee(traineeId, traineeName, traineeCode) {
+            const listEl = document.getElementById('mevAssessmentsList');
+            if (!listEl) return;
+            try {
+                const snap = await db.collection('traineeAssessments').where('traineeId', '==', traineeId).get();
+                const records = [];
+                snap.forEach(doc => records.push({ id: doc.id, ...doc.data() }));
+                records.sort((a, b) => new Date(b.assessmentDate || b.createdAt) - new Date(a.assessmentDate || a.createdAt));
+                _mevTraineeAssessmentsCache[traineeId] = records;
+                if (_mevCurrentTraineeId === traineeId || activeTraineeId === traineeId) renderMevAssessmentsList(traineeId);
+            } catch (e) {
+                listEl.innerHTML = '<p class="text-center text-xs text-red-400 py-3">تعذر تحميل التقييمات</p>';
+            }
+        }
+        function renderMevAssessmentsList(traineeId) {
+            const listEl = document.getElementById('mevAssessmentsList');
+            if (!listEl) return;
+            const records = _mevTraineeAssessmentsCache[traineeId] || [];
+            const badge = document.getElementById('mevCountBadge');
+            if (badge) badge.textContent = records.length;
+            if (records.length === 0) {
+                listEl.innerHTML = '<div class="text-center py-4 text-gray-400"><i class="ph ph-clipboard-text text-xl block mb-1 mx-auto text-gray-300"></i><p class="text-xs">لا توجد تقييمات مسجلة بعد</p></div>';
+                return;
+            }
+            listEl.innerHTML = records.map(r => {
+                const dateStr = r.assessmentDate ? new Date(r.assessmentDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+                const pct = r.fullScore > 0 ? Math.round((r.finalScore / r.fullScore) * 100) : 0;
+                const colorClass = pct >= 85 ? 'bg-green-50 text-green-700 border-green-200' : pct >= 60 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-red-50 text-red-700 border-red-200';
+                return `
+                    <div class="glass-element rounded-lg p-3 cursor-pointer hover:border-teal-400 hover:-translate-y-0.5 transition-all" onclick="openMevDetailModal('${r.id}','${traineeId}')">
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <p class="text-xs font-bold text-gray-700 truncate">${r.skillName}</p>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${colorClass}">${r.finalScore} / ${r.fullScore}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-gray-400">
+                            <span class="flex items-center gap-1"><i class="ph ph-tag"></i> ${r.assessmentType || '—'}</span>
+                            <span class="flex items-center gap-1"><i class="ph ph-calendar-blank"></i> ${dateStr}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openMevDetailModal(recordId, traineeId) {
+            const records = _mevTraineeAssessmentsCache[traineeId || _mevCurrentTraineeId] || [];
+            const r = records.find(x => x.id === recordId);
+            if (!r) return;
+            _mevDetailCurrentId = recordId;
+            _mevDetailCurrentTraineeId = traineeId || _mevCurrentTraineeId;
+            const dateStr = r.assessmentDate ? new Date(r.assessmentDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+            const elementsHtml = (r.elements || []).map(el => {
+                const label = el.method === 'yesno' ? (el.rating === 1 ? 'نعم' : 'لا') : (MEV_LIKERT_LABELS[el.rating] || '—');
+                return `
+                    <div class="glass-panel rounded-lg p-2.5 flex items-center justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="text-xs font-semibold text-gray-700 truncate">${el.name}</p>
+                            <p class="text-[10px] text-gray-400">${label}</p>
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-500 shrink-0">من ${el.maxScore}</span>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('mevDetailContent').innerHTML = `
+                <div class="glass-panel rounded-xl p-3">
+                    <p class="text-sm font-bold text-gray-800 mb-1">${r.skillName}</p>
+                    <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-500">
+                        <p><i class="ph ph-user shrink-0"></i> المتدرب: ${r.traineeName || '—'}</p>
+                        <p><i class="ph ph-chalkboard-teacher shrink-0"></i> المدرب: ${r.trainerName || '—'}</p>
+                        <p><i class="ph ph-tag shrink-0"></i> النوع: ${r.assessmentType || '—'}</p>
+                        <p><i class="ph ph-calendar-blank shrink-0"></i> التاريخ: ${dateStr}</p>
+                    </div>
+                </div>
+                <div class="space-y-2">${elementsHtml}</div>
+                <div class="glass-panel rounded-xl p-3 flex items-center justify-between bg-primary/5">
+                    <span class="text-sm font-semibold text-gray-700">الدرجة النهائية</span>
+                    <span class="font-bold text-primary text-lg">${r.finalScore} / ${r.fullScore}</span>
+                </div>
+            `;
+            document.getElementById('measureEvalDetailModal').classList.remove('hidden');
+        }
+        function closeMevDetailModal() {
+            document.getElementById('measureEvalDetailModal').classList.add('hidden');
+        }
+        async function deleteMevAssessment() {
+            if (!_mevDetailCurrentId) return;
+            if (!confirm('هل أنت متأكد من حذف هذا التقييم؟')) return;
+            try {
+                await offlineAwareWrite(['traineeAssessments', _mevDetailCurrentId], 'delete', null, {
+                    label: 'حذف تقييم مهارة', successMsg: '🗑️ تم حذف التقييم', successType: 'info'
+                });
+            } catch (e) { showToast('تعذر حذف التقييم', 'error'); return; }
+            const tId = _mevDetailCurrentTraineeId;
+            closeMevDetailModal();
+            if (tId) loadMevAssessmentsForTrainee(tId, _mevCurrentTraineeName, _mevCurrentTraineeCode);
         }
 
         // ── إنشاء حساب Firebase Auth للمتدرب ──
@@ -28469,6 +29107,20 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
               allow write: if isAdmin() || isTrainer();
             }
             match /assessment_plans/{doc=**} {
+              allow read:  if isAdmin() || isTrainer() || isTrainee();
+              allow write: if isAdmin() || isTrainer();
+            }
+
+            // ── القياس والتقييم (بطاقات المهارات السريرية + تقييمات المتدربين) ──
+            match /skillAssessmentTemplates/{doc} {
+              allow read:  if isAdmin() || isTrainer();
+              allow write: if isAdmin() || isTrainer();
+            }
+            match /assessmentTypes/{doc} {
+              allow read:  if isAdmin() || isTrainer();
+              allow write: if isAdmin() || isTrainer();
+            }
+            match /traineeAssessments/{doc} {
               allow read:  if isAdmin() || isTrainer() || isTrainee();
               allow write: if isAdmin() || isTrainer();
             }
