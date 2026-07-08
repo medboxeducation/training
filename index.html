@@ -10489,6 +10489,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         .notif-icon-message  { background: rgba(59,130,246,0.12); color: #3b82f6; }
         .notif-icon-call     { background: rgba(16,185,129,0.12); color: #10b981; }
         .notif-icon-feature  { background: rgba(236,72,153,0.12); color: #ec4899; }
+        .notif-icon-exam     { background: rgba(239,68,68,0.12); color: #ef4444; }
         @keyframes notifBellRing {
             0%,100% { transform: rotate(0deg); }
             15%      { transform: rotate(18deg); }
@@ -11139,15 +11140,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             <div id="navUserBtn" class="hidden items-center gap-2">
                 <div id="accountInfoWrapper" class="relative">
                     <button id="navUserNameBtn" onclick="toggleAccountInfoDropdown()"
-                        class="glass-element px-3 md:px-4 py-2 rounded-full flex items-center gap-1.5 text-xs md:text-sm font-semibold text-gray-700 hover:bg-white/50 transition-colors">
+                        class="glass-element px-3 md:px-4 py-2 rounded-full flex items-center gap-1.5 text-xs md:text-sm font-semibold text-gray-700 hover:bg-white/50 transition-colors relative border-2 border-gray-300"
+                        style="position:relative;">
+                        <!-- تسمية الاتصال العائمة أعلى يسار الإطار البيضوي — تتلوّن حواف الزر بالأخضر (متصل) أو الأحمر (غير متصل) -->
+                        <span id="navConnectionLabel" dir="ltr" title="حالة الاتصال بالإنترنت"
+                            class="absolute font-bold leading-none rounded"
+                            style="top:-7px; left:14px; font-size:8px; padding:1px 5px; background:rgba(255,255,255,0.95); color:#9ca3af;">—</span>
                         <div class="flex flex-col items-end leading-tight">
                             <span id="navUserName" class="max-w-[100px] md:max-w-[120px] truncate">—</span>
                             <span id="navUserRole" class="text-[9px] md:text-[10px] font-normal text-gray-400 leading-none"></span>
-                            <span class="flex items-center gap-1 mt-0.5" title="حالة الاتصال بالإنترنت">
-                                <span id="navConnectionDot" class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
-                                <span id="navConnectionText" class="text-[9px] md:text-[10px] font-semibold leading-none text-gray-400">—</span>
-                                <span id="navConnectionPending" class="text-[9px] md:text-[10px] font-normal leading-none text-amber-500"></span>
-                            </span>
+                            <span id="navConnectionPending" class="text-[8px] font-normal leading-none text-amber-500"></span>
                         </div>
                         <i class="ph ph-user-circle text-primary text-base md:text-lg"></i>
                         <i class="ph ph-caret-down text-[10px] text-gray-400 hidden md:inline"></i>
@@ -13802,15 +13804,34 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         // إشعار عند التعديل/الإضافة على جدول الحضور والمشاركة أو جدول الدرجات
         // الشامل — يظهر ضمن نظام الإشعارات (الجرس/القائمة) لا كتوست عابر فقط،
         // ويوضّح اسم الدورة والمستخدم الذي قام بالتعديل
-        function _notifyCourseTableEdit(course, program, tableLabel) {
+        // opts (اختياري): { traineeName, adminOnly }
+        // - adminOnly=true: يُقصر الإشعار على الأدمن فقط (بجميع حساباته) — لا يظهر
+        //   لأي متدرب ولا لأي مدرب. تُستخدم لجدول الحضور والمشاركة/التقييم.
+        // - traineeName: عند تمريره (دون adminOnly) يُقصر الإشعار على الأدمن
+        //   والمتدرب المستهدف تحديداً — يُستخدم لتعديل درجة متدرب واحد بعينه
+        //   في جدول الدرجات الشامل. إن تعذّر مطابقة اسم المتدرب، يُقصر احتياطاً
+        //   على الأدمن فقط تجنباً لبثّه للجميع
+        // - بلا أي من الاثنين: يظهر للجميع (السلوك الافتراضي القديم)
+        function _notifyCourseTableEdit(course, program, tableLabel, opts) {
+            const { traineeName, adminOnly } = (typeof opts === 'string') ? { traineeName: opts } : (opts || {});
             const userName   = (currentUser && (currentUser.displayName || currentUser.nameAr || currentUser.email)) || 'مستخدم غير معروف';
             const courseName = (course && (course.title || course.code)) || (program && program.title) || 'الدورة';
+            const extra = {};
+            if (adminOnly) {
+                extra.targetRole = ['admin'];
+            } else if (traineeName && typeof registryTrainees !== 'undefined') {
+                const traineeRec = registryTrainees.find(t => t.nameAr === traineeName) ||
+                                    registryTrainees.find(t => t.nameAr && (traineeName.includes(t.nameAr) || t.nameAr.includes(traineeName)));
+                if (traineeRec) extra.targetTraineeIds = [traineeRec.id];
+                else extra.targetRole = ['admin']; // تعذّر تحديد المتدرب — لا نُبثّه للجميع احتياطاً
+            }
             if (typeof addNotification === 'function') {
                 addNotification({
                     type  : 'course',
                     action: 'update',
                     title : `✏️ تعديل ${tableLabel}`,
-                    body  : `دورة: ${courseName} — بواسطة: ${userName}`
+                    body  : `دورة: ${courseName}${traineeName ? ' — المتدرب: ' + traineeName : ''} — بواسطة: ${userName}`,
+                    ...extra
                 });
             } else {
                 showToast(`✏️ تعديل على ${tableLabel} — دورة: ${courseName} — بواسطة: ${userName}`, 'info');
@@ -14883,12 +14904,15 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         }
         function _updateOnlineStatusUI() {
             isAppOnline = navigator.onLine;
-            const dot  = document.getElementById('navConnectionDot');
-            const text = document.getElementById('navConnectionText');
-            if (dot)  dot.className  = 'w-1.5 h-1.5 rounded-full ' + (isAppOnline ? 'bg-emerald-500' : 'bg-red-500');
-            if (text) {
-                text.textContent = isAppOnline ? 'متصل' : 'غير متصل';
-                text.className = isAppOnline ? 'text-emerald-600' : 'text-red-500';
+            const btn   = document.getElementById('navUserNameBtn');
+            const label = document.getElementById('navConnectionLabel');
+            if (btn) {
+                btn.classList.remove('border-emerald-500', 'border-red-500', 'border-gray-300');
+                btn.classList.add(isAppOnline ? 'border-emerald-500' : 'border-red-500');
+            }
+            if (label) {
+                label.textContent = isAppOnline ? 'Online' : 'Offline';
+                label.style.color = isAppOnline ? '#10b981' : '#ef4444';
             }
             _updateOfflinePendingBadge();
         }
@@ -19610,11 +19634,13 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             _updateAttendanceRowCounters(courseKey, traineeIndex, course);
 
             // إشعار فوري باسم الدورة والمستخدم الذي قام بالتعديل
-            _notifyCourseTableEdit(course, program, 'جدول الحضور والمشاركة');
+            // — يُستهدف به الأدمن فقط (بجميع حساباته)، ولا يظهر لأي متدرب إطلاقاً
+            const _attTraineeName = (course.traineesList && course.traineesList[traineeIndex]) || null;
+            _notifyCourseTableEdit(course, program, 'جدول الحضور والمشاركة', { traineeName: _attTraineeName, adminOnly: true });
 
             // حفظ في Firestore (attendance فقط — الحالة الموحّدة مخزّنة فيه)
             if (db) {
-                const traineeName = (course.traineesList && course.traineesList[traineeIndex]) || `متدرب #${traineeIndex}`;
+                const traineeName = _attTraineeName || `متدرب #${traineeIndex}`;
                 const statusLabel = (unifiedCellConfig(next).title || '').split('|')[0].trim() || 'بدون تسجيل';
                 offlineAwareWrite(
                     ['programs', programKey, 'courses', courseKey], 'update', { attendance: course.attendance },
@@ -20876,9 +20902,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             recalcTraineeFinalScore(programKey, courseKey, tIndex);
 
             // إشعار فوري باسم الدورة والمستخدم الذي قام بالتعديل
-            _notifyCourseTableEdit(course, program, 'جدول الدرجات الشامل');
-
-            // حفظ في Firestore (debounced)
+            // — يُستهدف به المتدرب صاحب الدرجة المعدَّلة تحديداً والأدمن فقط،
+            // وليس بقية المتدربين/المدربين (تعديل حصري باسم متدرب واحد)
+            {
+                const _gradeTraineeName = (course.traineesList && course.traineesList[tIndex]) || null;
+                _notifyCourseTableEdit(course, program, 'جدول الدرجات الشامل', { traineeName: _gradeTraineeName });
+            }
             clearTimeout(window._gradeSaveTimer);
             window._gradeSaveTimer = setTimeout(async () => {
                 if (db) {
@@ -20910,8 +20939,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 });
             }
 
-            // إشعار فوري باسم الدورة والمستخدم الذي قام بالتعديل
-            _notifyCourseTableEdit(course, program, 'جدول الدرجات الشامل');
+            // ملاحظة: لا يُرسل إشعار هنا — الحفظ الجماعي يشمل عدة متدربين
+            // وليس تعديلاً حصرياً على متدرب واحد بعينه، فلا يُبثّ إشعار عام
 
             if (db) {
                 await offlineAwareWrite(
@@ -29569,6 +29598,26 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
                 );
                 docId = result.id;
                 emsEditingExamId = docId;
+
+                // إشعار بإنشاء امتحان جديد — يظهر لمدرّبي الدورة/الدورات المشمولة
+                // (الأساسي والمساعدَين) وللأدمن (بجميع حساباته) فقط
+                if (typeof addNotification === 'function') {
+                    const _trainerNames = new Set();
+                    courseKeys.forEach(k => {
+                        const c = (program?.courses || []).find(cc => cc.key === k);
+                        if (!c) return;
+                        [c.mainTrainer, c.assistTrainer1, c.assistTrainer2].forEach(n => {
+                            if (n && n.trim()) _trainerNames.add(n.trim());
+                        });
+                    });
+                    addNotification({
+                        type  : 'exam',
+                        action: 'add',
+                        title : '📝 امتحان جديد',
+                        body  : `${payload.examType || 'امتحان'} — دورة: ${course?.code || ck}${program?.title ? ' — ' + program.title : ''}`,
+                        targetTrainerNames: Array.from(_trainerNames)
+                    });
+                }
             }
             const savedExam = { id: docId, ...payload };
             // تخزين الامتحان في الذاكرة المؤقتة تحت كل دورة من الدورات
@@ -33540,10 +33589,10 @@ function _loadNotifFromStorage() {
 //  type: 'program' | 'course' | 'trainee' | 'trainer' | 'message' | 'call' | 'feature'
 //  action: 'add' | 'update'
 // ═══════════════════════════════════════════════════
-function addNotification({ type, action, title, body, icon, targetRole }) {
+function addNotification({ type, action, title, body, icon, targetRole, targetTraineeIds, targetTrainerNames }) {
     // تحقق من صلاحية المستخدم الحالي
     const role = currentUser?.role || '';
-    if (!_shouldShowNotif(type, action, targetRole, role)) return;
+    if (!_shouldShowNotif({ type, action, targetRole, targetTraineeIds, targetTrainerNames }, role, currentUser)) return;
 
     // نولّد مرجع Firestore مسبقاً (دون انتظار الشبكة) للحصول على معرّف موحّد
     // يُستخدم محلياً فوراً، ونفس المعرّف يصل به بقية الحسابات عبر المستمع الحي
@@ -33575,8 +33624,13 @@ function addNotification({ type, action, title, body, icon, targetRole }) {
     if (ref) {
         ref.set({
             type, action, title, body,
-            icon       : notif.icon,
-            targetRole : targetRole || null,
+            icon             : notif.icon,
+            targetRole       : targetRole || null,
+            // استهداف دقيق (يُستخدم إضافةً لـ targetRole أو بدلاً عنه):
+            // متدرب واحد بعينه (مثال: تعديل حضوره/تقييمه) أو مدرّب/مدرّبون بعينهم
+            // (مثال: مدربو دورة أُنشئ لها امتحان) — بالإضافة دوماً للأدمن بجميع حساباته
+            targetTraineeIds  : (Array.isArray(targetTraineeIds)  && targetTraineeIds.length)  ? targetTraineeIds  : null,
+            targetTrainerNames: (Array.isArray(targetTrainerNames) && targetTrainerNames.length) ? targetTrainerNames : null,
             actorUid   : currentUser?.uid || null,
             actorName  : (currentUser && (currentUser.displayName || currentUser.nameAr || currentUser.email)) || 'مستخدم غير معروف',
             actorRole  : currentUser?.role || null,
@@ -33587,10 +33641,36 @@ function addNotification({ type, action, title, body, icon, targetRole }) {
 }
 
 // تحديد ما إذا كان يجب عرض الإشعار للمستخدم الحالي
-function _shouldShowNotif(type, action, targetRole, userRole) {
+// data: { type, action, targetRole, targetTraineeIds, targetTrainerNames }
+// cu:   كائن currentUser الحالي (للوصول لـ traineeId / name عند الحاجة للاستهداف الدقيق)
+function _shouldShowNotif(data, userRole, cu) {
     if (!userRole) return false; // غير مسجل
-    // إذا حُدِّدت فئة مستهدفة صراحةً، فهي تتحكم بالعرض بصرف النظر عن النوع
+    const { type, targetTraineeIds, targetTrainerNames, targetRole } = data || {};
+
+    // ── استهداف دقيق: متدرب واحد بعينه (مثل تعديل حضوره/تقييمه) ──
+    // يظهر للأدمن (بجميع حساباته) وللمتدرب المستهدف فقط، وليس لبقية
+    // المتدربين أو المدربين
+    if (Array.isArray(targetTraineeIds) && targetTraineeIds.length) {
+        if (userRole === 'admin') return true;
+        if (userRole === 'trainee') return !!(cu && cu.traineeId && targetTraineeIds.includes(cu.traineeId));
+        return false;
+    }
+
+    // ── استهداف دقيق: مدرّب/مدرّبون بعينهم (مثل مدربي دورة أُنشئ لها امتحان) ──
+    // يظهر للأدمن (بجميع حساباته) وللمدرّب/المدرّبين المستهدفين فقط
+    if (Array.isArray(targetTrainerNames) && targetTrainerNames.length) {
+        if (userRole === 'admin') return true;
+        if (userRole === 'trainer') {
+            const trainerName = (cu && (cu.name || cu.displayName)) || '';
+            if (!trainerName) return false;
+            return targetTrainerNames.some(n => n && (n.includes(trainerName) || trainerName.includes(n)));
+        }
+        return false;
+    }
+
+    // إذا حُدِّدت فئة أدوار صراحةً (دون استهداف دقيق)، فهي تتحكم بالعرض بصرف النظر عن النوع
     if (targetRole && Array.isArray(targetRole)) return targetRole.includes(userRole);
+
     // الميزات الجديدة — للجميع
     if (type === 'feature') return true;
     // الرسائل والمكالمات — للجميع المسجلين
@@ -33599,6 +33679,8 @@ function _shouldShowNotif(type, action, targetRole, userRole) {
     if (type === 'program' || type === 'course') return true;
     // المدرب/المتدرب الجديد أو تحديثهم — تظهر للجميع افتراضياً
     if (type === 'trainer' || type === 'trainee') return true;
+    // الامتحانات (بدون استهداف دقيق مُحدَّد) — تظهر للجميع افتراضياً كحل احتياطي
+    if (type === 'exam') return true;
     return true;
 }
 
@@ -33610,7 +33692,8 @@ function _defaultIcon(type) {
         trainer : 'ph-chalkboard-teacher',
         message : 'ph-chat-circle-dots',
         call    : 'ph-phone',
-        feature : 'ph-sparkle'
+        feature : 'ph-sparkle',
+        exam    : 'ph-exam'
     };
     return icons[type] || 'ph-bell';
 }
@@ -33728,7 +33811,13 @@ function _listenNotificationsFromFirebase() {
                 if (_notifItems.some(n => n.id === id)) return;
 
                 const role = cu.role || '';
-                if (!_shouldShowNotif(data.type, data.action, data.targetRole, role)) return;
+                if (!_shouldShowNotif({
+                    type: data.type,
+                    action: data.action,
+                    targetRole: data.targetRole,
+                    targetTraineeIds: data.targetTraineeIds,
+                    targetTrainerNames: data.targetTrainerNames
+                }, role, cu)) return;
 
                 const notif = {
                     id,
@@ -33811,7 +33900,7 @@ function _renderNotifList() {
 
     // تصفية حسب الفلتر
     const catMap = {
-        program : ['program', 'course'],
+        program : ['program', 'course', 'exam'],
         people  : ['trainer', 'trainee'],
         message : ['message', 'call'],
         feature : ['feature'],
@@ -33879,7 +33968,7 @@ function escHtml(str) {
 
 function _iconClass(type) {
     const m = { program:'program', course:'course', trainee:'trainee', trainer:'trainer',
-                 message:'message', call:'call', feature:'feature' };
+                 message:'message', call:'call', feature:'feature', exam:'exam' };
     return m[type] || '';
 }
 
@@ -34026,24 +34115,26 @@ function _notifOnCourseSave(isEdit, courseCode, programTitle) {
 }
 
 // ── 3. متدرب جديد أو تحديث ──
+// إضافة متدرب: تظهر للجميع. تعديل متدرب: تظهر للأدمن (بجميع حساباته) وللمدربين فقط
 function _notifOnTraineeSave(isEdit, name) {
     addNotification({
         type  : 'trainee',
         action: isEdit ? 'update' : 'add',
         title : isEdit ? '✏️ تحديث بيانات متدرب' : '👤 متدرب جديد',
         body  : name || (isEdit ? 'تم تحديث بيانات متدرب' : 'تم تسجيل متدرب جديد'),
-        targetRole: ['admin', 'trainer', 'trainee']
+        ...(isEdit ? { targetRole: ['admin', 'trainer'] } : {})
     });
 }
 
 // ── 4. مدرب جديد أو تحديث ──
+// إضافة مدرب: تظهر للجميع. تعديل مدرب: تظهر للأدمن (بجميع حساباته) وللمدربين فقط
 function _notifOnTrainerSave(isEdit, name) {
     addNotification({
         type  : 'trainer',
         action: isEdit ? 'update' : 'add',
         title : isEdit ? '✏️ تحديث بيانات مدرب' : '🏫 مدرب جديد',
         body  : name || (isEdit ? 'تم تحديث بيانات مدرب' : 'تم تسجيل مدرب جديد'),
-        targetRole: ['admin', 'trainer', 'trainee']
+        ...(isEdit ? { targetRole: ['admin', 'trainer'] } : {})
     });
 }
 
@@ -34146,6 +34237,88 @@ function sendFeatureNotification(title, body) {
                 const name   = document.getElementById('traineeNameInput')?.value?.trim() || '';
                 const result = await _origSaveTraineeCourse.apply(this, arguments);
                 _notifOnTraineeSave(isEdit, name);
+                return result;
+            };
+        }
+
+        // ─── deleteProgram ───
+        const _origDeleteProgram = window.deleteProgram;
+        if (typeof _origDeleteProgram === 'function') {
+            window.deleteProgram = async function(programKey) {
+                const prog = (typeof programsData !== 'undefined') ? programsData[programKey] : null;
+                const existedBefore = !!prog;
+                const title = prog ? (prog.title || programKey) : programKey;
+                const result = await _origDeleteProgram.apply(this, arguments);
+                const stillExists = !!(typeof programsData !== 'undefined' && programsData[programKey]);
+                if (existedBefore && !stillExists) {
+                    addNotification({ type:'program', action:'delete', title:'🗑️ حذف برنامج', body: title });
+                }
+                return result;
+            };
+        }
+
+        // ─── deleteCourse ───
+        const _origDeleteCourse = window.deleteCourse;
+        if (typeof _origDeleteCourse === 'function') {
+            window.deleteCourse = async function(programKey, courseKey) {
+                const prog = (typeof programsData !== 'undefined') ? programsData[programKey] : null;
+                const courseBefore = prog && prog.courses ? prog.courses.find(c => c.key === courseKey) : null;
+                const code = courseBefore ? (courseBefore.code || courseKey) : courseKey;
+                const progTitle = prog ? (prog.title || '') : '';
+                const result = await _origDeleteCourse.apply(this, arguments);
+                const stillExists = !!(prog && prog.courses && prog.courses.find(c => c.key === courseKey));
+                if (courseBefore && !stillExists) {
+                    addNotification({ type:'course', action:'delete', title:'🗑️ حذف دورة', body: code + (progTitle ? ' — ' + progTitle : '') });
+                }
+                return result;
+            };
+        }
+
+        // ─── deleteTrainee (إزالة متدرب من داخل دورة) ───
+        const _origDeleteTraineeInCourse = window.deleteTrainee;
+        if (typeof _origDeleteTraineeInCourse === 'function') {
+            window.deleteTrainee = async function(programKey, courseKey, index) {
+                const prog   = (typeof programsData !== 'undefined') ? programsData[programKey] : null;
+                const course = prog && prog.courses ? prog.courses.find(c => c.key === courseKey) : null;
+                const nameBefore  = course && course.traineesList ? course.traineesList[index] : null;
+                const countBefore = course && course.traineesList ? course.traineesList.length : 0;
+                const result = await _origDeleteTraineeInCourse.apply(this, arguments);
+                const countAfter = course && course.traineesList ? course.traineesList.length : 0;
+                if (nameBefore && countAfter < countBefore) {
+                    addNotification({
+                        type:'trainee', action:'delete', title:'🗑️ حذف متدرب من دورة',
+                        body: nameBefore + (course ? ' — ' + (course.code || courseKey) : ''),
+                        targetRole: ['admin','trainer']
+                    });
+                }
+                return result;
+            };
+        }
+
+        // ─── deleteRegistryTrainee (سجل المتدربين العام) ───
+        const _origDeleteRegTrainee = window.deleteRegistryTrainee;
+        if (typeof _origDeleteRegTrainee === 'function') {
+            window.deleteRegistryTrainee = async function(id) {
+                const before = (typeof registryTrainees !== 'undefined') ? registryTrainees.find(t => t.id === id) : null;
+                const result = await _origDeleteRegTrainee.apply(this, arguments);
+                const afterExists = !!(typeof registryTrainees !== 'undefined' && registryTrainees.find(t => t.id === id));
+                if (before && !afterExists) {
+                    addNotification({ type:'trainee', action:'delete', title:'🗑️ حذف متدرب', body: before.nameAr || 'متدرب', targetRole: ['admin', 'trainer'] });
+                }
+                return result;
+            };
+        }
+
+        // ─── deleteRegistryTrainer (سجل المدربين العام) ───
+        const _origDeleteRegTrainer = window.deleteRegistryTrainer;
+        if (typeof _origDeleteRegTrainer === 'function') {
+            window.deleteRegistryTrainer = async function(id) {
+                const before = (typeof registryTrainers !== 'undefined') ? registryTrainers.find(t => t.id === id) : null;
+                const result = await _origDeleteRegTrainer.apply(this, arguments);
+                const afterExists = !!(typeof registryTrainers !== 'undefined' && registryTrainers.find(t => t.id === id));
+                if (before && !afterExists) {
+                    addNotification({ type:'trainer', action:'delete', title:'🗑️ حذف مدرب', body: before.nameAr || 'مدرب', targetRole: ['admin', 'trainer'] });
+                }
                 return result;
             };
         }
