@@ -12667,6 +12667,24 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
                 <div id="examinationViewBody" class="flex-1"></div>
             </div>
 
+            <!-- ط٢. بنك الأسئلة (Question Bank View) -->
+            <div id="questionBankView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                    <button onclick="qbCloseBankView()" class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-primary flex-shrink-0">
+                        <i class="ph ph-arrow-right text-lg"></i>
+                    </button>
+                    <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-purple-600 text-xl flex-shrink-0">
+                        <i class="ph ph-stack"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 id="questionBankViewTitle" class="text-xl font-bold text-gray-800">بنك الأسئلة</h2>
+                        <p id="questionBankViewSubtitle" class="text-xs text-gray-400">تصفح الأسئلة مجمّعة حسب الفكرة/الهدف المعرفي</p>
+                    </div>
+                    <div id="questionBankViewActions" class="flex items-center gap-1"></div>
+                </div>
+                <div id="questionBankViewBody" class="flex-1"></div>
+            </div>
+
             <!-- ح. عرض سجل المدربين (Trainers Registry View) - مخفي افتراضياً -->
             <div id="trainersRegistryView" class="hidden min-h-full flex flex-col">
                 <div class="flex items-center justify-between mb-5">
@@ -13780,6 +13798,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
             attendance:     { label: 'حضور',               icon: 'ph-calendar-check' },
             evaluation:     { label: 'تقييم',              icon: 'ph-star' },
             permissions:    { label: 'صلاحيات مستخدم',      icon: 'ph-shield-check' },
+            questionBank:   { label: 'بنك الأسئلة',         icon: 'ph-stack' },
             other:          { label: 'بيانات عامة',         icon: 'ph-database' },
         };
 
@@ -15129,7 +15148,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView'];
+        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'virtualSessionsView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -28557,6 +28576,445 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
         });
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // ─── بنك الأسئلة (Question Bank) — المرحلة 1: البنية والاستيراد ───
+    // ══════════════════════════════════════════════════════════════════
+    // الفكرة: مجموعة Firestore مستقلة `questionBank` تحتفظ بنسخة من كل سؤال
+    // موجود فعلياً داخل امتحانات المقرر (لا يُولَّد أي سؤال جديد هنا إطلاقاً).
+    // الهدف من هذه المرحلة فقط هو تعبئة البنك من الامتحانات القائمة تمهيداً
+    // لتحليل التشابه المفاهيمي عبر Gemini لاحقاً (المرحلة 2) الذي سيكتشف
+    // الأسئلة التي تقيس نفس الفكرة/الهدف المعرفي حتى لو اختلفت صياغتها.
+    //
+    // معرّف كل مستند في البنك ثابت (deterministic) = `${examId}__${originalIndex}`
+    // بدل معرّف عشوائي، بحيث تكون إعادة الاستيراد (Re-import) "تحديثاً آمناً"
+    // (upsert عبر merge:true) ولا تُنشئ أي تكرار حتى لو استُدعيت أكثر من مرة
+    // على نفس الامتحان.
+    //
+    // شكل مستند بنك الأسئلة:
+    // {
+    //   programKey, courseKey, examId, examLabel,
+    //   sourceIndex,      // رقم السؤال داخل exam.questions الأصلي (0-based)
+    //   type,             // tf | mcq | enum | essay | match
+    //   text,             // نص السؤال (للعرض والبحث السريع)
+    //   mark,
+    //   questionData,     // نسخة كاملة من كائن السؤال الأصلي (qData) لإعادة استخدامه حرفياً لاحقاً
+    //   conceptGroupId,   // null الآن — يُملأ في المرحلة 2 بمعرّف المجموعة المفاهيمية
+    //   conceptLabel,     // null الآن — وصف مختصر للفكرة/الهدف المعرفي الذي يقيسه السؤال
+    //   importedBy, importedAt
+    // }
+
+    function qbQuestionDocId(examId, originalIndex) {
+        return `${examId}__${originalIndex}`;
+    }
+
+    // استيراد كل أسئلة امتحان واحد محدد إلى بنك الأسئلة
+    // opts.silent = true: لا يعرض Toast فردياً (تُستخدم عند الاستيراد الجماعي لعدة امتحانات دفعة واحدة)
+    // يُرجع عدد الأسئلة المستوردة، أو -1 عند الفشل
+    async function qbImportExamQuestions(pk, ck, examId, opts) {
+        opts = opts || {};
+        if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return -1; }
+
+        const exam = (typeof getCachedExamById === 'function') ? getCachedExamById(pk, ck, examId) : null;
+        if (!exam || !Array.isArray(exam.questions) || !exam.questions.length) {
+            if (!opts.silent) showToast('⚠️ لا توجد أسئلة في هذا الامتحان لاستيرادها', 'warning');
+            return 0;
+        }
+
+        const program = programsData[pk];
+        const course  = (program?.courses || []).find(c => c.key === ck);
+        const btn = document.getElementById('qbImportExamBtn');
+        if (btn) { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
+
+        try {
+            const batch = db.batch();
+            exam.questions.forEach((q, idx) => {
+                const ref = db.collection('questionBank').doc(qbQuestionDocId(examId, idx));
+                batch.set(ref, {
+                    programKey: pk,
+                    courseKey: ck,
+                    examId: examId,
+                    examLabel: exam.subjectName || exam.examType || 'امتحان',
+                    sourceIndex: idx,
+                    type: q.type || 'other',
+                    text: q.text || '',
+                    mark: q.mark || 1,
+                    questionData: q,
+                    conceptGroupId: null,
+                    conceptLabel: null,
+                    importedBy: (currentUser && (currentUser.displayName || currentUser.nameAr || currentUser.email)) || 'unknown',
+                    importedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+            });
+            await batch.commit();
+
+            const count = exam.questions.length;
+            if (typeof logActivity === 'function') {
+                await logActivity('add', 'questionBank',
+                    `${count} سؤال من امتحان: ${exam.subjectName || course?.code || ck}`,
+                    examId, { programKey: pk, courseKey: ck, count });
+            }
+            if (!opts.silent) showToast(`✅ تم إضافة ${count} سؤال إلى بنك الأسئلة`, 'success');
+            return count;
+        } catch (err) {
+            console.error('qbImportExamQuestions error:', err);
+            if (!opts.silent) showToast('⚠️ حدث خطأ أثناء الاستيراد إلى بنك الأسئلة', 'warning');
+            return -1;
+        } finally {
+            if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); }
+        }
+    }
+
+    // استيراد كل امتحانات مقرر معيّن دفعة واحدة (تُستخدم لاحقاً من شاشة بنك
+    // الأسئلة في المرحلة 3، ومتاحة الآن كدالة جاهزة للاختبار المبكر)
+    async function qbImportCourseQuestions(pk, ck) {
+        if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
+        let list = (typeof getCachedExamList === 'function') ? getCachedExamList(pk, ck) : null;
+        if (!list && typeof emsLoadExam === 'function') {
+            await emsLoadExam(pk, ck);
+            list = getCachedExamList(pk, ck) || [];
+        }
+        list = list || [];
+        if (!list.length) { showToast('⚠️ لا توجد امتحانات مسجَّلة لهذه الدورة', 'warning'); return; }
+
+        let total = 0, failed = 0;
+        for (const exam of list) {
+            const n = await qbImportExamQuestions(pk, ck, exam.id, { silent: true });
+            if (n < 0) failed++; else total += n;
+        }
+        if (failed) {
+            showToast(`⚠️ تم استيراد ${total} سؤال، وتعذّر استيراد ${failed} امتحان`, 'warning');
+        } else {
+            showToast(`✅ تم استيراد ${total} سؤال من ${list.length} امتحان إلى بنك الأسئلة`, 'success');
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // ─── بنك الأسئلة — المرحلة 2: تحليل التشابه المفاهيمي (بدون توليد) ───
+    // ══════════════════════════════════════════════════════════════════
+    // يرسل نصوص الأسئلة المستوردة فعلياً لمقرر معيّن إلى Gemini بطلب "تصنيف
+    // وتجميع" فقط: تجميع الأسئلة التي تقيس نفس الفكرة/الهدف المعرفي في نفس
+    // المجموعة، حتى لو اختلفت الصياغة أو نوع السؤال — Gemini هنا لا يُنشئ
+    // ولا يُعدّل نص أي سؤال إطلاقاً، فقط يُرجع تجميعاً منطقياً للأسئلة
+    // الموجودة أصلاً. النتيجة تُحدِّث حقلي conceptGroupId/conceptLabel على
+    // مستندات questionBank الموجودة (بدون أي إضافة/حذف لمستندات).
+
+    // جلب كل أسئلة مقرر معيّن من بنك الأسئلة (كما هي مخزَّنة في Firestore، وليس من كاش الامتحانات)
+    async function qbFetchCourseBankQuestions(pk, ck) {
+        if (!db) return [];
+        const snap = await db.collection('questionBank')
+            .where('programKey', '==', pk)
+            .where('courseKey', '==', ck)
+            .get();
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    // نص مختصر للسؤال يُرسَل لـ Gemini للتصنيف فقط (نص السؤال + خيارات mcq/enum/match
+    // إن وُجدت، لأنها قد تكون ضرورية لفهم الفكرة الفعلية التي يقيسها السؤال)
+    function qbQuestionSummaryForAnalysis(q) {
+        const d = q.questionData || {};
+        let extra = '';
+        if (q.type === 'mcq' && Array.isArray(d.options)) extra = ' | الخيارات: ' + d.options.filter(Boolean).join('، ');
+        if (q.type === 'enum' && Array.isArray(d.items))   extra = ' | العناصر: ' + d.items.filter(Boolean).join('، ');
+        if (q.type === 'match' && Array.isArray(d.leftItems)) extra = ' | يطابق: ' + d.leftItems.filter(Boolean).join('، ');
+        return `${q.text || ''}${extra}`.trim();
+    }
+
+    // تشغيل تحليل التشابه المفاهيمي لكل أسئلة مقرر معيّن المستوردة في البنك
+    async function qbAnalyzeConceptSimilarity(pk, ck) {
+        const cfg = await fetchGeminiConfig();
+        if (!cfg.apiKey) {
+            showToast('⚠️ أدخل مفتاح Gemini API أولاً من: الإعدادات ← إعدادات القراءة الآلية (OCR)', 'warning');
+            return;
+        }
+        if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
+
+        const btn = document.getElementById('qbAnalyzeBtn');
+        if (btn) { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
+        showToast('⏳ جاري تحليل التشابه المفاهيمي بين الأسئلة...', 'info');
+
+        try {
+            const questions = await qbFetchCourseBankQuestions(pk, ck);
+            if (questions.length < 2) {
+                showToast('⚠️ يلزم استيراد سؤالين على الأقل لهذا المقرر إلى بنك الأسئلة قبل التحليل', 'warning');
+                return;
+            }
+
+            const payload = questions.map(q => ({
+                id: q.id,
+                type: q.type,
+                text: qbQuestionSummaryForAnalysis(q)
+            }));
+
+            const prompt = `أنت مساعد لتصنيف أسئلة امتحانات تدريبية/طبية باللغة العربية.
+
+المطلوب منك فقط تحليل وتجميع الأسئلة التالية حسب الفكرة أو الهدف المعرفي الذي يقيسه كل سؤال (أي: ما الذي يريد السؤال التأكد أن الطالب يعرفه أو يفهمه) — وليس حسب الصياغة اللفظية أو نوع السؤال. اجمع الأسئلة التي تقيس نفس الفكرة معاً في نفس المجموعة حتى لو اختلفت صياغتها أو نوعها (مثلاً سؤال صح/خطأ وسؤال اختيار من متعدد قد يقيسان نفس الفكرة تماماً). لا تُنشئ أو تُعدّل أو تُعيد صياغة أي سؤال إطلاقاً — فقط صنّف الأسئلة المُعطاة كما هي.
+
+قائمة الأسئلة (id, type, text) بصيغة JSON:
+${JSON.stringify(payload, null, 0)}
+
+أرجع النتيجة بصيغة JSON فقط (كائن واحد)، بدون أي نص إضافي، بالشكل التالي بالضبط:
+{ "groups": [ { "label": "<وصف مختصر جداً بالعربية للفكرة/الهدف المعرفي المشترك>", "questionIds": ["<id1>", "<id2>"] } ] }
+
+قواعد إلزامية:
+- كل سؤال من القائمة يجب أن يظهر في مجموعة واحدة بالضبط ضمن questionIds، بلا استثناء وبلا تكرار.
+- إن كان سؤال لا يشترك بفكرته مع أي سؤال آخر في القائمة، ضعه وحده في مجموعة خاصة به (questionIds بعنصر واحد).
+- استخدم فقط قيم id كما وردت في القائمة، دون تعديلها.`;
+
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.model || 'gemini-2.5-flash')}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    generationConfig: { responseMimeType: 'application/json', temperature: 0.1 }
+                })
+            });
+            const data = await resp.json();
+            const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!rawText) throw new Error('لم يُرجع Gemini أي نتيجة (تحقق من مفتاح API أو الحصة المتاحة)');
+
+            let parsed;
+            try { parsed = JSON.parse(rawText); } catch (e) { throw new Error('تعذّر قراءة رد Gemini بصيغة JSON صحيحة'); }
+            const groups = Array.isArray(parsed?.groups) ? parsed.groups : [];
+            if (!groups.length) throw new Error('لم يُرجع Gemini أي تجميع صالح');
+
+            // معرّف كل مجموعة مفاهيمية ثابت ومرتبط بالمقرر (وليس عشوائياً بالكامل)
+            // حتى يسهل تتبعه لاحقاً في شاشة التصفح (المرحلة 3)
+            const validIds = new Set(questions.map(q => q.id));
+            const batch = db.batch();
+            let updatedCount = 0, groupIndex = 0;
+
+            groups.forEach(g => {
+                groupIndex++;
+                const groupId = `cg_${ck}_${groupIndex}`;
+                const label = (g.label || 'مجموعة غير مسمّاة').trim();
+                (g.questionIds || []).forEach(qid => {
+                    if (!validIds.has(qid)) return; // تجاهل أي id غير معروف احتياطاً
+                    const ref = db.collection('questionBank').doc(qid);
+                    batch.set(ref, {
+                        conceptGroupId: groupId,
+                        conceptLabel: label,
+                        conceptAnalyzedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    }, { merge: true });
+                    updatedCount++;
+                });
+            });
+            await batch.commit();
+
+            const duplicateGroups = groups.filter(g => (g.questionIds || []).length > 1).length;
+            if (typeof logActivity === 'function') {
+                const program = programsData[pk];
+                const course  = (program?.courses || []).find(c => c.key === ck);
+                await logActivity('edit', 'questionBank',
+                    `تحليل تشابه مفاهيمي: ${course?.code || ck}`,
+                    ck, { programKey: pk, courseKey: ck, questionsAnalyzed: updatedCount, groups: groups.length, duplicateGroups });
+            }
+
+            showToast(`✅ تم تصنيف ${updatedCount} سؤال ضمن ${groups.length} مجموعة مفاهيمية (${duplicateGroups} منها تحتوي تكراراً في الفكرة)`, 'success');
+        } catch (err) {
+            console.error('qbAnalyzeConceptSimilarity error:', err);
+            showToast(`⚠️ ${err.message || 'حدث خطأ أثناء تحليل التشابه المفاهيمي'}`, 'warning');
+        } finally {
+            if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // ─── بنك الأسئلة — المرحلة 3: شاشة التصفح حسب المجموعة المفاهيمية ───
+    // ══════════════════════════════════════════════════════════════════
+    let qbBankState = { pk: null, ck: null, questions: [], selectedIds: new Set(), filterType: 'all', searchQuery: '' };
+
+    async function qbShowBankView(pk, ck) {
+        const program = programsData[pk];
+        const course  = (program?.courses || []).find(c => c.key === ck);
+
+        showView('questionBankView');
+        document.getElementById('questionBankViewSubtitle').textContent =
+            `${program?.title || ''} · ${course?.title || course?.code || ck}`;
+        document.getElementById('questionBankViewActions').innerHTML = '';
+        document.getElementById('questionBankViewBody').innerHTML = `
+            <div class="text-center py-16 text-gray-400">
+                <i class="ph ph-circle-notch animate-spin text-3xl block mb-2"></i>
+                <p class="text-sm">جاري تحميل بنك الأسئلة...</p>
+            </div>`;
+
+        qbBankState = { pk, ck, questions: [], selectedIds: new Set(), filterType: 'all', searchQuery: '' };
+        try {
+            qbBankState.questions = await qbFetchCourseBankQuestions(pk, ck);
+            qbRenderBankView();
+        } catch (err) {
+            console.error('qbShowBankView error:', err);
+            document.getElementById('questionBankViewBody').innerHTML =
+                `<div class="text-center py-16 text-red-400 text-sm">تعذّر تحميل بنك الأسئلة</div>`;
+        }
+    }
+
+    function qbCloseBankView() {
+        showView('examinationView');
+    }
+
+    // تجميع الأسئلة (بعد تطبيق الفلاتر) حسب conceptGroupId — الأسئلة التي لم
+    // تُحلَّل بعد (المرحلة 2 لم تُنفَّذ عليها) تُجمَّع في مجموعة "غير مصنَّف"
+    // ظاهرة دوماً في آخر القائمة. مجموعات التكرار الفعلي (أكثر من سؤال) تظهر أولاً.
+    function qbGroupBankQuestions(questions) {
+        const groups = {};
+        questions.forEach(q => {
+            const gid = q.conceptGroupId || '__ungrouped__';
+            if (!groups[gid]) {
+                groups[gid] = {
+                    groupId: gid,
+                    label: q.conceptGroupId ? (q.conceptLabel || 'مجموعة غير مسمّاة') : 'غير مصنَّف بعد (يحتاج تحليل)',
+                    items: []
+                };
+            }
+            groups[gid].items.push(q);
+        });
+        return Object.values(groups).sort((a, b) => {
+            if (a.groupId === '__ungrouped__') return 1;
+            if (b.groupId === '__ungrouped__') return -1;
+            return b.items.length - a.items.length;
+        });
+    }
+
+    function qbApplyBankFilters(questions) {
+        const { filterType, searchQuery } = qbBankState;
+        const q = (searchQuery || '').trim();
+        return questions.filter(item => {
+            if (filterType !== 'all' && item.type !== filterType) return false;
+            if (q && !(item.text || '').includes(q)) return false;
+            return true;
+        });
+    }
+
+    function qbRenderBankView() {
+        const filtered = qbApplyBankFilters(qbBankState.questions);
+        const groups = qbGroupBankQuestions(filtered);
+
+        document.getElementById('questionBankViewActions').innerHTML = `
+            <span class="text-xs font-semibold text-gray-500 ml-1">المحدد: <span id="qbSelectedCount">${qbBankState.selectedIds.size}</span></span>
+            <button onclick="qbAutoSelectOnePerGroup()"
+                class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-purple-600 flex items-center gap-1.5 hover:bg-purple-50 hover:border-purple-300 transition-colors">
+                <i class="ph ph-shuffle text-sm"></i> استبعاد التكرار تلقائياً
+            </button>
+            <button onclick="qbClearSelection()"
+                class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-gray-500 flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
+                <i class="ph ph-x-circle text-sm"></i> مسح التحديد
+            </button>
+            <button onclick="qbBuildExamFromSelection()"
+                class="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-primary flex items-center gap-1.5 hover:bg-primary/90 transition-colors">
+                <i class="ph ph-plus-circle text-sm"></i> إنشاء امتحان من المحدد
+            </button>`;
+
+        if (!qbBankState.questions.length) {
+            document.getElementById('questionBankViewBody').innerHTML = `
+                <div class="text-center py-16 text-gray-400">
+                    <i class="ph ph-stack text-3xl block mb-2 text-gray-300"></i>
+                    <p class="text-sm">لا توجد أسئلة مستوردة بعد لهذا المقرر</p>
+                    <p class="text-xs text-gray-400 mt-1">افتح أحد امتحانات هذا المقرر واضغط "إضافة لبنك الأسئلة" أولاً</p>
+                </div>`;
+            return;
+        }
+
+        const filtersHTML = `
+            <div class="glass-element rounded-xl p-3 mb-4 flex flex-wrap items-center gap-2">
+                <input type="text" id="qbSearchInput" placeholder="بحث في نص السؤال..."
+                    value="${escapeHtml(qbBankState.searchQuery || '')}"
+                    oninput="qbBankState.searchQuery=this.value; qbRenderBankView();"
+                    class="glass-panel px-3 py-2 rounded-lg text-sm flex-1 min-w-[160px] outline-none">
+                <select onchange="qbBankState.filterType=this.value; qbRenderBankView();"
+                    class="glass-panel px-3 py-2 rounded-lg text-sm outline-none">
+                    <option value="all" ${qbBankState.filterType === 'all' ? 'selected' : ''}>كل الأنواع</option>
+                    ${QUESTION_TYPES.map(t => `<option value="${t.key}" ${qbBankState.filterType === t.key ? 'selected' : ''}>${t.ar}</option>`).join('')}
+                </select>
+            </div>`;
+
+        const groupsHTML = groups.map(g => {
+            const isDup = g.groupId !== '__ungrouped__' && g.items.length > 1;
+            return `
+            <div class="glass-element rounded-xl p-4 mb-3">
+                <div class="flex items-center gap-2 mb-3">
+                    <i class="ph ${g.groupId === '__ungrouped__' ? 'ph-question' : (isDup ? 'ph-copy' : 'ph-check-circle')} ${isDup ? 'text-amber-500' : 'text-gray-400'}"></i>
+                    <h4 class="font-bold text-sm text-gray-700">${escapeHtml(g.label)}</h4>
+                    ${isDup ? `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">تكرار الفكرة × ${g.items.length}</span>` : ''}
+                </div>
+                <div class="space-y-1.5">
+                    ${g.items.map(q => qbRenderBankQuestionRow(q)).join('')}
+                </div>
+            </div>`;
+        }).join('');
+
+        document.getElementById('questionBankViewBody').innerHTML = filtersHTML +
+            (groupsHTML || `<div class="text-center py-10 text-gray-400 text-sm">لا توجد نتائج مطابقة للفلاتر الحالية</div>`);
+    }
+
+    function qbRenderBankQuestionRow(q) {
+        const typeInfo = QUESTION_TYPES.find(t => t.key === q.type) || { ar: q.type || 'أخرى', icon: 'ph-question' };
+        const checked = qbBankState.selectedIds.has(q.id);
+        return `
+        <label class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+            <input type="checkbox" ${checked ? 'checked' : ''} onchange="qbToggleQuestionSelection('${q.id}', this.checked)"
+                class="mt-1 w-4 h-4 accent-purple-600 flex-shrink-0">
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 flex items-center gap-1">
+                        <i class="ph ${typeInfo.icon}"></i> ${typeInfo.ar}
+                    </span>
+                    <span class="text-[10px] text-gray-400">من: ${escapeHtml(q.examLabel || 'امتحان')}</span>
+                </div>
+                <p class="text-sm text-gray-700 leading-snug">${escapeHtml((q.text || '(بدون نص)').slice(0, 300))}</p>
+            </div>
+        </label>`;
+    }
+
+    function qbToggleQuestionSelection(id, checked) {
+        if (checked) qbBankState.selectedIds.add(id); else qbBankState.selectedIds.delete(id);
+        const counter = document.getElementById('qbSelectedCount');
+        if (counter) counter.textContent = qbBankState.selectedIds.size;
+    }
+
+    function qbClearSelection() {
+        qbBankState.selectedIds.clear();
+        qbRenderBankView();
+    }
+
+    // تحديد سؤال واحد فقط (أول سؤال) من كل مجموعة مفاهيمية ضمن النتائج المفلترة
+    // حالياً — يستبدل التحديد الحالي بالكامل. المجموعات "غير المصنَّف" لا تُعتبر
+    // تكراراً (كل سؤال فيها مستقل)، لكنها تُضمَّن أيضاً حتى لا تُستبعد بلا داعٍ.
+    function qbAutoSelectOnePerGroup() {
+        const groups = qbGroupBankQuestions(qbApplyBankFilters(qbBankState.questions));
+        qbBankState.selectedIds.clear();
+        groups.forEach(g => { if (g.items.length) qbBankState.selectedIds.add(g.items[0].id); });
+        qbRenderBankView();
+        showToast(`✅ تم تحديد ${qbBankState.selectedIds.size} سؤال (سؤال واحد من كل مجموعة تكرار)`, 'success');
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // ─── بنك الأسئلة — المرحلة 4: إنشاء امتحان من الأسئلة المحددة ───
+    // ══════════════════════════════════════════════════════════════════
+    // ينقل الأسئلة المحددة حالياً في شاشة التصفح إلى مصمم الامتحان الموجود
+    // فعلاً (emsShowDesigner) بدل بناء مسار حفظ موازٍ — فيُستخدم نفس
+    // emsSaveExam ونفس التحقق من الصلاحيات والحفظ في `examinations` كالمعتاد.
+    // كل سؤال يُنسَخ من questionData الأصلية (نسخة عميقة) حتى لا يتأثر
+    // مستند بنك الأسئلة بأي تعديل لاحق يطرأ عليه داخل مصمم الامتحان الجديد.
+    function qbBuildExamFromSelection() {
+        if (!qbBankState.selectedIds.size) {
+            showToast('⚠️ حدد سؤالاً واحداً على الأقل أولاً', 'warning');
+            return;
+        }
+        const selectedQuestions = qbBankState.questions
+            .filter(q => qbBankState.selectedIds.has(q.id))
+            .map(q => JSON.parse(JSON.stringify(q.questionData || { type: q.type, text: q.text, mark: q.mark || 1 })));
+
+        const { pk, ck } = qbBankState;
+        emsShowDesigner(pk, ck); // يبني نموذج امتحان جديد فارغ بنفس الدورة، بصلاحياته المعتادة
+
+        // emsShowDesigner يُصفّر emsQuestions إلى [] لأنه إنشاء امتحان جديد
+        // (لا existingExam) — نستبدلها هنا بالأسئلة المحددة من البنك
+        emsQuestions = selectedQuestions;
+        if (typeof emsRefreshQuestionsList === 'function') emsRefreshQuestionsList();
+
+        showToast(`✅ تم نقل ${selectedQuestions.length} سؤال إلى مصمم الامتحان — أكمل بيانات الامتحان ثم احفظ`, 'success');
+    }
+
     // ─── مساعدات ─────────────────────────────────────────────
     function emsKey(pk, ck) { return `${pk}__${ck}`; }
 
@@ -29682,6 +30140,19 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
               <i class="ph ph-trash text-sm"></i> حذف
             </button>
             </span>` : ''}
+            ${canManageView ? `
+            <button id="qbImportExamBtn" onclick="qbImportExamQuestions('${pk}','${ck}','${exam.id || ''}')"
+              class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 flex items-center gap-1.5 hover:bg-indigo-50 hover:border-indigo-300 transition-colors">
+              <i class="ph ph-stack text-sm"></i> إضافة لبنك الأسئلة
+            </button>
+            <button id="qbAnalyzeBtn" onclick="qbAnalyzeConceptSimilarity('${pk}','${ck}')"
+              class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-purple-600 flex items-center gap-1.5 hover:bg-purple-50 hover:border-purple-300 transition-colors">
+              <i class="ph ph-magic-wand text-sm"></i> تحليل التشابه المفاهيمي
+            </button>
+            <button onclick="qbShowBankView('${pk}','${ck}')"
+              class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-purple-700 flex items-center gap-1.5 hover:bg-purple-50 hover:border-purple-300 transition-colors">
+              <i class="ph ph-stack text-sm"></i> تصفح بنك الأسئلة
+            </button>` : ''}
             <button onclick="emsPrintExam('${pk}','${ck}','${exam.id || ''}')"
               class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
               <i class="ph ph-printer text-sm"></i> طباعة
