@@ -869,6 +869,28 @@
     .ac-rich-content ol.ac-list-alpha-ar { list-style-type: arabic-abjad; }
     .ac-rich-content ul.ac-list-square { list-style-type: square; }
     .ac-rich-content ul.ac-list-circle { list-style-type: circle; }
+    /* ── مرفقات المحتوى: زر عائم + شارة عدد + إحالة (سايتيشين) ── */
+    .ac-content-wrap { position: relative; }
+    .ac-attach-fab {
+        position: absolute; top: -11px; left: -11px; width: 26px; height: 26px;
+        border-radius: 9999px; background: #0790AC; color: #fff; border: 2px solid #fff;
+        display: flex; align-items: center; justify-content: center; font-size: 11px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer; z-index: 5; transition: transform .15s;
+    }
+    .ac-attach-fab:hover { transform: scale(1.12); }
+    .ac-attach-badge {
+        position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff;
+        font-size: 9px; font-weight: 700; min-width: 14px; height: 14px; border-radius: 9999px;
+        display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1;
+    }
+    .ac-attach-badge.hidden { display: none; }
+    .ac-citation {
+        display: inline-flex; align-items: center; justify-content: center;
+        background: rgba(7,144,172,0.12); color: #0790AC; border-radius: 5px; padding: 1px 5px;
+        font-size: 10px; font-weight: 700; cursor: pointer; vertical-align: super; margin: 0 1px;
+        border: 1px solid rgba(7,144,172,0.25); user-select: none; line-height: 1.4;
+    }
+    .ac-citation:hover { background: rgba(7,144,172,0.22); }
     </style>
 </head>
 <body class="guest-mode text-gray-800 overflow-hidden flex flex-col">
@@ -7921,7 +7943,7 @@
 
         async function showAcademicCoursesSection() {
             sidebarMode = 'academicCourses';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -7949,7 +7971,7 @@
             return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
         }
         function acBlankNode() {
-            return { id: acUid(), title: '', content: '', children: [] };
+            return { id: acUid(), title: '', content: '', children: [], attachments: [] };
         }
         function acBlankChapter() {
             return { id: acUid(), number: '', title: '', outline: [] };
@@ -8252,6 +8274,372 @@
             acUpdateNodeContent(id, el.innerHTML);
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        //  مرفقات محتوى المقرر (صور / فيديو / PDF) — تُرفع إلى Google Drive
+        //  بنفس آلية تسجيل الدخول والمجلد المستخدَمة في "المزامنة وتصدير
+        //  البيانات"، وتُخزَّن في Firestore بيانات المرجع فقط (اسم الملف،
+        //  معرّف Drive، روابط العرض). عند التصفح تُحضَر عبر Firebase وتُعرض
+        //  من Drive مباشرة دون المرور عبر Firebase Storage.
+        // ══════════════════════════════════════════════════════════════════
+
+        const DRIVE_ATTACH_FOLDER_NAME = 'MedBox Education Attachments';
+        let acAttachManagerNodeId = null; // العنوان المفتوح حالياً في مودال المرفقات
+        let acSavedRange = null;          // موضع المؤشر داخل النص وقت فتح المودال (لإدراج الإحالة بنفس المكان)
+
+        // زر عائم صغير على حافة صندوق النص — يفتح مودال إدارة المرفقات
+        function acAttachFabHtml(node) {
+            const count = (node.attachments || []).length;
+            return `
+            <button type="button" id="acAttachBtn_${node.id}" onclick="acOpenAttachManager('${node.id}')" class="ac-attach-fab" title="إضافة/عرض مرفقات (صور، فيديو، PDF)">
+                <i class="ph ph-paperclip"></i>
+                <span id="acAttachBadge_${node.id}" class="ac-attach-badge ${count ? '' : 'hidden'}">${count || ''}</span>
+            </button>`;
+        }
+
+        function acUpdateAttachBadge(nodeId) {
+            const ctx = acFindNodeContext(nodeId);
+            const badge = document.getElementById('acAttachBadge_' + nodeId);
+            if (!badge || !ctx) return;
+            const count = (ctx.node.attachments || []).length;
+            badge.textContent = count || '';
+            badge.classList.toggle('hidden', !count);
+        }
+
+        function acAttachmentKind(mimeType) {
+            mimeType = mimeType || '';
+            if (mimeType.startsWith('image/')) return 'image';
+            if (mimeType.startsWith('video/')) return 'video';
+            if (mimeType === 'application/pdf') return 'pdf';
+            return 'other';
+        }
+        function acAttachmentIcon(kind) {
+            return { image: 'ph-image', video: 'ph-video-camera', pdf: 'ph-file-pdf' }[kind] || 'ph-paperclip';
+        }
+
+        // ── مجلد Drive مخصَّص للمرفقات (منفصل عن مجلد النسخ الاحتياطية) ──
+        async function getOrCreateAttachFolder() {
+            const search = await gapi.client.drive.files.list({
+                q: `mimeType='application/vnd.google-apps.folder' and name='${DRIVE_ATTACH_FOLDER_NAME}' and trashed=false`,
+                fields: 'files(id,name)',
+                spaces: 'drive',
+            });
+            if (search.result.files && search.result.files.length > 0) return search.result.files[0].id;
+            const create = await gapi.client.drive.files.create({
+                resource: { name: DRIVE_ATTACH_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' },
+                fields: 'id',
+            });
+            return create.result.id;
+        }
+
+        function _fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+                reader.onerror = () => reject(new Error('تعذّرت قراءة الملف'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // رفع ملف ثنائي (صورة/فيديو/PDF) إلى Drive عبر multipart upload
+        async function driveUploadBinaryFile(file, folderId) {
+            const base64Data = await _fileToBase64(file);
+            const boundary = '-------MedBoxAttachBoundary';
+            const delimiter = '\r\n--' + boundary + '\r\n';
+            const closeDelimiter = '\r\n--' + boundary + '--';
+            const metadata = JSON.stringify({ name: file.name, parents: [folderId] });
+            const multipartBody =
+                delimiter +
+                'Content-Type: application/json; charset=UTF-8\r\n\r\n' + metadata +
+                delimiter +
+                'Content-Type: ' + (file.type || 'application/octet-stream') + '\r\n' +
+                'Content-Transfer-Encoding: base64\r\n\r\n' + base64Data +
+                closeDelimiter;
+
+            const res = await gapi.client.request({
+                path: 'https://www.googleapis.com/upload/drive/v3/files',
+                method: 'POST',
+                params: { uploadType: 'multipart', fields: 'id,name,mimeType,size' },
+                headers: { 'Content-Type': 'multipart/related; boundary="' + boundary + '"' },
+                body: multipartBody,
+            });
+            return res.result;
+        }
+
+        // منح صلاحية القراءة العامة (أي شخص يملك الرابط) — كي تُعرض المرفقات
+        // لكل مستخدمي التطبيق دون الحاجة لتسجيل دخول Drive عند كل تصفّح
+        async function driveMakeFilePublic(fileId) {
+            await gapi.client.drive.permissions.create({
+                fileId,
+                resource: { role: 'reader', type: 'anyone' },
+            });
+        }
+
+        function driveFileViewUrl(fileId)     { return `https://drive.google.com/uc?export=view&id=${fileId}`; }
+        function driveFileDownloadUrl(fileId) { return `https://drive.google.com/uc?export=download&id=${fileId}`; }
+        function driveFilePreviewUrl(fileId)  { return `https://drive.google.com/file/d/${fileId}/preview`; }
+
+        // ── فتح مودال إدارة مرفقات عنوان معيّن ──
+        function acOpenAttachManager(nodeId) {
+            const ctx = acFindNodeContext(nodeId);
+            if (!ctx) return;
+            if (!ctx.node.attachments) ctx.node.attachments = [];
+            acAttachManagerNodeId = nodeId;
+
+            // حفظ موضع المؤشر الحالي داخل حقل النص (إن وُجد) لإدراج الإحالة لاحقاً بنفس المكان
+            acSavedRange = null;
+            const contentEl = document.getElementById('acContent_' + nodeId);
+            const sel = window.getSelection();
+            if (contentEl && sel && sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                if (contentEl.contains(range.commonAncestorContainer)) acSavedRange = range.cloneRange();
+            }
+
+            const existing = document.getElementById('acAttachModal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'acAttachModal';
+            modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center p-4';
+            modal.style.background = 'rgba(0,0,0,0.45)';
+            modal.innerHTML = `
+                <div class="glass-panel rounded-2xl shadow-2xl w-full max-w-md p-5 relative flex flex-col" style="backdrop-filter:blur(24px); max-height:85vh;">
+                    <button onclick="document.getElementById('acAttachModal').remove()" class="absolute top-3 left-3 w-8 h-8 glass-icon-btn rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100">
+                        <i class="ph ph-x text-sm"></i>
+                    </button>
+                    <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2 pl-8"><i class="ph ph-paperclip text-primary"></i> مرفقات هذا العنوان</h3>
+                    <p class="text-[11px] text-gray-400 mb-3">صور، فيديوهات، أو ملفات PDF — تُرفع إلى Google Drive، وتقدر تضيف إحالة [رقم] داخل النص بمكان المؤشر</p>
+                    <div id="acAttachList" class="space-y-2 overflow-y-auto flex-1 mb-3"></div>
+                    <div id="acAttachUploadStatus" class="hidden text-[11px] text-primary mb-2 flex items-center gap-1.5"><i class="ph ph-circle-notch animate-spin"></i><span></span></div>
+                    <div id="acAttachFooter"></div>
+                </div>`;
+            document.body.appendChild(modal);
+            acRenderAttachList();
+            acRenderAttachFooter();
+        }
+
+        function acRenderAttachFooter() {
+            const footer = document.getElementById('acAttachFooter');
+            if (!footer) return;
+            if (!driveToken) {
+                footer.innerHTML = `
+                    <div class="glass-panel rounded-xl p-3 text-center">
+                        <p class="text-[11px] text-amber-600 mb-2"><i class="ph ph-warning-circle"></i> يجب تسجيل الدخول بحساب Google Drive أولاً لإضافة مرفقات (نفس حساب المزامنة)</p>
+                        <button onclick="document.getElementById('acAttachModal').remove(); showSyncView();" class="glass-panel px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:border-primary/40">فتح إعدادات المزامنة لتسجيل الدخول</button>
+                    </div>`;
+                return;
+            }
+            footer.innerHTML = `
+                <label class="glass-panel rounded-xl p-3 flex items-center justify-center gap-2 text-sm font-semibold text-primary cursor-pointer hover:border-primary/50 transition-all">
+                    <i class="ph ph-upload-simple"></i> اختر ملفات (صور / فيديو / PDF)
+                    <input type="file" id="acAttachFileInput" accept="image/*,video/*,application/pdf" multiple class="hidden" onchange="acHandleAttachFiles(event)">
+                </label>`;
+        }
+
+        function acRenderAttachList() {
+            const listEl = document.getElementById('acAttachList');
+            if (!listEl) return;
+            const ctx = acFindNodeContext(acAttachManagerNodeId);
+            const atts = (ctx && ctx.node.attachments) || [];
+            if (!atts.length) {
+                listEl.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">لا توجد مرفقات بعد</p>';
+                return;
+            }
+            listEl.innerHTML = atts.map((a, i) => `
+                <div class="glass-element rounded-lg p-2.5 flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 overflow-hidden">
+                        ${a.kind === 'image' ? `<img src="${a.viewUrl}" class="w-full h-full object-cover" onerror="this.remove()">` : `<i class="ph ${acAttachmentIcon(a.kind)}"></i>`}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-semibold text-gray-700 truncate">${escapeHtml(a.name || '')}</p>
+                        <p class="text-[10px] text-gray-400">مرجع [${i + 1}]</p>
+                    </div>
+                    <button onclick="acShowAttachmentViewer('${acAttachManagerNodeId}','${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 shrink-0" title="معاينة">
+                        <i class="ph ph-eye text-xs"></i>
+                    </button>
+                    <button onclick="acInsertCitation('${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 shrink-0" title="إدراج إحالة بموضع المؤشر داخل النص">
+                        <i class="ph ph-quotes text-xs"></i>
+                    </button>
+                    <button onclick="acRemoveAttachment('${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 shrink-0" title="حذف المرفق">
+                        <i class="ph ph-trash text-xs"></i>
+                    </button>
+                </div>`).join('');
+        }
+
+        async function acHandleAttachFiles(event) {
+            const files = Array.from(event.target.files || []);
+            event.target.value = '';
+            if (!files.length) return;
+            const nodeId = acAttachManagerNodeId;
+            const ctx = acFindNodeContext(nodeId);
+            if (!ctx) return;
+            if (!driveToken) { acRenderAttachFooter(); return; }
+
+            if (!gapiReady) {
+                try { await initGapi(); }
+                catch (e) { showToast?.('❌ تعذّرت تهيئة Google API — تحقق من إعدادات المزامنة', 'error'); return; }
+            }
+
+            const statusEl = document.getElementById('acAttachUploadStatus');
+            const statusText = statusEl?.querySelector('span');
+            if (statusEl) statusEl.classList.remove('hidden');
+
+            const MAX_SIZE = 50 * 1024 * 1024; // 50MB — حد تحذيري
+            try {
+                const folderId = await getOrCreateAttachFolder();
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    if (file.size > MAX_SIZE) {
+                        showToast?.(`⚠️ الملف "${file.name}" أكبر من 50MB — تم تخطّيه`, 'warn');
+                        continue;
+                    }
+                    if (statusText) statusText.textContent = `جاري رفع ${file.name} (${i + 1}/${files.length})...`;
+                    const uploaded = await driveUploadBinaryFile(file, folderId);
+                    await driveMakeFilePublic(uploaded.id);
+                    const kind = acAttachmentKind(uploaded.mimeType || file.type);
+                    const attachment = {
+                        id: acUid(),
+                        name: uploaded.name || file.name,
+                        mimeType: uploaded.mimeType || file.type || '',
+                        kind,
+                        driveFileId: uploaded.id,
+                        viewUrl: driveFileViewUrl(uploaded.id),
+                        downloadUrl: driveFileDownloadUrl(uploaded.id),
+                        previewUrl: driveFilePreviewUrl(uploaded.id),
+                        addedAt: new Date().toISOString()
+                    };
+                    if (!ctx.node.attachments) ctx.node.attachments = [];
+                    ctx.node.attachments.push(attachment);
+                }
+                acRenderAttachList();
+                acUpdateAttachBadge(nodeId);
+                showToast?.('✅ تم رفع المرفقات بنجاح', 'success');
+            } catch (err) {
+                console.error('acHandleAttachFiles error:', err);
+                showToast?.('❌ فشل رفع أحد الملفات: ' + (err.message || ''), 'error');
+            } finally {
+                if (statusEl) statusEl.classList.add('hidden');
+            }
+        }
+
+        function acRemoveAttachment(attId) {
+            const nodeId = acAttachManagerNodeId;
+            const ctx = acFindNodeContext(nodeId);
+            if (!ctx) return;
+            if (!confirm('هل تريد حذف هذا المرفق؟ الإحالات المُدرَجة داخل النص المرتبطة به لن تعمل بعد الحذف.')) return;
+            ctx.node.attachments = (ctx.node.attachments || []).filter(a => a.id !== attId);
+            acRenderAttachList();
+            acUpdateAttachBadge(nodeId);
+        }
+
+        // إدراج إحالة [رقم] داخل النص بموضع المؤشر المحفوظ (أو نهاية النص إن لم يوجد)
+        function acInsertCitation(attId) {
+            const nodeId = acAttachManagerNodeId;
+            const ctx = acFindNodeContext(nodeId);
+            if (!ctx) return;
+            const atts = ctx.node.attachments || [];
+            const idx = atts.findIndex(a => a.id === attId);
+            if (idx === -1) return;
+            const marker = ` <sup class="ac-citation" contenteditable="false" onclick="acShowAttachmentViewer('${nodeId}','${attId}')" title="عرض المرفق">[${idx + 1}]</sup>&nbsp;`;
+
+            const contentEl = document.getElementById('acContent_' + nodeId);
+            if (contentEl) {
+                contentEl.focus();
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                if (acSavedRange) {
+                    sel.addRange(acSavedRange);
+                } else {
+                    const range = document.createRange();
+                    range.selectNodeContents(contentEl);
+                    range.collapse(false);
+                    sel.addRange(range);
+                }
+                try { document.execCommand('insertHTML', false, marker); } catch (e) {}
+                acUpdateNodeContent(nodeId, contentEl.innerHTML);
+                acSavedRange = null;
+            }
+            document.getElementById('acAttachModal')?.remove();
+            showToast?.('🔗 تم إدراج الإحالة داخل النص', 'success');
+        }
+
+        // ── البحث عن مرفق معيّن، سواء أثناء التصميم (acCourseDraft) أو أثناء تصفّح مقرر محفوظ ──
+        function acFindNodeInTree(nodeId, nodes) {
+            for (const n of (nodes || [])) {
+                if (n.id === nodeId) return n;
+                if (n.children && n.children.length) {
+                    const found = acFindNodeInTree(nodeId, n.children);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+        function acFindAttachment(nodeId, attId) {
+            if (acCourseDraft) {
+                const ctx = acFindNodeContext(nodeId);
+                if (ctx && ctx.node.attachments) {
+                    const found = ctx.node.attachments.find(a => a.id === attId);
+                    if (found) return found;
+                }
+            }
+            if (acViewingCourseId) {
+                const c = acCoursesCache.find(x => x.id === acViewingCourseId);
+                if (c) {
+                    for (const ch of (c.chapters || [])) {
+                        const node = acFindNodeInTree(nodeId, ch.outline || []);
+                        if (node && node.attachments) {
+                            const found = node.attachments.find(a => a.id === attId);
+                            if (found) return found;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        // ── عارض المرفقات (يُستخدَم من السايتيشين داخل النص، أثناء التصميم وأثناء التصفح) ──
+        function acShowAttachmentViewer(nodeId, attId) {
+            const att = acFindAttachment(nodeId, attId);
+            const existing = document.getElementById('acViewerModal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'acViewerModal';
+            modal.className = 'fixed inset-0 z-[10000] flex items-center justify-center p-4';
+            modal.style.background = 'rgba(0,0,0,0.75)';
+
+            if (!att) {
+                modal.innerHTML = `
+                    <div class="glass-panel rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center relative">
+                        <button onclick="document.getElementById('acViewerModal').remove()" class="absolute top-3 left-3 w-8 h-8 glass-icon-btn rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100"><i class="ph ph-x text-sm"></i></button>
+                        <i class="ph ph-warning-circle text-4xl text-amber-500 mb-2"></i>
+                        <p class="text-sm text-gray-600">هذا المرفق لم يعد متوفراً (تم حذفه)</p>
+                    </div>`;
+                document.body.appendChild(modal);
+                return;
+            }
+
+            let bodyHtml;
+            if (att.kind === 'image') {
+                bodyHtml = `<img src="${att.viewUrl}" alt="${escapeHtml(att.name || '')}" class="max-w-full max-h-[75vh] mx-auto rounded-lg object-contain">`;
+            } else if (att.kind === 'video' || att.kind === 'pdf') {
+                bodyHtml = `<iframe src="${att.previewUrl}" class="w-full rounded-lg border-0" style="height:70vh;" allow="autoplay"></iframe>`;
+            } else {
+                bodyHtml = `<div class="text-center py-10"><i class="ph ph-file text-5xl text-gray-300 mb-2"></i><p class="text-xs text-gray-500">لا يمكن معاينة هذا النوع من الملفات — استخدم زر التنزيل</p></div>`;
+            }
+
+            modal.innerHTML = `
+                <div class="glass-panel rounded-2xl shadow-2xl w-full max-w-2xl p-4 relative" style="backdrop-filter:blur(24px);">
+                    <button onclick="document.getElementById('acViewerModal').remove()" class="absolute top-3 left-3 w-8 h-8 glass-icon-btn rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 z-10"><i class="ph ph-x text-sm"></i></button>
+                    <div class="flex items-center gap-2 mb-3 pl-10">
+                        <i class="ph ${acAttachmentIcon(att.kind)} text-primary text-lg shrink-0"></i>
+                        <p class="text-sm font-semibold text-gray-800 truncate">${escapeHtml(att.name || '')}</p>
+                        <a href="${att.downloadUrl}" target="_blank" rel="noopener" class="mr-auto shrink-0 w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تنزيل"><i class="ph ph-download-simple text-xs"></i></a>
+                    </div>
+                    ${bodyHtml}
+                </div>`;
+            document.body.appendChild(modal);
+        }
+
         function acRenderOutline() {
             const container = document.getElementById('acOutlineContainer');
             const emptyMsg  = document.getElementById('acOutlineEmptyMsg');
@@ -8294,7 +8682,10 @@
                     </button>
                 </div>
                 ${acRichToolbarHtml(node.id)}
-                <div id="acContent_${node.id}" contenteditable="true" data-placeholder="أضف النص هنا..." oninput="acUpdateNodeContent('${node.id}', this.innerHTML)" class="ac-rich-content w-full glass-panel px-3 py-2 rounded-lg text-xs">${node.content || ''}</div>
+                <div class="ac-content-wrap">
+                    <div id="acContent_${node.id}" contenteditable="true" data-placeholder="أضف النص هنا..." oninput="acUpdateNodeContent('${node.id}', this.innerHTML)" class="ac-rich-content w-full glass-panel px-3 py-2 rounded-lg text-xs">${node.content || ''}</div>
+                    ${acAttachFabHtml(node)}
+                </div>
                 <button onclick="acAddSubHeading('${node.id}')" class="glass-icon-btn px-2.5 h-7 rounded-lg flex items-center gap-1 text-primary text-[11px] font-semibold mb-2 mt-2">
                     <i class="ph ph-plus text-xs"></i> إضافة عنوان فرعي أساسي
                 </button>
@@ -8315,7 +8706,10 @@
                     </button>
                 </div>
                 ${acRichToolbarHtml(node.id)}
-                <div id="acContent_${node.id}" contenteditable="true" data-placeholder="أضف النص هنا..." oninput="acUpdateNodeContent('${node.id}', this.innerHTML)" class="ac-rich-content w-full glass-panel px-2.5 py-1.5 rounded-lg text-[11px]">${node.content || ''}</div>
+                <div class="ac-content-wrap">
+                    <div id="acContent_${node.id}" contenteditable="true" data-placeholder="أضف النص هنا..." oninput="acUpdateNodeContent('${node.id}', this.innerHTML)" class="ac-rich-content w-full glass-panel px-2.5 py-1.5 rounded-lg text-[11px]">${node.content || ''}</div>
+                    ${acAttachFabHtml(node)}
+                </div>
                 <button onclick="acAddSubSubHeading('${mainId}', '${node.id}')" class="glass-icon-btn px-2 h-6 rounded-lg flex items-center gap-1 text-teal-600 text-[10px] font-semibold mb-2 mt-2">
                     <i class="ph ph-plus text-[10px]"></i> إضافة عنوان فرعي
                 </button>
@@ -8335,7 +8729,10 @@
                     </button>
                 </div>
                 ${acRichToolbarHtml(node.id)}
-                <div id="acContent_${node.id}" contenteditable="true" data-placeholder="أضف النص هنا..." oninput="acUpdateNodeContent('${node.id}', this.innerHTML)" class="ac-rich-content w-full glass-panel px-2 py-1 rounded-lg text-[10px]">${node.content || ''}</div>
+                <div class="ac-content-wrap">
+                    <div id="acContent_${node.id}" contenteditable="true" data-placeholder="أضف النص هنا..." oninput="acUpdateNodeContent('${node.id}', this.innerHTML)" class="ac-rich-content w-full glass-panel px-2 py-1 rounded-lg text-[10px]">${node.content || ''}</div>
+                    ${acAttachFabHtml(node)}
+                </div>
             </div>`;
         }
 
@@ -9666,6 +10063,8 @@
             document.getElementById('sidebarRegisteredExamsList')?.classList.add('hidden');
             document.getElementById('sidebarCompletedSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
+            document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
+            document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             const chatListEl = document.getElementById('sidebarChatList');
             if (chatListEl) chatListEl.classList.add('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
@@ -9696,6 +10095,8 @@
             document.getElementById('sidebarRegisteredExamsList')?.classList.add('hidden');
             document.getElementById('sidebarCompletedSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
+            document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
+            document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarUsersList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
             if (liveListEl) liveListEl.classList.add('hidden');
@@ -10584,6 +10985,12 @@
         function initGapi() {
             if (gapiReady) return Promise.resolve();
             if (gapiInitPromise) return gapiInitPromise;
+
+            // Google APIs (gapi و GSI) لا تعمل إطلاقاً عند فتح الصفحة من القرص مباشرة (file://)
+            if (location.protocol === 'file:') {
+                appendSyncLog('❌ لا يمكن استخدام مزامنة Google Drive عند فتح الملف مباشرة من الجهاز (file://). يجب تشغيل الصفحة عبر سيرفر محلي أو استضافة (http/https) — مثال: python3 -m http.server ثم افتح http://localhost:8000', 'error');
+                return Promise.reject(new Error('file-protocol-unsupported'));
+            }
 
             gapiInitPromise = new Promise((resolve, reject) => {
                 if (typeof gapi === 'undefined') {
