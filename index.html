@@ -869,21 +869,16 @@
     .ac-rich-content ol.ac-list-alpha-ar { list-style-type: arabic-abjad; }
     .ac-rich-content ul.ac-list-square { list-style-type: square; }
     .ac-rich-content ul.ac-list-circle { list-style-type: circle; }
-    /* ── مرفقات المحتوى: زر عائم + شارة عدد + إحالة (سايتيشين) ── */
+    /* ── مرفقات المحتوى: زر داخل شريط الأدوات (بعد التعداد النقطي) + شارة عدد + إحالة (سايتيشين) ── */
     .ac-content-wrap { position: relative; }
-    .ac-attach-fab {
-        position: absolute; top: -11px; left: -11px; width: 26px; height: 26px;
-        border-radius: 9999px; background: #0790AC; color: #fff; border: 2px solid #fff;
-        display: flex; align-items: center; justify-content: center; font-size: 11px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer; z-index: 5; transition: transform .15s;
-    }
-    .ac-attach-fab:hover { transform: scale(1.12); }
-    .ac-attach-badge {
-        position: absolute; top: -5px; right: -5px; background: #ef4444; color: #fff;
+    .ac-attach-tb-btn { position: relative; color: #0790AC; }
+    .ac-attach-tb-btn:hover { background: rgba(7,144,172,0.14); color: #0790AC; }
+    .ac-attach-badge-tb {
+        position: absolute; top: -5px; left: -5px; background: #ef4444; color: #fff;
         font-size: 9px; font-weight: 700; min-width: 14px; height: 14px; border-radius: 9999px;
         display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1;
     }
-    .ac-attach-badge.hidden { display: none; }
+    .ac-attach-badge-tb.hidden { display: none; }
     .ac-citation {
         display: inline-flex; align-items: center; justify-content: center;
         background: rgba(7,144,172,0.12); color: #0790AC; border-radius: 5px; padding: 1px 5px;
@@ -8189,7 +8184,8 @@
         }
 
         // ══ شريط أدوات تنسيق النص (خط/لون/عريض/تحته خط/مائل/تعداد رقمي/تعداد نقطي) ══
-        function acRichToolbarHtml(id) {
+        function acRichToolbarHtml(id, node) {
+            const count = (node && (node.attachments || []).length) || 0;
             return `
             <div class="ac-rich-toolbar" dir="rtl">
                 <button type="button" onmousedown="event.preventDefault()" onclick="acExec('${id}','bold')" title="عريض"><i class="ph ph-text-b"></i></button>
@@ -8221,6 +8217,11 @@
                     <option value="ac-list-circle">دائري</option>
                     <option value="ac-list-square">مربع</option>
                 </select>
+                <span class="ac-sep"></span>
+                <button type="button" id="acAttachBtn_${id}" onclick="acOpenAttachManager('${id}')" class="ac-attach-tb-btn" title="إضافة/عرض مرفقات (صور، فيديو، PDF) وإدراج إحالات">
+                    <i class="ph ph-paperclip"></i>
+                    <span id="acAttachBadge_${id}" class="ac-attach-badge-tb ${count ? '' : 'hidden'}">${count || ''}</span>
+                </button>
             </div>`;
         }
 
@@ -8286,16 +8287,7 @@
         let acAttachManagerNodeId = null; // العنوان المفتوح حالياً في مودال المرفقات
         let acSavedRange = null;          // موضع المؤشر داخل النص وقت فتح المودال (لإدراج الإحالة بنفس المكان)
 
-        // زر عائم صغير على حافة صندوق النص — يفتح مودال إدارة المرفقات
-        function acAttachFabHtml(node) {
-            const count = (node.attachments || []).length;
-            return `
-            <button type="button" id="acAttachBtn_${node.id}" onclick="acOpenAttachManager('${node.id}')" class="ac-attach-fab" title="إضافة/عرض مرفقات (صور، فيديو، PDF)">
-                <i class="ph ph-paperclip"></i>
-                <span id="acAttachBadge_${node.id}" class="ac-attach-badge ${count ? '' : 'hidden'}">${count || ''}</span>
-            </button>`;
-        }
-
+        // تحديث شارة عدد المرفقات على زر المرفقات داخل شريط الأدوات (بعد التعداد النقطي)
         function acUpdateAttachBadge(nodeId) {
             const ctx = acFindNodeContext(nodeId);
             const badge = document.getElementById('acAttachBadge_' + nodeId);
@@ -8374,7 +8366,7 @@
             });
         }
 
-        function driveFileViewUrl(fileId)     { return `https://drive.google.com/uc?export=view&id=${fileId}`; }
+        function driveFileViewUrl(fileId)     { return `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`; }
         function driveFileDownloadUrl(fileId) { return `https://drive.google.com/uc?export=download&id=${fileId}`; }
         function driveFilePreviewUrl(fileId)  { return `https://drive.google.com/file/d/${fileId}/preview`; }
 
@@ -8531,35 +8523,55 @@
             acUpdateAttachBadge(nodeId);
         }
 
-        // إدراج إحالة [رقم] داخل النص بموضع المؤشر المحفوظ (أو نهاية النص إن لم يوجد)
+        // إدراج إحالة داخل النص بموضع المؤشر المحفوظ (أو نهاية النص إن لم يوجد)،
+        // ثم إعادة ترقيم كل الإحالات في الصندوق بحسب ترتيب ظهورها الفعلي في النص
+        // (متسلسلة من 1 فصاعداً، بغض النظر عن عدد الفقرات أو ترتيب رفع المرفقات)
         function acInsertCitation(attId) {
             const nodeId = acAttachManagerNodeId;
             const ctx = acFindNodeContext(nodeId);
             if (!ctx) return;
             const atts = ctx.node.attachments || [];
-            const idx = atts.findIndex(a => a.id === attId);
-            if (idx === -1) return;
-            const marker = ` <sup class="ac-citation" contenteditable="false" onclick="acShowAttachmentViewer('${nodeId}','${attId}')" title="عرض المرفق">[${idx + 1}]</sup>&nbsp;`;
+            if (!atts.some(a => a.id === attId)) return;
 
             const contentEl = document.getElementById('acContent_' + nodeId);
-            if (contentEl) {
-                contentEl.focus();
-                const sel = window.getSelection();
-                sel.removeAllRanges();
-                if (acSavedRange) {
-                    sel.addRange(acSavedRange);
-                } else {
-                    const range = document.createRange();
-                    range.selectNodeContents(contentEl);
-                    range.collapse(false);
-                    sel.addRange(range);
-                }
-                try { document.execCommand('insertHTML', false, marker); } catch (e) {}
-                acUpdateNodeContent(nodeId, contentEl.innerHTML);
-                acSavedRange = null;
+            if (!contentEl) return;
+
+            const marker = ` <sup class="ac-citation" data-att-id="${attId}" contenteditable="false" onclick="acShowAttachmentViewer('${nodeId}','${attId}')" title="عرض المرفق">[?]</sup>&nbsp;`;
+
+            contentEl.focus();
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            if (acSavedRange) {
+                sel.addRange(acSavedRange);
+            } else {
+                const range = document.createRange();
+                range.selectNodeContents(contentEl);
+                range.collapse(false);
+                sel.addRange(range);
             }
+            try { document.execCommand('insertHTML', false, marker); } catch (e) {}
+            acRenumberCitations(contentEl);
+            acUpdateNodeContent(nodeId, contentEl.innerHTML);
+            acSavedRange = null;
+
             document.getElementById('acAttachModal')?.remove();
             showToast?.('🔗 تم إدراج الإحالة داخل النص', 'success');
+        }
+
+        // يعيد ترقيم كل شارات الإحالة [رقم] داخل صندوق نص واحد بحسب ترتيب ظهورها الفعلي
+        // في النص (متسلسلة من 1 فصاعداً، بغض النظر عن الفقرات) — نفس المرفق يأخذ نفس الرقم أينما تكرر
+        function acRenumberCitations(contentEl) {
+            const sups = contentEl.querySelectorAll('.ac-citation');
+            const order = [];
+            sups.forEach(sup => {
+                const id = sup.dataset.attId;
+                if (id && !order.includes(id)) order.push(id);
+            });
+            sups.forEach(sup => {
+                const id = sup.dataset.attId;
+                const num = order.indexOf(id) + 1;
+                if (num > 0) sup.textContent = `[${num}]`;
+            });
         }
 
         // ── البحث عن مرفق معيّن، سواء أثناء التصميم (acCourseDraft) أو أثناء تصفّح مقرر محفوظ ──
@@ -8574,13 +8586,6 @@
             return null;
         }
         function acFindAttachment(nodeId, attId) {
-            if (acCourseDraft) {
-                const ctx = acFindNodeContext(nodeId);
-                if (ctx && ctx.node.attachments) {
-                    const found = ctx.node.attachments.find(a => a.id === attId);
-                    if (found) return found;
-                }
-            }
             if (acViewingCourseId) {
                 const c = acCoursesCache.find(x => x.id === acViewingCourseId);
                 if (c) {
@@ -8591,6 +8596,13 @@
                             if (found) return found;
                         }
                     }
+                }
+            }
+            if (acCourseDraft && acCourseDraft.chapters && acCourseDraft.chapters.length) {
+                const ctx = acFindNodeContext(nodeId);
+                if (ctx && ctx.node.attachments) {
+                    const found = ctx.node.attachments.find(a => a.id === attId);
+                    if (found) return found;
                 }
             }
             return null;
@@ -8620,7 +8632,7 @@
 
             let bodyHtml;
             if (att.kind === 'image') {
-                bodyHtml = `<img src="${att.viewUrl}" alt="${escapeHtml(att.name || '')}" class="max-w-full max-h-[75vh] mx-auto rounded-lg object-contain">`;
+                bodyHtml = `<img src="${att.viewUrl}" alt="${escapeHtml(att.name || '')}" class="max-w-full max-h-[75vh] mx-auto rounded-lg object-contain" onerror="this.onerror=null; this.outerHTML='<iframe src=\\'${att.previewUrl}\\' class=\\'w-full rounded-lg border-0\\' style=\\'height:70vh;\\' allow=\\'autoplay\\'></iframe>';">`;
             } else if (att.kind === 'video' || att.kind === 'pdf') {
                 bodyHtml = `<iframe src="${att.previewUrl}" class="w-full rounded-lg border-0" style="height:70vh;" allow="autoplay"></iframe>`;
             } else {
@@ -8681,10 +8693,9 @@
                         <i class="ph ph-trash text-sm"></i>
                     </button>
                 </div>
-                ${acRichToolbarHtml(node.id)}
+                ${acRichToolbarHtml(node.id, node)}
                 <div class="ac-content-wrap">
                     <div id="acContent_${node.id}" contenteditable="true" data-placeholder="أضف النص هنا..." oninput="acUpdateNodeContent('${node.id}', this.innerHTML)" class="ac-rich-content w-full glass-panel px-3 py-2 rounded-lg text-xs">${node.content || ''}</div>
-                    ${acAttachFabHtml(node)}
                 </div>
                 <button onclick="acAddSubHeading('${node.id}')" class="glass-icon-btn px-2.5 h-7 rounded-lg flex items-center gap-1 text-primary text-[11px] font-semibold mb-2 mt-2">
                     <i class="ph ph-plus text-xs"></i> إضافة عنوان فرعي أساسي
@@ -8705,10 +8716,9 @@
                         <i class="ph ph-trash text-xs"></i>
                     </button>
                 </div>
-                ${acRichToolbarHtml(node.id)}
+                ${acRichToolbarHtml(node.id, node)}
                 <div class="ac-content-wrap">
                     <div id="acContent_${node.id}" contenteditable="true" data-placeholder="أضف النص هنا..." oninput="acUpdateNodeContent('${node.id}', this.innerHTML)" class="ac-rich-content w-full glass-panel px-2.5 py-1.5 rounded-lg text-[11px]">${node.content || ''}</div>
-                    ${acAttachFabHtml(node)}
                 </div>
                 <button onclick="acAddSubSubHeading('${mainId}', '${node.id}')" class="glass-icon-btn px-2 h-6 rounded-lg flex items-center gap-1 text-teal-600 text-[10px] font-semibold mb-2 mt-2">
                     <i class="ph ph-plus text-[10px]"></i> إضافة عنوان فرعي
@@ -8728,10 +8738,9 @@
                         <i class="ph ph-trash text-[10px]"></i>
                     </button>
                 </div>
-                ${acRichToolbarHtml(node.id)}
+                ${acRichToolbarHtml(node.id, node)}
                 <div class="ac-content-wrap">
                     <div id="acContent_${node.id}" contenteditable="true" data-placeholder="أضف النص هنا..." oninput="acUpdateNodeContent('${node.id}', this.innerHTML)" class="ac-rich-content w-full glass-panel px-2 py-1 rounded-lg text-[10px]">${node.content || ''}</div>
-                    ${acAttachFabHtml(node)}
                 </div>
             </div>`;
         }
