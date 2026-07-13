@@ -886,6 +886,13 @@
         border: 1px solid rgba(7,144,172,0.25); user-select: none; line-height: 1.4;
     }
     .ac-citation:hover { background: rgba(7,144,172,0.22); }
+    /* ── ومضة توضيحية حول بطاقة المرفق عند التمرير إليها من نافذة قائمة المرفقات ── */
+    @keyframes acAttFlash {
+        0%   { box-shadow: 0 0 0 0 rgba(7,144,172,0.55); background: rgba(7,144,172,0.18); }
+        50%  { box-shadow: 0 0 0 8px rgba(7,144,172,0); background: rgba(7,144,172,0.18); }
+        100% { box-shadow: 0 0 0 0 rgba(7,144,172,0); }
+    }
+    .ac-att-flash { animation: acAttFlash 0.8s ease-out 2; border-color: rgba(7,144,172,0.6) !important; }
     </style>
 </head>
 <body class="guest-mode text-gray-800 overflow-hidden flex flex-col">
@@ -8284,7 +8291,8 @@
         // ══════════════════════════════════════════════════════════════════
 
         const DRIVE_ATTACH_FOLDER_NAME = 'MedBox Education Attachments';
-        let acAttachManagerNodeId = null; // العنوان المفتوح حالياً في مودال المرفقات
+        let acAttachManagerNodeId = null;   // العنوان المفتوح حالياً في نافذة "قائمة المرفقات"
+        let acAttachManagerEditable = true; // هل نافذة "قائمة المرفقات" المفتوحة حالياً بوضعية التعديل (إضافة/حذف) أم العرض فقط
         let acSavedRange = null;          // موضع المؤشر داخل النص وقت فتح المودال (لإدراج الإحالة بنفس المكان)
 
         // تحديث شارة عدد المرفقات على زر المرفقات داخل شريط الأدوات (بعد التعداد النقطي)
@@ -8370,12 +8378,12 @@
         function driveFileDownloadUrl(fileId) { return `https://drive.google.com/uc?export=download&id=${fileId}`; }
         function driveFilePreviewUrl(fileId)  { return `https://drive.google.com/file/d/${fileId}/preview`; }
 
-        // ── فتح مودال إدارة مرفقات عنوان معيّن ──
+        // ── فتح نافذة "قائمة المرفقات" بوضعية التعديل (إضافة/حذف) — من زر المرفقات
+        //    داخل شريط أدوات تحرير النص أثناء التصميم ──
         function acOpenAttachManager(nodeId) {
             const ctx = acFindNodeContext(nodeId);
             if (!ctx) return;
             if (!ctx.node.attachments) ctx.node.attachments = [];
-            acAttachManagerNodeId = nodeId;
 
             // حفظ موضع المؤشر الحالي داخل حقل النص (إن وُجد) لإدراج الإحالة لاحقاً بنفس المكان
             acSavedRange = null;
@@ -8385,6 +8393,25 @@
                 const range = sel.getRangeAt(0);
                 if (contentEl.contains(range.commonAncestorContainer)) acSavedRange = range.cloneRange();
             }
+
+            acOpenAttachmentsList(nodeId, { editable: true });
+        }
+
+        // ── فتح نافذة "قائمة المرفقات" بوضعية العرض فقط (بدون إضافة أو حذف) — تُستخدَم
+        //    عند الضغط على رقم إحالة داخل النص أثناء تصفّح مقرر محفوظ. تفتح القائمة
+        //    كاملة، ثم تُمرّر تلقائياً إلى بطاقة المرفق المقصود وتُجري ومضة حولها ──
+        function acOpenAttachmentsListView(nodeId, highlightAttId) {
+            acOpenAttachmentsList(nodeId, { editable: false, highlightAttId });
+        }
+
+        // ── نافذة "قائمة المرفقات" المشتركة بكل الملف: تبني المودال والقائمة نفسها،
+        //    وتُفعِّل عناصر الإضافة/الحذف فقط عند التعديل (editable=true)، بينما تبقى
+        //    للعرض فقط في وضعية تصفّح المقرر المحفوظ (editable=false) ──
+        function acOpenAttachmentsList(nodeId, opts) {
+            opts = opts || {};
+            const editable = opts.editable !== false;
+            acAttachManagerNodeId = nodeId;
+            acAttachManagerEditable = editable;
 
             const existing = document.getElementById('acAttachModal');
             if (existing) existing.remove();
@@ -8398,15 +8425,32 @@
                     <button onclick="document.getElementById('acAttachModal').remove()" class="absolute top-3 left-3 w-8 h-8 glass-icon-btn rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100">
                         <i class="ph ph-x text-sm"></i>
                     </button>
-                    <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2 pl-8"><i class="ph ph-paperclip text-primary"></i> مرفقات هذا العنوان</h3>
-                    <p class="text-[11px] text-gray-400 mb-3">صور، فيديوهات، أو ملفات PDF — تُرفع إلى Google Drive، وتقدر تضيف إحالة [رقم] داخل النص بمكان المؤشر</p>
+                    <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2 pl-8"><i class="ph ph-paperclip text-primary"></i> قائمة المرفقات</h3>
+                    <p class="text-[11px] text-gray-400 mb-3">${editable
+                        ? 'صور، فيديوهات، أو ملفات PDF — تُرفع إلى Google Drive، وتقدر تضيف إحالة [رقم] داخل النص بمكان المؤشر'
+                        : 'كل مرفقات هذا العنوان — اضغط على أي مرفق لمعاينته'}</p>
                     <div id="acAttachList" class="space-y-2 overflow-y-auto flex-1 mb-3"></div>
                     <div id="acAttachUploadStatus" class="hidden text-[11px] text-primary mb-2 flex items-center gap-1.5"><i class="ph ph-circle-notch animate-spin"></i><span></span></div>
                     <div id="acAttachFooter"></div>
                 </div>`;
             document.body.appendChild(modal);
             acRenderAttachList();
-            acRenderAttachFooter();
+            if (editable) acRenderAttachFooter();
+
+            if (opts.highlightAttId) {
+                // ننتظر جولة رندر واحدة كي تُبنى بطاقات القائمة في DOM قبل التمرير والومضة
+                requestAnimationFrame(() => acScrollAndFlashAttachment(opts.highlightAttId));
+            }
+        }
+
+        // يمرّر تلقائياً داخل نافذة "قائمة المرفقات" المفتوحة إلى بطاقة مرفق معيّن،
+        // ثم يُجري حولها ومضة توضيحية قصيرة كي يتبيّن المستخدم أي مرفق قُصِد بالإحالة
+        function acScrollAndFlashAttachment(attId) {
+            const card = document.getElementById('acAttItem_' + attId);
+            if (!card) return;
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.add('ac-att-flash');
+            setTimeout(() => card.classList.remove('ac-att-flash'), 1700);
         }
 
         function acRenderAttachFooter() {
@@ -8430,14 +8474,14 @@
         function acRenderAttachList() {
             const listEl = document.getElementById('acAttachList');
             if (!listEl) return;
-            const ctx = acFindNodeContext(acAttachManagerNodeId);
-            const atts = (ctx && ctx.node.attachments) || [];
+            const atts = acFindNodeAttachments(acAttachManagerNodeId);
+            const editable = acAttachManagerEditable;
             if (!atts.length) {
                 listEl.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">لا توجد مرفقات بعد</p>';
                 return;
             }
             listEl.innerHTML = atts.map((a, i) => `
-                <div class="glass-element rounded-lg p-2.5 flex items-center gap-2.5">
+                <div id="acAttItem_${a.id}" class="glass-element rounded-lg p-2.5 flex items-center gap-2.5">
                     <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 overflow-hidden">
                         ${a.kind === 'image' ? `<img src="${a.viewUrl}" class="w-full h-full object-cover" onerror="this.remove()">` : `<i class="ph ${acAttachmentIcon(a.kind)}"></i>`}
                     </div>
@@ -8445,16 +8489,35 @@
                         <p class="text-xs font-semibold text-gray-700 truncate">${escapeHtml(a.name || '')}</p>
                         <p class="text-[10px] text-gray-400">مرجع [${i + 1}]</p>
                     </div>
-                    <button onclick="acShowAttachmentViewer('${acAttachManagerNodeId}','${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 shrink-0" title="معاينة">
+                    <button onclick="acOpenSingleAttachmentViewer('${acAttachManagerNodeId}','${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 shrink-0" title="معاينة">
                         <i class="ph ph-eye text-xs"></i>
                     </button>
+                    ${editable ? `
                     <button onclick="acInsertCitation('${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 shrink-0" title="إدراج إحالة بموضع المؤشر داخل النص">
                         <i class="ph ph-quotes text-xs"></i>
                     </button>
                     <button onclick="acRemoveAttachment('${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 shrink-0" title="حذف المرفق">
                         <i class="ph ph-trash text-xs"></i>
-                    </button>
+                    </button>` : ''}
                 </div>`).join('');
+        }
+
+        // يرجع مصفوفة مرفقات عنصر معيّن بغض النظر عن السياق: أثناء التصميم (acCourseDraft)
+        // أو أثناء تصفّح مقرر محفوظ (acViewingCourseId) — تُستخدَم من نافذة "قائمة المرفقات"
+        // المشتركة كي تعمل بنفس الطريقة في كِلا الوضعين
+        function acFindNodeAttachments(nodeId) {
+            if (acViewingCourseId) {
+                const c = acCoursesCache.find(x => x.id === acViewingCourseId);
+                if (c) {
+                    for (const ch of (c.chapters || [])) {
+                        const node = acFindNodeInTree(nodeId, ch.outline || []);
+                        if (node) return node.attachments || [];
+                    }
+                }
+            }
+            const ctx = acFindNodeContext(nodeId);
+            if (ctx) return ctx.node.attachments || [];
+            return [];
         }
 
         async function acHandleAttachFiles(event) {
@@ -8608,8 +8671,25 @@
             return null;
         }
 
-        // ── عارض المرفقات (يُستخدَم من السايتيشين داخل النص، أثناء التصميم وأثناء التصفح) ──
+        // ── يُستدعى عند الضغط على رقم إحالة داخل النص (سواء أثناء التصميم أو تصفّح مقرر
+        //    محفوظ) ويحدّد تلقائياً السلوك المناسب حسب الوضعية الحالية:
+        //    • وضعية العرض (تصفّح مقرر محفوظ، حاوية acViewContainer ظاهرة): تفتح نافذة
+        //      "قائمة المرفقات" بوضعية العرض فقط (بدون إضافة/حذف) وتُمرّر تلقائياً
+        //      لبطاقة المرفق المقصود مع ومضة توضيحية حولها.
+        //    • وضعية التصميم/التعديل: تفتح معاينة المرفق مباشرة كما كان سابقاً ──
         function acShowAttachmentViewer(nodeId, attId) {
+            const viewContainer = document.getElementById('acViewContainer');
+            const viewingActive = !!viewContainer && !viewContainer.classList.contains('hidden');
+            if (viewingActive) {
+                acOpenAttachmentsListView(nodeId, attId);
+                return;
+            }
+            acOpenSingleAttachmentViewer(nodeId, attId);
+        }
+
+        // ── عارض معاينة مرفق واحد مباشرة (صورة/فيديو/PDF) — يُستخدَم من زر "معاينة"
+        //    داخل نافذة قائمة المرفقات، ومن acShowAttachmentViewer أثناء وضعية التعديل ──
+        function acOpenSingleAttachmentViewer(nodeId, attId) {
             const att = acFindAttachment(nodeId, attId);
             const existing = document.getElementById('acViewerModal');
             if (existing) existing.remove();
