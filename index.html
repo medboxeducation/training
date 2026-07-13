@@ -7997,6 +7997,11 @@
                 chapters: [], attachments: []
             };
             acEditingCourseId = null;
+            // مهم: إلغاء أي تعليق سابق لمعرّف مقرر كان قيد التصفح (وضعية العرض)،
+            // وإلا تظل acGetSharedAttachments() و acRenumberAllCitationsGlobal()
+            // تقرآن/تكتبان على نسخة acCoursesCache القديمة بدل مسودة التصميم
+            // الجديدة، فلا تُرقَّم الإحالات ولا تُحفَظ المرفقات المضافة حديثاً
+            acViewingCourseId = null;
         }
 
         let acCurrentMode = 'none'; // 'none' | 'view' | 'edit' — يُحدَّث صراحة عند كل تبديل عرض، ويُستخدَم لتحديد سلوك الضغط على رقم إحالة بشكل موثوق
@@ -8939,6 +8944,10 @@
             if (!c) return;
             acMigrateCourseAttachments(c);
             acEditingCourseId = id;
+            // إلغاء وضعية العرض (إن كانت عالقة من فتح سابق للمقرر بوضعية القراءة
+            // فقط) كي تعمل كل عمليات المرفقات/الإحالات على مسودة التصميم الحيّة
+            // acCourseDraft وليس على النسخة المخزَّنة في acCoursesCache
+            acViewingCourseId = null;
             acCourseDraft = {
                 programKey: c.programKey || '', courseName: c.courseName || '', year: c.year || '',
                 semester: c.semester || '',
@@ -10151,6 +10160,8 @@
             document.getElementById('sidebarRegisteredExamsList')?.classList.add('hidden');
             document.getElementById('sidebarCompletedSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
+            document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
+            document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarSettingsList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
             if (liveListEl) liveListEl.classList.add('hidden');
@@ -10805,6 +10816,8 @@
             document.getElementById('sidebarRegisteredExamsList')?.classList.add('hidden');
             document.getElementById('sidebarCompletedSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
+            document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
+            document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
             if (liveListEl) liveListEl.classList.add('hidden');
@@ -16154,6 +16167,8 @@
                                 document.getElementById('sidebarRegisteredExamsList')?.classList.add('hidden');
                                 document.getElementById('sidebarCompletedSessionsList')?.classList.add('hidden');
                                 document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
+                                document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
+                                document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
                             }
                         });
                     } else if (type === 'course') {
@@ -16182,6 +16197,8 @@
                             document.getElementById('sidebarRegisteredExamsList')?.classList.add('hidden');
                             document.getElementById('sidebarCompletedSessionsList')?.classList.add('hidden');
                             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
+                            document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
+                            document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
                             buildSidebarCourses(r.programKey);
                             showCourseDetails(r.programKey, r.course.key);
                         });
@@ -23622,6 +23639,8 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarRegisteredExamsList')?.classList.add('hidden');
             document.getElementById('sidebarCompletedSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
+            document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
+            document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
             updateRegistryAddButton();
@@ -23673,6 +23692,8 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarRegisteredExamsList')?.classList.add('hidden');
             document.getElementById('sidebarCompletedSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
+            document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
+            document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
             updateRegistryAddButton();
