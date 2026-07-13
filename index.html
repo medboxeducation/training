@@ -7999,10 +7999,12 @@
             acEditingCourseId = null;
         }
 
+        let acCurrentMode = 'none'; // 'none' | 'view' | 'edit' — يُحدَّث صراحة عند كل تبديل عرض، ويُستخدَم لتحديد سلوك الضغط على رقم إحالة بشكل موثوق
         function acHideAllBodies() {
             document.getElementById('acPlaceholder')?.classList.add('hidden');
             document.getElementById('acDesignerForm')?.classList.add('hidden');
             document.getElementById('acViewContainer')?.classList.add('hidden');
+            acCurrentMode = 'none';
         }
 
         // يعيد هيدر القسم (الأيقونة + العنوان + العنوان الفرعي) إلى حالته الافتراضية
@@ -8059,6 +8061,7 @@
             acResetHeaderTitle();
             acSetHeaderActionsEdit();
             acUpdateAllAttachBadges();
+            acCurrentMode = 'edit';
         }
 
         // زر هيدر (glass-icon-btn، أيقونة + نص) — صف واحد مقابل اسم المقرر، بلا نسخة مكررة
@@ -8707,14 +8710,12 @@
 
         // ── يُستدعى عند الضغط على رقم إحالة داخل النص (سواء أثناء التصميم أو تصفّح مقرر
         //    محفوظ) ويحدّد تلقائياً السلوك المناسب حسب الوضعية الحالية:
-        //    • وضعية العرض (تصفّح مقرر محفوظ، حاوية acViewContainer ظاهرة): تفتح نافذة
-        //      "قائمة المرفقات" بوضعية العرض فقط (بدون إضافة/حذف)، تُمرّر تلقائياً
-        //      لبطاقة المرفق المقصود مع ومضة توضيحية حولها، ثم تفتح معاينته مباشرة.
+        //    • وضعية العرض (تصفّح مقرر محفوظ): تفتح نافذة "قائمة المرفقات" بوضعية
+        //      العرض فقط (بدون إضافة/حذف)، تُمرّر تلقائياً لبطاقة المرفق المقصود مع
+        //      ومضة توضيحية حولها، ثم تفتح معاينته مباشرة.
         //    • وضعية التصميم/التعديل: تفتح معاينة المرفق مباشرة كما كان سابقاً ──
         function acShowAttachmentViewer(nodeId, attId) {
-            const viewContainer = document.getElementById('acViewContainer');
-            const viewingActive = !!viewContainer && !viewContainer.classList.contains('hidden');
-            if (viewingActive) {
+            if (acCurrentMode === 'view') {
                 acOpenAttachmentsListView(attId, true);
                 return;
             }
@@ -8970,6 +8971,7 @@
             acSetHeaderForCourse(c);
             acSetHeaderActionsView(id);
             acUpdateAllAttachBadges();
+            acCurrentMode = 'view';
         }
 
         function acInfoRow(label, value) {
