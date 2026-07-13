@@ -8638,7 +8638,7 @@
             const contentEl = document.getElementById('acContent_' + nodeId);
             if (!contentEl) return;
 
-            const marker = ` <sup class="ac-citation" data-att-id="${attId}" contenteditable="false" onclick="acShowAttachmentViewer('${nodeId}','${attId}')" title="عرض المرفق">[?]</sup>&nbsp;`;
+            const marker = ` <sup class="ac-citation" data-att-id="${attId}" contenteditable="false" title="عرض المرفق">[?]</sup>&nbsp;`;
 
             contentEl.focus();
             const sel = window.getSelection();
@@ -8726,6 +8726,19 @@
             }
             acOpenSingleAttachmentViewer(attId);
         }
+
+        // ── معالج تفويض عام (Delegation) للضغط على أي شارة إحالة [؟] في الصفحة كلها —
+        //    لا يعتمد على onclick مضمَّن داخل نص HTML المحفوظ (والذي قد يكون غائباً في
+        //    مقررات محفوظة سابقاً بنسخة أقدم من الميزة)، بل يقرأ data-att-id مباشرة من
+        //    العنصر نفسه في أي وقت، فيعمل مع كل الإحالات القديمة والجديدة على حد سواء ──
+        document.addEventListener('click', function(e) {
+            const citeEl = e.target.closest('.ac-citation');
+            if (!citeEl) return;
+            const attId = citeEl.dataset.attId;
+            if (!attId) return;
+            e.preventDefault();
+            acShowAttachmentViewer(null, attId);
+        });
 
         // ── عارض معاينة مرفق واحد مباشرة (صورة/فيديو/PDF) — يُستخدَم من زر "معاينة"
         //    داخل نافذة قائمة المرفقات، ومن acShowAttachmentViewer أثناء وضعية التعديل ──
