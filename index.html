@@ -2391,24 +2391,24 @@
                      للطي/الفتح للعناوين الفرعية) -->
                 <div id="acViewContainer" class="hidden flex-1 overflow-y-auto space-y-6 pb-10">
                     <div class="glass-element rounded-2xl p-5">
-                        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
-                                <i class="ph ph-info text-primary"></i> معلومات المقرر
-                            </h3>
-                            <button onclick="acOpenAttachmentsListView()" class="glass-icon-btn px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold shrink-0">
-                                <i class="ph ph-paperclip text-sm"></i> قائمة المرفقات
-                                <span id="acViewAttachCountBadge" class="hidden bg-primary text-white rounded-full min-w-[18px] h-[18px] px-1 text-[10px] font-bold flex items-center justify-center">0</span>
-                            </button>
-                        </div>
+                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="ph ph-info text-primary"></i> معلومات المقرر
+                        </h3>
                         <div id="acViewInfoGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <!-- يُبنى بواسطة acRenderCourseInfoSection() -->
                         </div>
                     </div>
 
                     <div class="glass-element rounded-2xl p-5">
-                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <i class="ph ph-text-align-right text-primary"></i> محتوى المقرر
-                        </h3>
+                        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                <i class="ph ph-text-align-right text-primary"></i> محتوى المقرر
+                            </h3>
+                            <button onclick="acOpenAttachmentsListView()" class="glass-icon-btn px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold shrink-0">
+                                <i class="ph ph-paperclip text-sm"></i> قائمة المرفقات
+                                <span id="acViewAttachCountBadge" class="hidden bg-primary text-white rounded-full min-w-[18px] h-[18px] px-1 text-[10px] font-bold flex items-center justify-center">0</span>
+                            </button>
+                        </div>
                         <div id="acViewOutlineContainer" class="space-y-3">
                             <!-- يُبنى بواسطة acRenderCourseContentSection() -->
                         </div>
@@ -2421,15 +2421,9 @@
 
                     <!-- القسم الأول: إعدادات المقرر -->
                     <div class="glass-element rounded-2xl p-5">
-                        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
-                                <i class="ph ph-gear-six text-primary"></i> إعدادات المقرر
-                            </h3>
-                            <button onclick="acOpenSharedAttachmentsManager()" class="glass-icon-btn px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold shrink-0">
-                                <i class="ph ph-paperclip text-sm"></i> قائمة المرفقات
-                                <span id="acEditAttachCountBadge" class="hidden bg-primary text-white rounded-full min-w-[18px] h-[18px] px-1 text-[10px] font-bold flex items-center justify-center">0</span>
-                            </button>
-                        </div>
+                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="ph ph-gear-six text-primary"></i> إعدادات المقرر
+                        </h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-1.5">اسم البرنامج</label>
@@ -2471,13 +2465,19 @@
 
                     <!-- القسم الثاني: محتوى المقرر (فصول/وحدات ← عناوين رئيسية ← عناوين فرعية رئيسية ← عناوين فرعية) -->
                     <div class="glass-element rounded-2xl p-5">
-                        <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
                             <h3 class="font-bold text-gray-800 flex items-center gap-2">
                                 <i class="ph ph-text-align-right text-primary"></i> محتوى المقرر
                             </h3>
-                            <button onclick="acAddChapter()" class="glass-icon-btn px-3 h-8 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold">
-                                <i class="ph ph-plus text-sm"></i> إضافة فصل (وحدة)
-                            </button>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <button onclick="acOpenSharedAttachmentsManager()" class="glass-icon-btn px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold shrink-0">
+                                    <i class="ph ph-paperclip text-sm"></i> قائمة المرفقات
+                                    <span id="acEditAttachCountBadge" class="hidden bg-primary text-white rounded-full min-w-[18px] h-[18px] px-1 text-[10px] font-bold flex items-center justify-center">0</span>
+                                </button>
+                                <button onclick="acAddChapter()" class="glass-icon-btn px-3 h-8 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold">
+                                    <i class="ph ph-plus text-sm"></i> إضافة فصل (وحدة)
+                                </button>
+                            </div>
                         </div>
                         <div id="acOutlineContainer" class="space-y-4">
                             <!-- سيتم بناء الفصول والعناوين ديناميكياً بواسطة acRenderOutline() -->
@@ -8425,10 +8425,11 @@
         }
 
         // ── فتح نافذة "قائمة المرفقات" بوضعية العرض فقط (بدون إضافة أو حذف أو إدراج) —
-        //    تُستخدَم من زر "قائمة المرفقات" في بيانات المقرر أثناء التصفّح، ومن الضغط
-        //    على رقم إحالة داخل النص (مع التمرير التلقائي للمرفق المقصود وومضة حوله) ──
-        function acOpenAttachmentsListView(highlightAttId) {
-            acOpenAttachmentsList({ editable: false, allowInsert: false, highlightAttId });
+        //    تُستخدَم من زر "قائمة المرفقات" في قسم محتوى المقرر أثناء التصفّح (بدون
+        //    تمييز أي مرفق)، ومن الضغط على رقم إحالة داخل النص (مع التمرير التلقائي
+        //    للمرفق المقصود، وومضة حوله، وفتح معاينته تلقائياً فوق القائمة) ──
+        function acOpenAttachmentsListView(highlightAttId, autoPreview) {
+            acOpenAttachmentsList({ editable: false, allowInsert: false, highlightAttId, autoPreview });
         }
 
         // ── نافذة "قائمة المرفقات" المشتركة بكل الملف: مصدر واحد لعرض/إدارة مرفقات
@@ -8467,18 +8468,20 @@
 
             if (opts.highlightAttId) {
                 // ننتظر جولة رندر واحدة كي تُبنى بطاقات القائمة في DOM قبل التمرير والومضة
-                requestAnimationFrame(() => acScrollAndFlashAttachment(opts.highlightAttId));
+                requestAnimationFrame(() => acScrollAndFlashAttachment(opts.highlightAttId, opts.autoPreview));
             }
         }
 
         // يمرّر تلقائياً داخل نافذة "قائمة المرفقات" المفتوحة إلى بطاقة مرفق معيّن،
-        // ثم يُجري حولها ومضة توضيحية قصيرة كي يتبيّن المستخدم أي مرفق قُصِد بالإحالة
-        function acScrollAndFlashAttachment(attId) {
+        // يُجري حولها ومضة توضيحية قصيرة، ثم يفتح معاينة المرفق نفسه فوق القائمة
+        // (إن طُلب ذلك) كي يرى المستخدم محتواه فعلياً وليس فقط موضعه في القائمة
+        function acScrollAndFlashAttachment(attId, autoPreview) {
             const card = document.getElementById('acAttItem_' + attId);
             if (!card) return;
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
             card.classList.add('ac-att-flash');
             setTimeout(() => card.classList.remove('ac-att-flash'), 1700);
+            if (autoPreview) acOpenSingleAttachmentViewer(attId);
         }
 
         function acRenderAttachFooter() {
@@ -8705,14 +8708,14 @@
         // ── يُستدعى عند الضغط على رقم إحالة داخل النص (سواء أثناء التصميم أو تصفّح مقرر
         //    محفوظ) ويحدّد تلقائياً السلوك المناسب حسب الوضعية الحالية:
         //    • وضعية العرض (تصفّح مقرر محفوظ، حاوية acViewContainer ظاهرة): تفتح نافذة
-        //      "قائمة المرفقات" بوضعية العرض فقط (بدون إضافة/حذف) وتُمرّر تلقائياً
-        //      لبطاقة المرفق المقصود مع ومضة توضيحية حولها.
+        //      "قائمة المرفقات" بوضعية العرض فقط (بدون إضافة/حذف)، تُمرّر تلقائياً
+        //      لبطاقة المرفق المقصود مع ومضة توضيحية حولها، ثم تفتح معاينته مباشرة.
         //    • وضعية التصميم/التعديل: تفتح معاينة المرفق مباشرة كما كان سابقاً ──
         function acShowAttachmentViewer(nodeId, attId) {
             const viewContainer = document.getElementById('acViewContainer');
             const viewingActive = !!viewContainer && !viewContainer.classList.contains('hidden');
             if (viewingActive) {
-                acOpenAttachmentsListView(attId);
+                acOpenAttachmentsListView(attId, true);
                 return;
             }
             acOpenSingleAttachmentViewer(attId);
