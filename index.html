@@ -2391,9 +2391,15 @@
                      للطي/الفتح للعناوين الفرعية) -->
                 <div id="acViewContainer" class="hidden flex-1 overflow-y-auto space-y-6 pb-10">
                     <div class="glass-element rounded-2xl p-5">
-                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <i class="ph ph-info text-primary"></i> معلومات المقرر
-                        </h3>
+                        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                <i class="ph ph-info text-primary"></i> معلومات المقرر
+                            </h3>
+                            <button onclick="acOpenAttachmentsListView()" class="glass-icon-btn px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold shrink-0">
+                                <i class="ph ph-paperclip text-sm"></i> قائمة المرفقات
+                                <span id="acViewAttachCountBadge" class="hidden bg-primary text-white rounded-full min-w-[18px] h-[18px] px-1 text-[10px] font-bold flex items-center justify-center">0</span>
+                            </button>
+                        </div>
                         <div id="acViewInfoGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <!-- يُبنى بواسطة acRenderCourseInfoSection() -->
                         </div>
@@ -2415,9 +2421,15 @@
 
                     <!-- القسم الأول: إعدادات المقرر -->
                     <div class="glass-element rounded-2xl p-5">
-                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <i class="ph ph-gear-six text-primary"></i> إعدادات المقرر
-                        </h3>
+                        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                <i class="ph ph-gear-six text-primary"></i> إعدادات المقرر
+                            </h3>
+                            <button onclick="acOpenSharedAttachmentsManager()" class="glass-icon-btn px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold shrink-0">
+                                <i class="ph ph-paperclip text-sm"></i> قائمة المرفقات
+                                <span id="acEditAttachCountBadge" class="hidden bg-primary text-white rounded-full min-w-[18px] h-[18px] px-1 text-[10px] font-bold flex items-center justify-center">0</span>
+                            </button>
+                        </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-1.5">اسم البرنامج</label>
@@ -7982,7 +7994,7 @@
             acCourseDraft = {
                 programKey: '', courseName: '', year: '', semester: '',
                 authorName: '', issueDate: '', versionNumber: '',
-                chapters: []
+                chapters: [], attachments: []
             };
             acEditingCourseId = null;
         }
@@ -8046,6 +8058,7 @@
             document.getElementById('acDesignerForm')?.classList.remove('hidden');
             acResetHeaderTitle();
             acSetHeaderActionsEdit();
+            acUpdateAllAttachBadges();
         }
 
         // زر هيدر (glass-icon-btn، أيقونة + نص) — صف واحد مقابل اسم المقرر، بلا نسخة مكررة
@@ -8192,7 +8205,7 @@
 
         // ══ شريط أدوات تنسيق النص (خط/لون/عريض/تحته خط/مائل/تعداد رقمي/تعداد نقطي) ══
         function acRichToolbarHtml(id, node) {
-            const count = (node && (node.attachments || []).length) || 0;
+            const count = (acCourseDraft && acCourseDraft.attachments || []).length;
             return `
             <div class="ac-rich-toolbar" dir="rtl">
                 <button type="button" onmousedown="event.preventDefault()" onclick="acExec('${id}','bold')" title="عريض"><i class="ph ph-text-b"></i></button>
@@ -8291,18 +8304,25 @@
         // ══════════════════════════════════════════════════════════════════
 
         const DRIVE_ATTACH_FOLDER_NAME = 'MedBox Education Attachments';
-        let acAttachManagerNodeId = null;   // العنوان المفتوح حالياً في نافذة "قائمة المرفقات"
+        let acAttachManagerNodeId = null;   // العنوان المفتوح حالياً في نافذة "قائمة المرفقات" (لإدراج إحالة بموضع مؤشره — قد يكون null)
         let acAttachManagerEditable = true; // هل نافذة "قائمة المرفقات" المفتوحة حالياً بوضعية التعديل (إضافة/حذف) أم العرض فقط
+        let acAttachManagerAllowInsert = true; // هل يظهر زر "إدراج إحالة" (فقط عند الفتح من داخل عنوان نص محدَّد)
         let acSavedRange = null;          // موضع المؤشر داخل النص وقت فتح المودال (لإدراج الإحالة بنفس المكان)
 
-        // تحديث شارة عدد المرفقات على زر المرفقات داخل شريط الأدوات (بعد التعداد النقطي)
-        function acUpdateAttachBadge(nodeId) {
-            const ctx = acFindNodeContext(nodeId);
-            const badge = document.getElementById('acAttachBadge_' + nodeId);
-            if (!badge || !ctx) return;
-            const count = (ctx.node.attachments || []).length;
-            badge.textContent = count || '';
-            badge.classList.toggle('hidden', !count);
+        // تحديث كل شارات عدد المرفقات الظاهرة على أزرار المرفقات داخل شريط الأدوات، وعلى
+        // زر "قائمة المرفقات" على مستوى المقرر (في وضعيتي العرض والتصميم) — بما أن
+        // المرفقات موحّدة الآن على مستوى المقرر كله، فكل الشارات تعرض نفس العدد
+        function acUpdateAllAttachBadges() {
+            const count = acGetSharedAttachments().length;
+            document.querySelectorAll('.ac-attach-badge-tb').forEach(badge => {
+                badge.textContent = count || '';
+                badge.classList.toggle('hidden', !count);
+            });
+            [document.getElementById('acViewAttachCountBadge'), document.getElementById('acEditAttachCountBadge')].forEach(badge => {
+                if (!badge) return;
+                badge.textContent = count || '';
+                badge.classList.toggle('hidden', !count);
+            });
         }
 
         function acAttachmentKind(mimeType) {
@@ -8378,12 +8398,11 @@
         function driveFileDownloadUrl(fileId) { return `https://drive.google.com/uc?export=download&id=${fileId}`; }
         function driveFilePreviewUrl(fileId)  { return `https://drive.google.com/file/d/${fileId}/preview`; }
 
-        // ── فتح نافذة "قائمة المرفقات" بوضعية التعديل (إضافة/حذف) — من زر المرفقات
-        //    داخل شريط أدوات تحرير النص أثناء التصميم ──
+        // ── فتح نافذة "قائمة المرفقات" بوضعية التعديل الكاملة (إضافة/حذف/إدراج إحالة) —
+        //    من زر المرفقات داخل شريط أدوات تحرير نص عنوان معيّن أثناء التصميم ──
         function acOpenAttachManager(nodeId) {
             const ctx = acFindNodeContext(nodeId);
             if (!ctx) return;
-            if (!ctx.node.attachments) ctx.node.attachments = [];
 
             // حفظ موضع المؤشر الحالي داخل حقل النص (إن وُجد) لإدراج الإحالة لاحقاً بنفس المكان
             acSavedRange = null;
@@ -8394,24 +8413,33 @@
                 if (contentEl.contains(range.commonAncestorContainer)) acSavedRange = range.cloneRange();
             }
 
-            acOpenAttachmentsList(nodeId, { editable: true });
+            acOpenAttachmentsList({ editable: true, allowInsert: true, nodeId });
         }
 
-        // ── فتح نافذة "قائمة المرفقات" بوضعية العرض فقط (بدون إضافة أو حذف) — تُستخدَم
-        //    عند الضغط على رقم إحالة داخل النص أثناء تصفّح مقرر محفوظ. تفتح القائمة
-        //    كاملة، ثم تُمرّر تلقائياً إلى بطاقة المرفق المقصود وتُجري ومضة حولها ──
-        function acOpenAttachmentsListView(nodeId, highlightAttId) {
-            acOpenAttachmentsList(nodeId, { editable: false, highlightAttId });
+        // ── فتح نافذة "قائمة المرفقات" على مستوى المقرر كله (إضافة/حذف، بدون إدراج
+        //    إحالة لعدم وجود عنوان نص محدَّد) — من زر "قائمة المرفقات" في قسم إعدادات
+        //    المقرر أثناء التصميم ──
+        function acOpenSharedAttachmentsManager() {
+            if (!acCourseDraft) return;
+            acOpenAttachmentsList({ editable: true, allowInsert: false });
         }
 
-        // ── نافذة "قائمة المرفقات" المشتركة بكل الملف: تبني المودال والقائمة نفسها،
-        //    وتُفعِّل عناصر الإضافة/الحذف فقط عند التعديل (editable=true)، بينما تبقى
-        //    للعرض فقط في وضعية تصفّح المقرر المحفوظ (editable=false) ──
-        function acOpenAttachmentsList(nodeId, opts) {
+        // ── فتح نافذة "قائمة المرفقات" بوضعية العرض فقط (بدون إضافة أو حذف أو إدراج) —
+        //    تُستخدَم من زر "قائمة المرفقات" في بيانات المقرر أثناء التصفّح، ومن الضغط
+        //    على رقم إحالة داخل النص (مع التمرير التلقائي للمرفق المقصود وومضة حوله) ──
+        function acOpenAttachmentsListView(highlightAttId) {
+            acOpenAttachmentsList({ editable: false, allowInsert: false, highlightAttId });
+        }
+
+        // ── نافذة "قائمة المرفقات" المشتركة بكل الملف: مصدر واحد لعرض/إدارة مرفقات
+        //    المقرر بأكمله (لا مرفقات منفصلة لكل عنوان)، تُستخدَم من كل نقاط الدخول
+        //    الثلاث أعلاه بفروق العرض فقط (إضافة/حذف/إدراج) ──
+        function acOpenAttachmentsList(opts) {
             opts = opts || {};
-            const editable = opts.editable !== false;
-            acAttachManagerNodeId = nodeId;
+            const editable = !!opts.editable;
+            acAttachManagerNodeId = opts.nodeId || null;
             acAttachManagerEditable = editable;
+            acAttachManagerAllowInsert = !!opts.allowInsert;
 
             const existing = document.getElementById('acAttachModal');
             if (existing) existing.remove();
@@ -8427,8 +8455,8 @@
                     </button>
                     <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2 pl-8"><i class="ph ph-paperclip text-primary"></i> قائمة المرفقات</h3>
                     <p class="text-[11px] text-gray-400 mb-3">${editable
-                        ? 'صور، فيديوهات، أو ملفات PDF — تُرفع إلى Google Drive، وتقدر تضيف إحالة [رقم] داخل النص بمكان المؤشر'
-                        : 'كل مرفقات هذا العنوان — اضغط على أي مرفق لمعاينته'}</p>
+                        ? 'صور، فيديوهات، أو ملفات PDF — تُرفع إلى Google Drive، وتُستخدَم كمرجع مشترك لكل عناوين المقرر'
+                        : 'كل مرفقات هذا المقرر — اضغط على أي مرفق لمعاينته'}</p>
                     <div id="acAttachList" class="space-y-2 overflow-y-auto flex-1 mb-3"></div>
                     <div id="acAttachUploadStatus" class="hidden text-[11px] text-primary mb-2 flex items-center gap-1.5"><i class="ph ph-circle-notch animate-spin"></i><span></span></div>
                     <div id="acAttachFooter"></div>
@@ -8474,8 +8502,9 @@
         function acRenderAttachList() {
             const listEl = document.getElementById('acAttachList');
             if (!listEl) return;
-            const atts = acFindNodeAttachments(acAttachManagerNodeId);
+            const atts = acGetSharedAttachments();
             const editable = acAttachManagerEditable;
+            const allowInsert = acAttachManagerAllowInsert;
             if (!atts.length) {
                 listEl.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">لا توجد مرفقات بعد</p>';
                 return;
@@ -8489,34 +8518,36 @@
                         <p class="text-xs font-semibold text-gray-700 truncate">${escapeHtml(a.name || '')}</p>
                         <p class="text-[10px] text-gray-400">مرجع [${i + 1}]</p>
                     </div>
-                    <button onclick="acOpenSingleAttachmentViewer('${acAttachManagerNodeId}','${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 shrink-0" title="معاينة">
+                    <button onclick="acOpenSingleAttachmentViewer('${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 shrink-0" title="معاينة">
                         <i class="ph ph-eye text-xs"></i>
                     </button>
-                    ${editable ? `
+                    ${allowInsert ? `
                     <button onclick="acInsertCitation('${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 shrink-0" title="إدراج إحالة بموضع المؤشر داخل النص">
                         <i class="ph ph-quotes text-xs"></i>
-                    </button>
+                    </button>` : ''}
+                    ${editable ? `
                     <button onclick="acRemoveAttachment('${a.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 shrink-0" title="حذف المرفق">
                         <i class="ph ph-trash text-xs"></i>
                     </button>` : ''}
                 </div>`).join('');
         }
 
-        // يرجع مصفوفة مرفقات عنصر معيّن بغض النظر عن السياق: أثناء التصميم (acCourseDraft)
-        // أو أثناء تصفّح مقرر محفوظ (acViewingCourseId) — تُستخدَم من نافذة "قائمة المرفقات"
-        // المشتركة كي تعمل بنفس الطريقة في كِلا الوضعين
-        function acFindNodeAttachments(nodeId) {
+        // يرجع قائمة المرفقات المشتركة الواحدة الخاصة بالمقرر بأكمله، بغض النظر عن
+        // السياق: أثناء التصميم (acCourseDraft) أو أثناء تصفّح مقرر محفوظ (acViewingCourseId) —
+        // كل عناوين المقرر تستخدم نفس هذه القائمة، فلا يوجد "مرفقات خاصة" بعنوان معيّن
+        function acGetSharedAttachments() {
             if (acViewingCourseId) {
                 const c = acCoursesCache.find(x => x.id === acViewingCourseId);
                 if (c) {
-                    for (const ch of (c.chapters || [])) {
-                        const node = acFindNodeInTree(nodeId, ch.outline || []);
-                        if (node) return node.attachments || [];
-                    }
+                    if (!Array.isArray(c.attachments)) c.attachments = [];
+                    return c.attachments;
                 }
+                return [];
             }
-            const ctx = acFindNodeContext(nodeId);
-            if (ctx) return ctx.node.attachments || [];
+            if (acCourseDraft) {
+                if (!Array.isArray(acCourseDraft.attachments)) acCourseDraft.attachments = [];
+                return acCourseDraft.attachments;
+            }
             return [];
         }
 
@@ -8524,9 +8555,7 @@
             const files = Array.from(event.target.files || []);
             event.target.value = '';
             if (!files.length) return;
-            const nodeId = acAttachManagerNodeId;
-            const ctx = acFindNodeContext(nodeId);
-            if (!ctx) return;
+            if (!acCourseDraft) return;
             if (!driveToken) { acRenderAttachFooter(); return; }
 
             if (!gapiReady) {
@@ -8562,11 +8591,10 @@
                         previewUrl: driveFilePreviewUrl(uploaded.id),
                         addedAt: new Date().toISOString()
                     };
-                    if (!ctx.node.attachments) ctx.node.attachments = [];
-                    ctx.node.attachments.push(attachment);
+                    acGetSharedAttachments().push(attachment);
                 }
                 acRenderAttachList();
-                acUpdateAttachBadge(nodeId);
+                acUpdateAllAttachBadges();
                 showToast?.('✅ تم رفع المرفقات بنجاح', 'success');
             } catch (err) {
                 console.error('acHandleAttachFiles error:', err);
@@ -8577,23 +8605,23 @@
         }
 
         function acRemoveAttachment(attId) {
-            const nodeId = acAttachManagerNodeId;
-            const ctx = acFindNodeContext(nodeId);
-            if (!ctx) return;
             if (!confirm('هل تريد حذف هذا المرفق؟ الإحالات المُدرَجة داخل النص المرتبطة به لن تعمل بعد الحذف.')) return;
-            ctx.node.attachments = (ctx.node.attachments || []).filter(a => a.id !== attId);
+            const atts = acGetSharedAttachments();
+            const idx = atts.findIndex(a => a.id === attId);
+            if (idx === -1) return;
+            atts.splice(idx, 1);
             acRenderAttachList();
-            acUpdateAttachBadge(nodeId);
+            acUpdateAllAttachBadges();
+            acRenumberAllCitationsGlobal();
         }
 
-        // إدراج إحالة داخل النص بموضع المؤشر المحفوظ (أو نهاية النص إن لم يوجد)،
-        // ثم إعادة ترقيم كل الإحالات في الصندوق بحسب ترتيب ظهورها الفعلي في النص
-        // (متسلسلة من 1 فصاعداً، بغض النظر عن عدد الفقرات أو ترتيب رفع المرفقات)
+        // إدراج إحالة داخل النص بموضع المؤشر المحفوظ (أو نهاية النص إن لم يوجد)، ثم
+        // إعادة ترقيم كل الإحالات في المقرر بأكمله بحسب ترتيب المرفق داخل قائمة
+        // المرفقات المشتركة (نفس المرفق يحمل نفس الرقم في كل عناوين المقرر)
         function acInsertCitation(attId) {
             const nodeId = acAttachManagerNodeId;
-            const ctx = acFindNodeContext(nodeId);
-            if (!ctx) return;
-            const atts = ctx.node.attachments || [];
+            if (!nodeId) return;
+            const atts = acGetSharedAttachments();
             if (!atts.some(a => a.id === attId)) return;
 
             const contentEl = document.getElementById('acContent_' + nodeId);
@@ -8613,28 +8641,50 @@
                 sel.addRange(range);
             }
             try { document.execCommand('insertHTML', false, marker); } catch (e) {}
-            acRenumberCitations(contentEl);
             acUpdateNodeContent(nodeId, contentEl.innerHTML);
+            acRenumberAllCitationsGlobal();
             acSavedRange = null;
 
             document.getElementById('acAttachModal')?.remove();
             showToast?.('🔗 تم إدراج الإحالة داخل النص', 'success');
         }
 
-        // يعيد ترقيم كل شارات الإحالة [رقم] داخل صندوق نص واحد بحسب ترتيب ظهورها الفعلي
-        // في النص (متسلسلة من 1 فصاعداً، بغض النظر عن الفقرات) — نفس المرفق يأخذ نفس الرقم أينما تكرر
-        function acRenumberCitations(contentEl) {
-            const sups = contentEl.querySelectorAll('.ac-citation');
-            const order = [];
-            sups.forEach(sup => {
-                const id = sup.dataset.attId;
-                if (id && !order.includes(id)) order.push(id);
-            });
-            sups.forEach(sup => {
-                const id = sup.dataset.attId;
-                const num = order.indexOf(id) + 1;
-                if (num > 0) sup.textContent = `[${num}]`;
-            });
+        // يعيد ترقيم كل شارات الإحالة [رقم] عبر كل عناوين المقرر بأكمله (وليس صندوق نص
+        // واحد فقط)، بحيث يعكس الرقم موضع المرفق نفسه داخل قائمة المرفقات المشتركة —
+        // فنفس المرفق يحمل نفس الرقم أينما أُشير إليه، والترقيم متسلسل عبر كل العناوين
+        // (مثال: العنوان الأول [1][2]، العنوان الثاني يكمل من [3]) وليس معاداً من 1 كل مرة
+        function acRenumberAllCitationsGlobal() {
+            const atts = acGetSharedAttachments();
+            const indexOf = {};
+            atts.forEach((a, i) => { indexOf[a.id] = i + 1; });
+
+            const applyToNode = (node) => {
+                if (node.content && node.content.indexOf('ac-citation') !== -1) {
+                    const live = document.getElementById('acContent_' + node.id);
+                    if (live) {
+                        // العنصر ظاهر حالياً في DOM: حدّث الشارات مباشرة بدون إزعاج موضع المؤشر
+                        live.querySelectorAll('.ac-citation').forEach(sup => {
+                            const num = indexOf[sup.dataset.attId];
+                            sup.textContent = num ? `[${num}]` : '[×]';
+                        });
+                        node.content = live.innerHTML;
+                    } else {
+                        const tmp = document.createElement('div');
+                        tmp.innerHTML = node.content;
+                        tmp.querySelectorAll('.ac-citation').forEach(sup => {
+                            const num = indexOf[sup.dataset.attId];
+                            sup.textContent = num ? `[${num}]` : '[×]';
+                        });
+                        node.content = tmp.innerHTML;
+                    }
+                }
+                (node.children || []).forEach(applyToNode);
+            };
+
+            const chapters = (acViewingCourseId
+                ? (acCoursesCache.find(x => x.id === acViewingCourseId) || {}).chapters
+                : (acCourseDraft || {}).chapters) || [];
+            chapters.forEach(ch => (ch.outline || []).forEach(applyToNode));
         }
 
         // ── البحث عن مرفق معيّن، سواء أثناء التصميم (acCourseDraft) أو أثناء تصفّح مقرر محفوظ ──
@@ -8648,27 +8698,8 @@
             }
             return null;
         }
-        function acFindAttachment(nodeId, attId) {
-            if (acViewingCourseId) {
-                const c = acCoursesCache.find(x => x.id === acViewingCourseId);
-                if (c) {
-                    for (const ch of (c.chapters || [])) {
-                        const node = acFindNodeInTree(nodeId, ch.outline || []);
-                        if (node && node.attachments) {
-                            const found = node.attachments.find(a => a.id === attId);
-                            if (found) return found;
-                        }
-                    }
-                }
-            }
-            if (acCourseDraft && acCourseDraft.chapters && acCourseDraft.chapters.length) {
-                const ctx = acFindNodeContext(nodeId);
-                if (ctx && ctx.node.attachments) {
-                    const found = ctx.node.attachments.find(a => a.id === attId);
-                    if (found) return found;
-                }
-            }
-            return null;
+        function acFindAttachment(attId) {
+            return acGetSharedAttachments().find(a => a.id === attId) || null;
         }
 
         // ── يُستدعى عند الضغط على رقم إحالة داخل النص (سواء أثناء التصميم أو تصفّح مقرر
@@ -8681,16 +8712,16 @@
             const viewContainer = document.getElementById('acViewContainer');
             const viewingActive = !!viewContainer && !viewContainer.classList.contains('hidden');
             if (viewingActive) {
-                acOpenAttachmentsListView(nodeId, attId);
+                acOpenAttachmentsListView(attId);
                 return;
             }
-            acOpenSingleAttachmentViewer(nodeId, attId);
+            acOpenSingleAttachmentViewer(attId);
         }
 
         // ── عارض معاينة مرفق واحد مباشرة (صورة/فيديو/PDF) — يُستخدَم من زر "معاينة"
         //    داخل نافذة قائمة المرفقات، ومن acShowAttachmentViewer أثناء وضعية التعديل ──
-        function acOpenSingleAttachmentViewer(nodeId, attId) {
-            const att = acFindAttachment(nodeId, attId);
+        function acOpenSingleAttachmentViewer(attId) {
+            const att = acFindAttachment(attId);
             const existing = document.getElementById('acViewerModal');
             if (existing) existing.remove();
 
@@ -8831,10 +8862,30 @@
             try {
                 const snap = await db.collection('academicCourses').get();
                 acCoursesCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                acCoursesCache.forEach(acMigrateCourseAttachments);
             } catch (err) {
                 console.error('acLoadCoursesFromFirestore error:', err);
                 acCoursesCache = [];
             }
+        }
+
+        // ── توافق مع مقررات محفوظة سابقاً بنظام "مرفق لكل عنوان": تجمع كل المرفقات
+        //    المبعثرة داخل عناوين المقرر في قائمة واحدة مشتركة على مستوى المقرر
+        //    (course.attachments)، بترتيب ظهور الفصول والعناوين، وتُزيل التكرار
+        //    بحسب معرّف المرفق. تُستدعى مرة واحدة عند تحميل المقرر ──
+        function acMigrateCourseAttachments(course) {
+            if (!course) return;
+            if (!Array.isArray(course.attachments)) course.attachments = [];
+            const seen = new Set(course.attachments.map(a => a.id));
+            const collect = (nodes) => {
+                (nodes || []).forEach(node => {
+                    (node.attachments || []).forEach(a => {
+                        if (!seen.has(a.id)) { seen.add(a.id); course.attachments.push(a); }
+                    });
+                    if (node.children && node.children.length) collect(node.children);
+                });
+            };
+            (course.chapters || []).forEach(ch => collect(ch.outline));
         }
 
         function acRenderSidebarList() {
@@ -8873,6 +8924,7 @@
         function acOpenExistingCourse(id) {
             const c = acCoursesCache.find(x => x.id === id);
             if (!c) return;
+            acMigrateCourseAttachments(c);
             acShowCourseView(c, id);
             if (window.innerWidth < 768) closeSidebar();
         }
@@ -8881,12 +8933,14 @@
         function acEditExistingCourse(id) {
             const c = acCoursesCache.find(x => x.id === id);
             if (!c) return;
+            acMigrateCourseAttachments(c);
             acEditingCourseId = id;
             acCourseDraft = {
                 programKey: c.programKey || '', courseName: c.courseName || '', year: c.year || '',
                 semester: c.semester || '',
                 authorName: c.authorName || '', issueDate: c.issueDate || '', versionNumber: c.versionNumber || '',
-                chapters: JSON.parse(JSON.stringify(c.chapters || []))
+                chapters: JSON.parse(JSON.stringify(c.chapters || [])),
+                attachments: JSON.parse(JSON.stringify(c.attachments || []))
             };
             acPopulateProgramOptions();
             const map = {
@@ -8903,6 +8957,7 @@
 
         // ── عرض بيانات مقرر محفوظ (قراءة فقط): معلومات المقرر + محتوى المقرر ──
         function acShowCourseView(c, id) {
+            acMigrateCourseAttachments(c);
             acViewingCourseId = id;
             const infoGrid = document.getElementById('acViewInfoGrid');
             if (infoGrid) infoGrid.innerHTML = acRenderCourseInfoSection(c);
@@ -8911,6 +8966,7 @@
             document.getElementById('acViewContainer')?.classList.remove('hidden');
             acSetHeaderForCourse(c);
             acSetHeaderActionsView(id);
+            acUpdateAllAttachBadges();
         }
 
         function acInfoRow(label, value) {
@@ -9119,6 +9175,7 @@
                 programKey, courseName, year, semester,
                 authorName, issueDate, versionNumber,
                 chapters: acCourseDraft.chapters || [],
+                attachments: acCourseDraft.attachments || [],
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
