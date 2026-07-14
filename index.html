@@ -1416,6 +1416,15 @@
                 </div>
             </div>
 
+            <!-- لوحة تصفح الجلسات الغير متزامنة الجانبية — زر "إنشاء جلسة جديدة"
+                 هو زر الإضافة الموحَّد في هيدر القائمة الجانبية (sidebarAddBtn)
+                 قبل زر الفرز، بنفس أسلوب باقي القوائم -->
+            <div id="sidebarAsyncSessionsList" class="hidden flex-1 flex flex-col overflow-hidden p-3">
+                <div id="sidebarAsyncSessionsTree" class="flex-1 overflow-y-auto space-y-1">
+                    <!-- سيتم ملء المحتوى بواسطة nsRenderSidebarList() -->
+                </div>
+            </div>
+
             <!-- لوحة المحادثة الجانبية — تظهر عند فتح المحادثة -->
             <div id="sidebarChatList" class="hidden flex-1 flex flex-col overflow-hidden">
                 <!-- نتائج البحث (تظهر تحت شريط البحث الرئيسي) -->
@@ -2361,7 +2370,7 @@
                  تعرض إما رسالة "اضغط + لإضافة مقرر" أو نموذج تصميم مقرر جديد
                  (acDesignerForm) حسب الحالة النشطة -->
             <div id="academicCoursesView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
-                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                <div class="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40">
                     <button onclick="showAcademicPediaGrid()" class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-primary flex-shrink-0">
                         <i class="ph ph-arrow-right text-lg"></i>
                     </button>
@@ -2373,9 +2382,10 @@
                         <p id="acHeaderSubtitle" class="text-xs text-gray-400">إنشاء وتنظيم محتوى المقررات الدراسية للموسوعة الأكاديمية</p>
                     </div>
                     <!-- إجراءات سياقية (عرض: طباعة/حذف/تعديل — تصميم: إلغاء/حفظ) تُبنى ديناميكياً
-                         بواسطة acSetHeaderActionsView() / acSetHeaderActionsEdit() — صف واحد فقط
-                         مقابل الاسم، بلا نسخة مكررة تحت العنوان -->
-                    <div id="acHeaderActions" class="hidden items-center gap-1.5 flex-wrap flex-shrink-0"></div>
+                         بواسطة acSetHeaderActionsView() / acSetHeaderActionsEdit() — صف كامل تحت
+                         اسم المقرر والبرنامج في الشاشات الصغيرة (w-full)، وصف واحد مقابل الاسم
+                         بدءاً من شاشات md فما فوق (md:w-auto) -->
+                    <div id="acHeaderActions" class="hidden items-center gap-1.5 flex-wrap flex-shrink-0 w-full md:w-auto justify-end md:justify-start"></div>
                 </div>
 
                 <!-- حالة افتراضية: لا يوجد مقرر قيد التصميم أو العرض -->
@@ -2666,7 +2676,7 @@
                     </div>
 
                     <!-- بطاقة: الجلسات الغير متزامنة -->
-                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="showComingSoon('الجلسات الغير متزامنة')">
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="showAsyncSessionsSection()">
                         <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
                             <i class="ph ph-clock-countdown"></i>
                         </div>
@@ -2676,6 +2686,118 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 نظام الجلسات الغير متزامنة (Async / Non-Sync Sessions)
+                 المرحلة الأولى: البنية والواجهة فقط (بدون حفظ حقيقي في
+                 Firestore أو رفع فعلي إلى Google Drive — هذا سيُنجَز في
+                 المرحلة الثانية). تعرض إما رسالة "اضغط + لإنشاء جلسة"
+                 أو نموذج تصميم جلسة جديدة (nsDesignerForm) حسب الحالة
+                 النشطة، بنفس أسلوب لوحة المقررات الدراسية (ac).
+            ══════════════════════════════════════════════════════════ -->
+            <div id="asyncSessionsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <div class="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                    <div id="nsHeaderIcon" class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
+                        <i class="ph ph-clock-countdown"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 id="nsHeaderTitle" class="text-xl font-bold text-gray-800">الجلسات الغير متزامنة</h2>
+                        <p id="nsHeaderSubtitle" class="text-xs text-gray-400">محتوى تدريبي مسجل يمكن للمتدرب متابعته في الوقت الذي يناسبه</p>
+                        <p id="nsHeaderCourseLine" class="hidden text-sm font-semibold text-gray-600 mt-0.5"></p>
+                        <p id="nsHeaderProgramLine" class="hidden text-xs text-gray-400 mt-0.5"></p>
+                    </div>
+                    <!-- إجراءات سياقية (تصميم: إلغاء/حفظ) تُبنى ديناميكياً بواسطة nsSetHeaderActionsEdit() -->
+                    <div id="nsHeaderActions" class="hidden items-center gap-1.5 flex-wrap flex-shrink-0 w-full md:w-auto justify-end md:justify-start"></div>
+                </div>
+
+                <!-- حالة افتراضية: لا توجد جلسة قيد التصميم أو العرض -->
+                <div id="nsPlaceholder" class="flex-1">
+                    <div class="text-center py-16 text-gray-400">
+                        <i class="ph ph-clock-countdown text-3xl block mb-2 text-gray-300"></i>
+                        <p class="text-sm">اضغط على زر "+" أعلى القائمة الجانبية لإنشاء جلسة غير متزامنة جديدة</p>
+                    </div>
+                </div>
+
+                <!-- عرض (قراءة فقط) لمجموعة جلسات محفوظة — يُستخدَم من متدرب مسجَّل، أو من مدير/مدرب يتصفح دون تعديل -->
+                <div id="nsGroupViewContainer" class="hidden flex-1 overflow-y-auto space-y-4 pb-10">
+                    <div id="nsGroupViewSessionsList" class="space-y-4">
+                        <!-- يُبنى بواسطة nsRenderGroupView() -->
+                    </div>
+                </div>
+
+                <!-- نموذج تصميم / تعديل مجموعة جلسات غير متزامنة -->
+                <div id="nsDesignerForm" class="hidden flex-1 overflow-y-auto space-y-6 pb-10">
+
+                    <!-- القسم الأول: إعدادات الجلسة -->
+                    <div class="glass-element rounded-2xl p-5">
+                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="ph ph-gear-six text-primary"></i> إعدادات الجلسة
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">اسم البرنامج <span class="text-red-500">*</span></label>
+                                <select id="nsProgramSelect" onchange="nsPopulateCourseOptions()" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm">
+                                    <option value="">— اختر البرنامج —</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">اسم الدورة (الدفعة) <span class="text-red-500">*</span></label>
+                                <select id="nsCourseSelect" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm">
+                                    <option value="">— اختر البرنامج أولاً —</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">عنوان الجلسة <span class="text-red-500">*</span></label>
+                                <input type="text" id="nsGroupTitleInput" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm" placeholder="مثال: محاضرات الوحدة الأولى">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">اسم المقرر</label>
+                                <input type="text" id="nsSubjectInput" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm" placeholder="مثال: أساسيات علم الأدوية">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">السنة الدراسية</label>
+                                <input type="text" id="nsYearInput" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm" placeholder="مثال: 2026 / 2027">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">الفصل الدراسي</label>
+                                <select id="nsSemesterSelect" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm">
+                                    <option value="">— اختر الفصل الدراسي —</option>
+                                    <option value="الفصل الأول">الفصل الأول</option>
+                                    <option value="الفصل الثاني">الفصل الثاني</option>
+                                    <option value="الفصل الصيفي">الفصل الصيفي</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">اسم المحاضر <span class="text-red-500">*</span></label>
+                                <input type="text" id="nsLecturerInput" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm" placeholder="مثال: د. محمد أحمد">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- القسم الثاني: الجلسات الغير متزامنة -->
+                    <div class="glass-element rounded-2xl p-5">
+                        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                <i class="ph ph-clock-countdown text-primary"></i> الجلسات الغير متزامنة
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs font-semibold text-gray-500 whitespace-nowrap">عدد الجلسات</label>
+                                <input type="number" id="nsSessionCountInput" min="1" max="60" value="1" class="glass-panel w-20 px-2 py-1.5 rounded-lg outline-none text-sm text-center">
+                                <button onclick="nsApplySessionCount()" class="glass-icon-btn px-3 h-8 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold">
+                                    <i class="ph ph-arrows-clockwise text-sm"></i> تحديث العدد
+                                </button>
+                            </div>
+                        </div>
+                        <div id="nsSessionsContainer" class="space-y-4">
+                            <!-- سيتم بناء بطاقات الجلسات ديناميكياً بواسطة nsRenderSessionCards() -->
+                        </div>
+                        <p id="nsSessionsEmptyMsg" class="hidden text-center text-xs text-gray-400 py-6">لا توجد جلسات بعد — حدد العدد أعلاه ثم اضغط "تحديث العدد"</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مدخل رفع محتوى مخفي لكل جلسة — يُفتح برمجياً بواسطة nsAttachContent() -->
+            <input type="file" id="nsHiddenFileInput" class="hidden" accept="video/*,image/*,application/pdf,.doc,.docx,.ppt,.pptx" onchange="nsHandleFileSelected(event)">
 
             <!-- ══════════════════════════════════════════════════════════
                  نظام الجلسات المتزامنة (Live Sync Sessions)
@@ -4561,6 +4683,7 @@
             evaluation:     { label: 'تقييم',              icon: 'ph-star' },
             permissions:    { label: 'صلاحيات مستخدم',      icon: 'ph-shield-check' },
             questionBank:   { label: 'بنك الأسئلة',         icon: 'ph-stack' },
+            asyncSession:   { label: 'جلسة غير متزامنة',    icon: 'ph-clock-countdown' },
             other:          { label: 'بيانات عامة',         icon: 'ph-database' },
         };
 
@@ -5965,7 +6088,7 @@
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView'];
+        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView', 'asyncSessionsView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -6220,7 +6343,7 @@
         function openChatSidebar() {
             if (!currentUser) { showToast('يجب تسجيل الدخول أولاً لاستخدام المحادثات', 'error'); return; }
             sidebarMode = 'chat';
-            ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarLiveSessionsList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+            ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarLiveSessionsList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const chatList = document.getElementById('sidebarChatList');
             if (chatList) chatList.classList.remove('hidden');
@@ -7957,7 +8080,7 @@
 
         async function showAcademicCoursesSection() {
             sidebarMode = 'academicCourses';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -10008,12 +10131,839 @@
             closeSidebar();
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        // ══ الجلسات الغير متزامنة (Async / Non-Sync Sessions) ══
+        // المرحلة الثانية: حفظ فعلي في Firestore (مجموعة asyncSessionGroups)،
+        // رفع فعلي للمرفقات إلى Google Drive بنفس آلية مرفقات الموسوعة
+        // الأكاديمية (driveUploadBinaryFile / getOrCreateAttachFolder)، مع
+        // تقييد الملف بعد الرفع بخاصية copyRequiresWriterPermission لمنع
+        // تنزيله من قِبل من يملك رابط العرض فقط (معاينة داخل التطبيق فقط —
+        // لا يوجد زر تنزيل في الواجهة). عدّاد مشاهدة حقيقي، وتصويت
+        // إعجاب/عدم إعجاب: يُحفَظ بهوية المصوّت (uid) فقط للمدرب/الأدمن،
+        // بينما يُحتسب تصويت المتدرب/الزائر كعدد فقط دون تسجيل هويته.
+        // تقييد العرض: لا يرى محتوى المجموعة إلا المدير، أو المدرب الأساسي
+        // المسجَّل على الدورة، أو متدرب مسجَّل ضمن traineesList لتلك الدورة.
+        // ══════════════════════════════════════════════════════════════════
+        let nsSessionDraft      = null;   // مسودة "مجموعة الجلسات" قيد التصميم حالياً
+        let nsEditingGroupId    = null;   // معرّف المجموعة قيد التعديل (null = إنشاء جديد)
+        let nsSessionGroupsCache = [];    // تخزين مؤقت بالذاكرة، محمَّل من Firestore
+        let nsViewingGroupId    = null;   // معرّف المجموعة المعروضة حالياً بوضعية "قراءة فقط" (متدرب/زائر)
+        const NS_VISITOR_VOTED_KEY = 'nsVisitorVotes'; // حارس محلي بسيط (sessionStorage) لمنع تكرار تصويت الزائر في نفس الجلسة، دون تخزين أي هوية
+        // حالة الطي/الفتح لبطاقات القائمة الجانبية (برنامج مفتوح واحد، ودورة مفتوحة واحدة بداخله)
+        let nsSidebarState = { expandedProgramKey: null, expandedCourseKey: null };
+
+        // زر بطاقة "الجلسات الغير متزامنة" — يفتح اللوحة الرئيسية + القائمة الجانبية
+        async function showAsyncSessionsSection() {
+            sidebarMode = 'asyncSessions';
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+                .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+
+            const qrBtn = document.getElementById('chatQRBtn');
+            if (qrBtn) qrBtn.classList.add('hidden');
+            const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+            const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+            if (quickNewBtn)    quickNewBtn.classList.add('hidden');
+            if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
+
+            const sidebarList = document.getElementById('sidebarAsyncSessionsList');
+            if (sidebarList) sidebarList.classList.remove('hidden');
+
+            nsResetDraft();
+            nsViewingGroupId = null;
+            nsShowPlaceholder();
+            updateSidebarAddButton();
+            openSidebar();
+            showView('asyncSessionsView');
+
+            await nsLoadGroupsFromFirestore();
+            nsRenderSidebarList();
+        }
+
+        // ── تحميل/حفظ Firestore ──
+        async function nsLoadGroupsFromFirestore() {
+            try {
+                if (!db) { nsSessionGroupsCache = []; return; }
+                const snap = await db.collection('asyncSessionGroups').get();
+                nsSessionGroupsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            } catch (err) {
+                console.error('nsLoadGroupsFromFirestore error:', err);
+                nsSessionGroupsCache = [];
+            }
+        }
+
+        // ── معرّف فريد لجلسة / مرفق ──
+        function nsUid() {
+            return 'ns' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        }
+        function nsBlankSession() {
+            return { id: nsUid(), title: '', date: '', attachments: [] };
+        }
+        function nsResetDraft() {
+            nsSessionDraft = {
+                programKey: '', courseKey: '', groupTitle: '', subjectName: '', year: '', semester: '',
+                lecturerName: '', sessions: [nsBlankSession()]
+            };
+            nsEditingGroupId = null;
+        }
+
+        // ── مساعدات الصلاحيات ──
+        // مساعد: إيجاد كائن الدورة (course) من مفتاحَي البرنامج والدورة (يُعاد استخدامه من نظام الامتحانات)
+        function nsGetCourse(programKey, courseKey) {
+            const program = programKey ? programsData[programKey] : null;
+            if (!program || !courseKey) return null;
+            return (program.courses || []).find(c => c.key === courseKey) || null;
+        }
+        // هل يملك المستخدم الحالي صلاحية إدارة (إنشاء/تعديل/حذف) مجموعة جلسات هذه الدورة؟
+        // مدير = دائماً، مدرب = فقط إن كان مسجلاً كمدرب أساسي لهذه الدورة تحديداً
+        function nsCanManageGroup(group) {
+            if (!currentUser) return false;
+            if (emsIsAdmin()) return true;
+            if (emsIsTrainer()) {
+                const course = nsGetCourse(group.programKey, group.courseKey);
+                return emsIsMainTrainerOfCourse(course);
+            }
+            return false;
+        }
+        // اسم المتدرب الحالي (لمطابقته مع traineesList الخاصة بالدورة)
+        function nsCurrentTraineeName() {
+            if (currentUser && currentUser.role === 'trainee' && typeof registryTrainees !== 'undefined' && currentUser.traineeId) {
+                const t = registryTrainees.find(x => x.id === currentUser.traineeId);
+                if (t) return t.nameAr || '';
+            }
+            return '';
+        }
+        // هل يحق للمستخدم الحالي عرض محتوى هذه المجموعة؟ — مدير/مدرب مُدير لها دائماً،
+        // متدرب فقط إن كان اسمه ضمن traineesList لنفس الدورة، وأي شخص آخر (زائر) لا يرى المحتوى
+        function nsCanViewGroup(group) {
+            if (nsCanManageGroup(group)) return true;
+            if (currentUser && currentUser.role === 'trainee') {
+                const course = nsGetCourse(group.programKey, group.courseKey);
+                const myName = nsCurrentTraineeName();
+                return !!(course && myName && (course.traineesList || []).includes(myName));
+            }
+            return false;
+        }
+
+        function nsHideAllBodies() {
+            document.getElementById('nsPlaceholder')?.classList.add('hidden');
+            document.getElementById('nsDesignerForm')?.classList.add('hidden');
+            document.getElementById('nsGroupViewContainer')?.classList.add('hidden');
+        }
+        function nsResetHeaderTitle() {
+            const icon = document.getElementById('nsHeaderIcon');
+            if (icon) icon.innerHTML = '<i class="ph ph-clock-countdown"></i>';
+            const title = document.getElementById('nsHeaderTitle');
+            if (title) title.textContent = 'الجلسات الغير متزامنة';
+            const subtitle = document.getElementById('nsHeaderSubtitle');
+            if (subtitle) { subtitle.textContent = 'محتوى تدريبي مسجل يمكن للمتدرب متابعته في الوقت الذي يناسبه'; subtitle.classList.remove('hidden'); }
+            const courseLine = document.getElementById('nsHeaderCourseLine');
+            if (courseLine) { courseLine.textContent = ''; courseLine.classList.add('hidden'); }
+            const programLine = document.getElementById('nsHeaderProgramLine');
+            if (programLine) { programLine.textContent = ''; programLine.classList.add('hidden'); }
+        }
+        function nsShowPlaceholder() {
+            nsHideAllBodies();
+            document.getElementById('nsPlaceholder')?.classList.remove('hidden');
+            nsResetHeaderTitle();
+            const el = document.getElementById('nsHeaderActions');
+            if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+        }
+        function nsShowDesignerForm() {
+            nsHideAllBodies();
+            document.getElementById('nsDesignerForm')?.classList.remove('hidden');
+            nsResetHeaderTitle();
+            nsSetHeaderActionsEdit();
+        }
+        function nsSetHeaderActionsEdit() {
+            const cancelC = 'text-red-500 hover:bg-red-50 hover:border-red-300';
+            const saveC   = 'text-primary hover:bg-primary/10 hover:border-primary/40';
+            const btns = [
+                ['ph-x', 'إلغاء', 'nsCancelDesigner()', cancelC],
+                ['ph-floppy-disk', 'حفظ', 'nsSaveSessionGroup()', saveC]
+            ];
+            const el = document.getElementById('nsHeaderActions');
+            if (el) {
+                el.innerHTML = btns.map(b => acHeaderBtnDesktop(...b)).join('');
+                el.classList.remove('hidden'); el.classList.add('flex');
+            }
+        }
+        // إجراءات هيدر وضعية "عرض" (متدرب مسجَّل / مدرب أو مدير يتصفح فقط دون تعديل): حذف (إن كانت له صلاحية) وتعديل
+        function nsSetHeaderActionsView(group) {
+            const btns = [];
+            if (nsCanManageGroup(group)) {
+                btns.push(['ph-trash', 'حذف', `nsDeleteSessionGroup('${group.id}')`, 'text-red-500 hover:bg-red-50 hover:border-red-300']);
+                btns.push(['ph-pencil-simple', 'تعديل', `nsEditExistingGroup('${group.id}')`, 'text-primary hover:bg-primary/10 hover:border-primary/40']);
+            }
+            const el = document.getElementById('nsHeaderActions');
+            if (el) {
+                if (!btns.length) { el.classList.add('hidden'); el.classList.remove('flex'); return; }
+                el.innerHTML = btns.map(b => acHeaderBtnDesktop(...b)).join('');
+                el.classList.remove('hidden'); el.classList.add('flex');
+            }
+        }
+
+        // زر "+" أعلى القائمة الجانبية — يبدأ تصميم مجموعة جلسات جديدة
+        function nsOpenNewSessionDesigner() {
+            nsResetDraft();
+            nsViewingGroupId = null;
+            nsPopulateProgramOptions();
+            const ids = ['nsGroupTitleInput', 'nsSubjectInput', 'nsYearInput', 'nsSemesterSelect', 'nsLecturerInput'];
+            ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            const countInput = document.getElementById('nsSessionCountInput');
+            if (countInput) countInput.value = 1;
+            document.getElementById('nsCourseSelect').innerHTML = '<option value="">— اختر البرنامج أولاً —</option>';
+            nsRenderSessionCards();
+            nsShowDesignerForm();
+            if (window.innerWidth < 768) closeSidebar();
+        }
+
+        function nsCancelDesigner() {
+            if (!confirm('هل تريد إلغاء التصميم الحالي؟ لن يتم حفظ أي تغييرات غير محفوظة.')) return;
+            const wasEditingId = nsEditingGroupId;
+            nsResetDraft();
+            if (wasEditingId) {
+                const g = nsSessionGroupsCache.find(x => x.id === wasEditingId);
+                if (g) { nsShowGroupView(g); return; }
+            }
+            nsShowPlaceholder();
+        }
+
+        // يملأ قائمة البرامج (نفس مصدر البيانات المستخدَم في الموسوعة الأكاديمية)
+        function nsPopulateProgramOptions() {
+            const sel = document.getElementById('nsProgramSelect');
+            if (!sel) return;
+            const current = sel.value;
+            sel.innerHTML = '<option value="">— اختر البرنامج —</option>' +
+                Object.keys(programsData).map(k => `<option value="${k}">${escapeHtml(programsData[k].title || k)}</option>`).join('');
+            sel.value = current;
+        }
+
+        // يملأ قائمة الدورات (الدفعات) الخاصة بالبرنامج المختار — تعتمد على
+        // programsData[key].courses (نفس بنية "الدورة" في نظام البرامج،
+        // حيث يمثّل course.code اسم الدورة/الدفعة)
+        function nsPopulateCourseOptions() {
+            const progSel = document.getElementById('nsProgramSelect');
+            const sel = document.getElementById('nsCourseSelect');
+            if (!sel) return;
+            const programKey = progSel ? progSel.value : '';
+            if (nsSessionDraft) nsSessionDraft.programKey = programKey;
+            if (!programKey) {
+                sel.innerHTML = '<option value="">— اختر البرنامج أولاً —</option>';
+                return;
+            }
+            const program = programsData[programKey];
+            const courses = (program && program.courses) || [];
+            sel.innerHTML = '<option value="">— اختر الدورة (الدفعة) —</option>' +
+                courses.map(c => `<option value="${c.key}">${escapeHtml(c.code || c.key)}</option>`).join('');
+        }
+
+        // ── إدارة بطاقات الجلسات (عدد الجلسات، عنوان/تاريخ لكل جلسة، مرفقاتها) ──
+
+        // يبني/يعدّل عدد بطاقات الجلسات ليطابق الرقم المُدخَل، مع الحفاظ على
+        // بيانات الجلسات الموجودة مسبقاً عند الزيادة أو النقصان
+        function nsApplySessionCount() {
+            const input = document.getElementById('nsSessionCountInput');
+            let count = parseInt(input && input.value, 10);
+            if (isNaN(count) || count < 1) count = 1;
+            if (count > 60) count = 60;
+            if (input) input.value = count;
+
+            if (!nsSessionDraft) return;
+            const current = nsSessionDraft.sessions || [];
+            if (count > current.length) {
+                while (current.length < count) current.push(nsBlankSession());
+            } else if (count < current.length) {
+                if (current.length > count && !confirm('سيتم حذف بطاقات الجلسات الزائدة عن العدد الجديد، هل تريد المتابعة؟')) {
+                    input.value = current.length;
+                    return;
+                }
+                current.length = count;
+            }
+            nsSessionDraft.sessions = current;
+            nsRenderSessionCards();
+        }
+
+        function nsFindSession(sessionId) {
+            return (nsSessionDraft && nsSessionDraft.sessions || []).find(s => s.id === sessionId) || null;
+        }
+        function nsUpdateSessionField(sessionId, field, value) {
+            const s = nsFindSession(sessionId);
+            if (s) s[field] = value;
+        }
+
+        // أيقونة مناسبة لنوع المرفق حسب امتداد الملف
+        function nsAttachIcon(fileName) {
+            const ext = (fileName || '').split('.').pop().toLowerCase();
+            if (['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(ext)) return 'ph-file-video';
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'ph-file-image';
+            if (ext === 'pdf') return 'ph-file-pdf';
+            if (['doc', 'docx'].includes(ext)) return 'ph-file-doc';
+            if (['ppt', 'pptx'].includes(ext)) return 'ph-file-ppt';
+            return 'ph-file';
+        }
+
+        function nsRenderSessionCards() {
+            const container = document.getElementById('nsSessionsContainer');
+            const emptyMsg  = document.getElementById('nsSessionsEmptyMsg');
+            if (!container) return;
+            const sessions = (nsSessionDraft && nsSessionDraft.sessions) || [];
+
+            if (!sessions.length) {
+                container.innerHTML = '';
+                if (emptyMsg) emptyMsg.classList.remove('hidden');
+                return;
+            }
+            if (emptyMsg) emptyMsg.classList.add('hidden');
+
+            container.innerHTML = sessions.map((s, idx) => `
+                <div class="glass-panel rounded-xl p-4 space-y-3">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">${idx + 1}</span>
+                        <input type="text" value="${escapeHtml(s.title)}" oninput="nsUpdateSessionField('${s.id}','title', this.value)"
+                            placeholder="عنوان الجلسة" class="glass-panel flex-1 min-w-[160px] px-3 py-2 rounded-lg outline-none text-sm">
+                        <input type="date" value="${escapeHtml(s.date)}" onchange="nsUpdateSessionField('${s.id}','date', this.value)"
+                            class="glass-panel px-3 py-2 rounded-lg outline-none text-sm">
+                        <button onclick="nsAttachContent('${s.id}')" class="glass-icon-btn px-3 py-2 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold shrink-0" title="إرفاق محتوى (فيديو، صور، PDF، Word، PowerPoint)">
+                            <i class="ph ph-paperclip text-sm"></i> إرفاق محتوى
+                        </button>
+                    </div>
+                    <div id="nsUploadStatus_${s.id}" class="hidden text-[11px] text-primary flex items-center gap-1.5"><i class="ph ph-circle-notch animate-spin"></i><span></span></div>
+                    <div class="space-y-2">
+                        ${(s.attachments || []).map(a => nsAttachmentCardHtml(s.id, a, true)).join('') || '<p class="text-[11px] text-gray-400 px-1">لا يوجد محتوى مرفق لهذه الجلسة بعد</p>'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // بطاقة عرض مرفق واحد تحت الجلسة: اسم الملف + عدّاد المشاهدة +
+        // إعجاب/عدم إعجاب. لا يوجد أي زر أو رابط تنزيل — المعاينة فقط عبر
+        // nsOpenAttachmentViewer داخل التطبيق (الملف على Drive مقيَّد بخاصية
+        // copyRequiresWriterPermission لمنع النسخ/التنزيل/الطباعة لمن يملك
+        // رابط العرض فقط)
+        function nsAttachmentCardHtml(sessionId, att, editable) {
+            const myVote = att.myVote || null; // 'like' | 'dislike' | null — يُحسب محلياً عند العرض بحسب دور المستخدم
+            return `
+                <div class="glass-element rounded-lg p-3 flex items-center gap-3 flex-wrap">
+                    <button onclick="nsOpenAttachmentViewer('${sessionId}','${att.id}')" class="flex items-center gap-2 flex-1 min-w-0 text-right hover:text-primary transition-colors" title="معاينة">
+                        <i class="ph ${nsAttachIcon(att.name)} text-primary text-lg shrink-0"></i>
+                        <span class="text-xs text-gray-700 flex-1 min-w-0 truncate">${escapeHtml(att.name)}</span>
+                    </button>
+                    <span class="text-[11px] text-gray-400 flex items-center gap-1 shrink-0" title="عدد المشاهدات">
+                        <i class="ph ph-eye"></i> ${att.views || 0}
+                    </span>
+                    <button onclick="nsToggleVote('${sessionId}','${att.id}','like')" class="glass-icon-btn w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 ${myVote === 'like' ? 'text-primary' : 'text-gray-400'}" title="إعجاب">
+                        <i class="ph ${myVote === 'like' ? 'ph-fill ph-thumbs-up' : 'ph-thumbs-up'}"></i>
+                    </button>
+                    <span class="text-[11px] text-gray-400 -mr-1.5 shrink-0">${nsAttachmentLikeCount(att)}</span>
+                    <button onclick="nsToggleVote('${sessionId}','${att.id}','dislike')" class="glass-icon-btn w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 ${myVote === 'dislike' ? 'text-red-500' : 'text-gray-400'}" title="عدم إعجاب">
+                        <i class="ph ${myVote === 'dislike' ? 'ph-fill ph-thumbs-down' : 'ph-thumbs-down'}"></i>
+                    </button>
+                    <span class="text-[11px] text-gray-400 -mr-1.5 shrink-0">${nsAttachmentDislikeCount(att)}</span>
+                    ${editable ? `
+                    <button onclick="nsRemoveAttachment('${sessionId}','${att.id}')" class="glass-icon-btn w-7 h-7 rounded-full flex items-center justify-center text-red-500 text-xs shrink-0" title="حذف المرفق">
+                        <i class="ph ph-trash"></i>
+                    </button>` : ''}
+                </div>`;
+        }
+
+        // مجموع الإعجابات = إعجابات المدرب/الأدمن المسجَّلة بالهوية + عدّاد الزوار/المتدربين المجهول
+        function nsAttachmentLikeCount(att) {
+            const identified = ((att.votes || {}).admins || []).filter(v => v.type === 'like').length;
+            return identified + ((att.votes || {}).visitorLikes || 0);
+        }
+        function nsAttachmentDislikeCount(att) {
+            const identified = ((att.votes || {}).admins || []).filter(v => v.type === 'dislike').length;
+            return identified + ((att.votes || {}).visitorDislikes || 0);
+        }
+
+        // زر "إرفاق محتوى" — يفتح منتقي الملفات ثم يرفعه فعلياً إلى Google
+        // Drive بنفس آلية مرفقات الموسوعة الأكاديمية، ويجعله متاحاً بالمعاينة
+        // فقط (بلا إمكانية نسخ/تنزيل/طباعة عبر copyRequiresWriterPermission)
+        let nsPendingAttachSessionId = null;
+        function nsAttachContent(sessionId) {
+            nsPendingAttachSessionId = sessionId;
+            const input = document.getElementById('nsHiddenFileInput');
+            if (input) { input.value = ''; input.click(); }
+        }
+
+        async function nsHandleFileSelected(event) {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            const sessionId = nsPendingAttachSessionId;
+            if (!file || !sessionId) return;
+            const s = nsFindSession(sessionId);
+            if (!s) return;
+
+            if (!driveToken) {
+                showToast?.('⚠️ يرجى تسجيل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات"', 'error');
+                return;
+            }
+            if (!gapiReady) {
+                try { await initGapi(); }
+                catch (e) { showToast?.('❌ تعذّرت تهيئة Google API — تحقق من إعدادات المزامنة', 'error'); return; }
+            }
+
+            const MAX_SIZE = 200 * 1024 * 1024; // 200MB — حد تحذيري لمحتوى فيديو الجلسات
+            if (file.size > MAX_SIZE) {
+                showToast?.(`⚠️ الملف "${file.name}" أكبر من 200MB — تم تخطّيه`, 'warn');
+                return;
+            }
+
+            const statusEl = document.getElementById(`nsUploadStatus_${sessionId}`);
+            const statusText = statusEl?.querySelector('span');
+            if (statusEl) statusEl.classList.remove('hidden');
+            if (statusText) statusText.textContent = `جاري رفع ${file.name}...`;
+
+            try {
+                const folderId = await getOrCreateAttachFolder();
+                const uploaded = await driveUploadBinaryFile(file, folderId);
+                await driveMakeFilePublic(uploaded.id);
+                // منع النسخ/التنزيل/الطباعة لمن يملك رابط العرض فقط — يبقى
+                // بإمكان المعاينة داخل التطبيق (iframe) فقط
+                try {
+                    await gapi.client.drive.files.update({ fileId: uploaded.id, resource: { copyRequiresWriterPermission: true } });
+                } catch (permErr) {
+                    console.warn('nsHandleFileSelected: تعذّر ضبط قيد منع التنزيل:', permErr);
+                }
+                const kind = acAttachmentKind(uploaded.mimeType || file.type);
+                const attachment = {
+                    id: nsUid(),
+                    name: uploaded.name || file.name,
+                    mimeType: uploaded.mimeType || file.type || '',
+                    kind,
+                    driveFileId: uploaded.id,
+                    previewUrl: driveFilePreviewUrl(uploaded.id),
+                    addedAt: new Date().toISOString(),
+                    views: 0,
+                    votes: { admins: [], visitorLikes: 0, visitorDislikes: 0 }
+                };
+                if (!Array.isArray(s.attachments)) s.attachments = [];
+                s.attachments.push(attachment);
+                nsRenderSessionCards();
+                showToast?.('✅ تم رفع المرفق بنجاح', 'success');
+            } catch (err) {
+                console.error('nsHandleFileSelected error:', err);
+                showToast?.('❌ فشل رفع المرفق: ' + (err.message || ''), 'error');
+            } finally {
+                if (statusEl) statusEl.classList.add('hidden');
+            }
+        }
+
+        function nsRemoveAttachment(sessionId, attId) {
+            const s = nsFindSession(sessionId);
+            if (!s) return;
+            if (!confirm('هل تريد حذف هذا المرفق؟ (لن يُحذف الملف من Google Drive تلقائياً)')) return;
+            s.attachments = (s.attachments || []).filter(a => a.id !== attId);
+            nsRenderSessionCards();
+        }
+
+        // ── عارض معاينة المرفق: يزيد عدّاد المشاهدة الحقيقي (Firestore) عند
+        //    فتحه، ولا يعرض أي رابط أو زر تنزيل ──
+        function nsOpenAttachmentViewer(sessionId, attId) {
+            // يبحث عن الجلسة/المرفق إما في المسودة قيد التصميم أو في المجموعة المعروضة للقراءة فقط
+            const sessions = (nsSessionDraft && nsSessionDraft.sessions) ||
+                              (nsViewingGroupId && (nsSessionGroupsCache.find(g => g.id === nsViewingGroupId) || {}).sessions) || [];
+            const session = sessions.find(s => s.id === sessionId);
+            const att = session && (session.attachments || []).find(a => a.id === attId);
+
+            const existing = document.getElementById('nsViewerModal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'nsViewerModal';
+            modal.className = 'fixed inset-0 z-[10000] flex items-center justify-center p-4';
+            modal.style.background = 'rgba(0,0,0,0.75)';
+
+            if (!att) {
+                modal.innerHTML = `
+                    <div class="glass-panel rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center relative">
+                        <button onclick="document.getElementById('nsViewerModal').remove()" class="absolute top-3 left-3 w-8 h-8 glass-icon-btn rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100"><i class="ph ph-x text-sm"></i></button>
+                        <i class="ph ph-warning-circle text-4xl text-amber-500 mb-2"></i>
+                        <p class="text-sm text-gray-600">هذا المرفق لم يعد متوفراً</p>
+                    </div>`;
+                document.body.appendChild(modal);
+                return;
+            }
+
+            let bodyHtml;
+            if (att.kind === 'image') {
+                bodyHtml = `<img src="${att.previewUrl}" alt="${escapeHtml(att.name || '')}" class="max-w-full max-h-[75vh] mx-auto rounded-lg object-contain" oncontextmenu="return false;">`;
+            } else if (att.kind === 'video' || att.kind === 'pdf' || att.kind === 'other') {
+                bodyHtml = `<iframe src="${att.previewUrl}" class="w-full rounded-lg border-0" style="height:70vh;" allow="autoplay"></iframe>`;
+            } else {
+                bodyHtml = `<div class="text-center py-10"><i class="ph ph-file text-5xl text-gray-300 mb-2"></i><p class="text-xs text-gray-500">تعذّرت معاينة هذا الملف</p></div>`;
+            }
+
+            modal.innerHTML = `
+                <div class="glass-panel rounded-2xl shadow-2xl w-full max-w-2xl p-4 relative" style="backdrop-filter:blur(24px);">
+                    <button onclick="document.getElementById('nsViewerModal').remove()" class="absolute top-3 left-3 w-8 h-8 glass-icon-btn rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 z-10"><i class="ph ph-x text-sm"></i></button>
+                    <div class="flex items-center gap-2 mb-3 pl-10">
+                        <i class="ph ${nsAttachIcon(att.name)} text-primary text-lg shrink-0"></i>
+                        <p class="text-sm font-semibold text-gray-800 truncate">${escapeHtml(att.name || '')}</p>
+                        <span class="mr-auto shrink-0 text-[11px] text-gray-400 flex items-center gap-1"><i class="ph ph-eye"></i> ${att.views || 0}</span>
+                    </div>
+                    ${bodyHtml}
+                    <p class="text-[10px] text-gray-400 text-center mt-2">معاينة فقط — التنزيل غير متاح لهذا المحتوى</p>
+                </div>`;
+            document.body.appendChild(modal);
+
+            nsRegisterView(sessionId, attId, att);
+        }
+
+        // زيادة عدّاد المشاهدة الحقيقي في Firestore (بدون تسجيل هوية المشاهد) —
+        // تُطبَّق فقط على مجموعة محفوظة فعلياً (وليست مسودة تصميم لم تُحفَظ بعد)
+        async function nsRegisterView(sessionId, attId, att) {
+            att.views = (att.views || 0) + 1; // تحديث تفاؤلي فوري في الواجهة
+            const groupId = nsViewingGroupId || nsEditingGroupId;
+            if (!groupId || !db) return;
+            try {
+                const group = nsSessionGroupsCache.find(g => g.id === groupId);
+                if (!group) return;
+                await db.collection('asyncSessionGroups').doc(groupId).set({ sessions: group.sessions }, { merge: true });
+            } catch (err) {
+                console.error('nsRegisterView error:', err);
+            }
+        }
+
+        // تبديل تصويت إعجاب/عدم إعجاب:
+        // - المدرب/الأدمن: يُسجَّل تصويته بهويته (uid) داخل votes.admins، ويمكنه تغييره أو إلغاؤه
+        // - المتدرب/الزائر: يُحتسب كعدد مجهول فقط (votes.visitorLikes/visitorDislikes)، بحارس محلي
+        //   بسيط (sessionStorage) يمنع تكرار تصويته لنفس المرفق خلال نفس جلسة المتصفح دون تخزين أي هوية
+        function nsToggleVote(sessionId, attId, type) {
+            const sessions = (nsSessionDraft && nsSessionDraft.sessions) ||
+                              (nsViewingGroupId && (nsSessionGroupsCache.find(g => g.id === nsViewingGroupId) || {}).sessions) || [];
+            const session = sessions.find(s => s.id === sessionId);
+            const att = session && (session.attachments || []).find(a => a.id === attId);
+            if (!att) return;
+            if (!att.votes) att.votes = { admins: [], visitorLikes: 0, visitorDislikes: 0 };
+
+            const isIdentifiedVoter = currentUser && (currentUser.role === 'admin' || currentUser.role === 'trainer');
+
+            if (isIdentifiedVoter) {
+                const uid = currentUser.uid;
+                const existingIdx = att.votes.admins.findIndex(v => v.uid === uid);
+                if (existingIdx > -1 && att.votes.admins[existingIdx].type === type) {
+                    att.votes.admins.splice(existingIdx, 1); // إلغاء نفس التصويت
+                } else if (existingIdx > -1) {
+                    att.votes.admins[existingIdx].type = type; // تغيير التصويت
+                } else {
+                    att.votes.admins.push({ uid, name: (currentUser.displayName || currentUser.nameAr || 'مستخدم'), type });
+                }
+                att.myVote = (att.votes.admins.find(v => v.uid === uid) || {}).type || null;
+            } else {
+                // زائر/متدرب: عدد فقط دون هوية — حارس محلي بسيط لمنع تكرار النقر
+                let voted = {};
+                try { voted = JSON.parse(sessionStorage.getItem(NS_VISITOR_VOTED_KEY) || '{}'); } catch (e) { voted = {}; }
+                const prevVote = voted[attId] || null;
+                if (prevVote === type) {
+                    att.votes[type === 'like' ? 'visitorLikes' : 'visitorDislikes'] =
+                        Math.max(0, (att.votes[type === 'like' ? 'visitorLikes' : 'visitorDislikes'] || 0) - 1);
+                    delete voted[attId];
+                } else {
+                    if (prevVote) {
+                        att.votes[prevVote === 'like' ? 'visitorLikes' : 'visitorDislikes'] =
+                            Math.max(0, (att.votes[prevVote === 'like' ? 'visitorLikes' : 'visitorDislikes'] || 0) - 1);
+                    }
+                    att.votes[type === 'like' ? 'visitorLikes' : 'visitorDislikes'] =
+                        (att.votes[type === 'like' ? 'visitorLikes' : 'visitorDislikes'] || 0) + 1;
+                    voted[attId] = type;
+                }
+                try { sessionStorage.setItem(NS_VISITOR_VOTED_KEY, JSON.stringify(voted)); } catch (e) {}
+                att.myVote = voted[attId] || null;
+            }
+
+            nsRenderSessionCards();
+            if (nsViewingGroupId) nsRenderGroupView(nsSessionGroupsCache.find(g => g.id === nsViewingGroupId));
+            nsPersistVotes(sessionId);
+        }
+
+        // حفظ التصويت في Firestore فوراً (فقط لمجموعة محفوظة فعلياً)
+        async function nsPersistVotes(sessionId) {
+            const groupId = nsViewingGroupId || nsEditingGroupId;
+            if (!groupId || !db) return;
+            try {
+                const group = nsSessionGroupsCache.find(g => g.id === groupId);
+                if (!group) return;
+                await db.collection('asyncSessionGroups').doc(groupId).set({ sessions: group.sessions }, { merge: true });
+            } catch (err) {
+                console.error('nsPersistVotes error:', err);
+            }
+        }
+
+        // حفظ مجموعة الجلسات في Firestore + تسجيل العملية في سجل التدقيق
+        async function nsSaveSessionGroup() {
+            const programKey   = document.getElementById('nsProgramSelect')?.value || '';
+            const courseKey    = document.getElementById('nsCourseSelect')?.value || '';
+            const groupTitle   = document.getElementById('nsGroupTitleInput')?.value.trim() || '';
+            const lecturerName = document.getElementById('nsLecturerInput')?.value.trim() || '';
+
+            if (!programKey)   { showToast?.('⚠️ يرجى اختيار اسم البرنامج', 'error'); return; }
+            if (!courseKey)    { showToast?.('⚠️ يرجى اختيار اسم الدورة (الدفعة)', 'error'); return; }
+            if (!groupTitle)   { showToast?.('⚠️ يرجى إدخال عنوان الجلسة', 'error'); return; }
+            if (!lecturerName) { showToast?.('⚠️ يرجى إدخال اسم المحاضر', 'error'); return; }
+
+            const course = nsGetCourse(programKey, courseKey);
+            if (!(emsIsAdmin() || (emsIsTrainer() && emsIsMainTrainerOfCourse(course)))) {
+                showToast?.('❌ لا تملك صلاحية إنشاء/تعديل جلسات غير متزامنة لهذه الدورة', 'error');
+                return;
+            }
+
+            const subjectName = document.getElementById('nsSubjectInput')?.value.trim() || '';
+            const data = {
+                programKey, courseKey, groupTitle, subjectName,
+                year: document.getElementById('nsYearInput')?.value.trim() || '',
+                semester: document.getElementById('nsSemesterSelect')?.value || '',
+                lecturerName,
+                sessions: nsSessionDraft.sessions || [],
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                if (!db) throw new Error('لا يوجد اتصال بقاعدة البيانات');
+                let savedId = nsEditingGroupId;
+                if (nsEditingGroupId) {
+                    await db.collection('asyncSessionGroups').doc(nsEditingGroupId).set(data, { merge: true });
+                } else {
+                    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    const ref = await db.collection('asyncSessionGroups').add(data);
+                    savedId = ref.id;
+                }
+
+                const label = groupTitle || subjectName || (course && course.code) || 'جلسة غير متزامنة';
+                await logActivity(nsEditingGroupId ? 'edit' : 'add', 'asyncSession', label, savedId,
+                    `دورة: ${(course && course.code) || courseKey} — المحاضر: ${lecturerName}`);
+
+                showToast?.('✅ تم حفظ الجلسات بنجاح', 'success');
+                await nsLoadGroupsFromFirestore();
+                nsRenderSidebarList();
+                nsResetDraft();
+                const savedGroup = nsSessionGroupsCache.find(g => g.id === savedId);
+                if (savedGroup) nsShowGroupView(savedGroup);
+                else nsShowPlaceholder();
+            } catch (err) {
+                console.error('nsSaveSessionGroup error:', err);
+                showToast?.('❌ فشل حفظ الجلسات: ' + (err.message || ''), 'error');
+            }
+        }
+
+        async function nsDeleteSessionGroup(groupId) {
+            const group = nsSessionGroupsCache.find(g => g.id === groupId);
+            if (!group) return;
+            if (!nsCanManageGroup(group)) { showToast?.('❌ لا تملك صلاحية حذف هذه الجلسات', 'error'); return; }
+            if (!confirm('هل تريد حذف مجموعة الجلسات هذه بكل ما تحويه؟ لن تُحذف الملفات من Google Drive تلقائياً.')) return;
+
+            try {
+                if (!db) throw new Error('لا يوجد اتصال بقاعدة البيانات');
+                await db.collection('asyncSessionGroups').doc(groupId).delete();
+                const course = nsGetCourse(group.programKey, group.courseKey);
+                const label = group.groupTitle || group.subjectName || (course && course.code) || 'جلسة غير متزامنة';
+                await logActivity('delete', 'asyncSession', label, groupId, `دورة: ${(course && course.code) || group.courseKey}`);
+                showToast?.('🗑️ تم حذف الجلسات', 'success');
+                await nsLoadGroupsFromFirestore();
+                nsRenderSidebarList();
+                nsViewingGroupId = null;
+                nsShowPlaceholder();
+            } catch (err) {
+                console.error('nsDeleteSessionGroup error:', err);
+                showToast?.('❌ فشل حذف الجلسات: ' + (err.message || ''), 'error');
+            }
+        }
+
+        // القائمة الجانبية لمجموعات الجلسات — تعرض فقط المجموعات التي يحق
+        // للمستخدم الحالي إدارتها أو عرضها (مدير: الكل، مدرب: دورات إشرافه،
+        // متدرب: الدورات المسجَّل فيها فقط)
+        // يعرض القائمة الجانبية كبطاقات هرمية: بطاقة برنامج ← تحوي بطاقات
+        // دورات ← تحوي بطاقات الجلسات الغير متزامنة، وكل بطاقة (برنامج/دورة)
+        // تُفتح/تُطوى بزر سهم لأسفل (caret) بجانبها
+        function nsRenderSidebarList() {
+            const tree = document.getElementById('sidebarAsyncSessionsTree');
+            if (!tree) return;
+            const visible = nsSessionGroupsCache.filter(g => nsCanViewGroup(g));
+            if (!visible.length) {
+                tree.innerHTML = '<p class="text-center text-xs text-gray-400 py-6">لا توجد جلسات غير متزامنة متاحة لك بعد</p>';
+                return;
+            }
+
+            // تجميع المجموعات: برنامج ← دورة ← قائمة الجلسات
+            const byProgram = {};
+            visible.forEach(g => {
+                const pk = g.programKey || '__none__';
+                const ck = g.courseKey  || '__none__';
+                if (!byProgram[pk]) byProgram[pk] = {};
+                if (!byProgram[pk][ck]) byProgram[pk][ck] = [];
+                byProgram[pk][ck].push(g);
+            });
+
+            tree.innerHTML = Object.keys(byProgram).map(pk => {
+                const program      = programsData[pk];
+                const programTitle = (program && program.title) || 'برنامج غير معروف';
+                const isPOpen       = nsSidebarState.expandedProgramKey === pk;
+                const coursesMap   = byProgram[pk];
+
+                return `
+                <div class="glass-panel rounded-xl mb-2 overflow-hidden">
+                    <button onclick="nsToggleSidebarProgram('${pk}')" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/5 transition-colors">
+                        <span class="flex items-center gap-2 min-w-0">
+                            <i class="ph ph-folder-notch text-primary/70 flex-shrink-0"></i>
+                            <span class="truncate">${escapeHtml(programTitle)}</span>
+                        </span>
+                        <i class="ph ph-caret-down text-xs text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isPOpen ? '180' : '0'}deg)"></i>
+                    </button>
+                    ${isPOpen ? `
+                    <div class="px-2 pb-2 space-y-1.5">
+                        ${Object.keys(coursesMap).map(ck => {
+                            const course      = nsGetCourse(pk, ck);
+                            const courseTitle = (course && course.code) || 'دورة غير معروفة';
+                            const courseKey   = pk + '__' + ck;
+                            const isCOpen      = nsSidebarState.expandedCourseKey === courseKey;
+                            const groups      = coursesMap[ck];
+
+                            return `
+                            <div class="glass-element rounded-lg overflow-hidden">
+                                <button onclick="nsToggleSidebarCourse('${courseKey}')" class="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+                                    <span class="flex items-center gap-2 min-w-0">
+                                        <i class="ph ph-graduation-cap text-gray-400 flex-shrink-0"></i>
+                                        <span class="truncate">${escapeHtml(courseTitle)}</span>
+                                    </span>
+                                    <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isCOpen ? '180' : '0'}deg)"></i>
+                                </button>
+                                ${isCOpen ? `
+                                <div class="px-2 pb-2 space-y-1">
+                                    ${groups.map(g => {
+                                        const label    = g.groupTitle || g.subjectName || (course && course.code) || 'جلسة غير متزامنة';
+                                        const isActive = nsViewingGroupId === g.id;
+                                        return `
+                                        <button onclick="nsOpenGroup('${g.id}')" class="w-full text-right flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-gray-600 hover:bg-white'}">
+                                            <i class="ph ph-clock-countdown text-sm flex-shrink-0 ${isActive ? 'text-primary' : 'text-gray-400'}"></i>
+                                            <span class="flex-1 min-w-0 truncate">${escapeHtml(label)}</span>
+                                        </button>`;
+                                    }).join('')}
+                                </div>` : ''}
+                            </div>`;
+                        }).join('')}
+                    </div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        // طيّ/فتح بطاقة برنامج في القائمة الجانبية (يطوي أي دورة مفتوحة بداخله تلقائياً)
+        function nsToggleSidebarProgram(pk) {
+            nsSidebarState.expandedProgramKey = (nsSidebarState.expandedProgramKey === pk) ? null : pk;
+            nsSidebarState.expandedCourseKey = null;
+            nsRenderSidebarList();
+        }
+        // طيّ/فتح بطاقة دورة داخل برنامج مفتوح
+        function nsToggleSidebarCourse(courseKey) {
+            nsSidebarState.expandedCourseKey = (nsSidebarState.expandedCourseKey === courseKey) ? null : courseKey;
+            nsRenderSidebarList();
+        }
+
+        // فتح مجموعة من القائمة الجانبية: يديرها (مدير/مدرب مسؤول) → عرض مع
+        // إجراءات تعديل/حذف، متدرب مسجَّل → عرض للقراءة فقط بلا إجراءات إدارية
+        function nsOpenGroup(groupId) {
+            const g = nsSessionGroupsCache.find(x => x.id === groupId);
+            if (!g) return;
+            if (!nsCanViewGroup(g)) { showToast?.('❌ لا يحق لك الاطلاع على محتوى هذه الجلسات', 'error'); return; }
+            nsShowGroupView(g);
+            if (window.innerWidth < 768) closeSidebar();
+        }
+
+        // عرض (قراءة فقط) لمجموعة جلسات محفوظة
+        function nsShowGroupView(group) {
+            nsViewingGroupId = group.id;
+            nsEditingGroupId = null;
+            nsHideAllBodies();
+            document.getElementById('nsGroupViewContainer')?.classList.remove('hidden');
+
+            const course = nsGetCourse(group.programKey, group.courseKey);
+            const program = programsData[group.programKey];
+
+            // عنوان الجلسة أولاً، ثم اسم الدورة، ثم اسم البرنامج
+            const title = document.getElementById('nsHeaderTitle');
+            if (title) title.textContent = group.groupTitle || group.subjectName || (course && course.code) || 'جلسة غير متزامنة';
+
+            const subtitle = document.getElementById('nsHeaderSubtitle');
+            if (subtitle) subtitle.classList.add('hidden');
+
+            const courseLine = document.getElementById('nsHeaderCourseLine');
+            if (courseLine) {
+                const extra = [group.year, group.semester, group.lecturerName ? ('المحاضر: ' + group.lecturerName) : ''].filter(Boolean).join(' — ');
+                courseLine.textContent = [course && course.code, extra].filter(Boolean).join(' — ');
+                courseLine.classList.remove('hidden');
+            }
+            const programLine = document.getElementById('nsHeaderProgramLine');
+            if (programLine) {
+                programLine.textContent = (program && program.title) || '';
+                programLine.classList.remove('hidden');
+            }
+
+            const icon = document.getElementById('nsHeaderIcon');
+            if (icon) icon.innerHTML = '<i class="ph ph-clock-countdown"></i>';
+
+            nsSetHeaderActionsView(group);
+            nsRenderGroupView(group);
+        }
+
+        function nsRenderGroupView(group) {
+            const container = document.getElementById('nsGroupViewSessionsList');
+            if (!container || !group) return;
+            const sessions = group.sessions || [];
+            if (!sessions.length) {
+                container.innerHTML = '<p class="text-center text-xs text-gray-400 py-10">لا توجد جلسات مضافة بعد</p>';
+                return;
+            }
+            container.innerHTML = sessions.map((s, idx) => `
+                <div class="glass-panel rounded-xl p-4 space-y-3">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">${idx + 1}</span>
+                        <p class="text-sm font-semibold text-gray-800 flex-1 min-w-0 truncate">${escapeHtml(s.title || 'جلسة بدون عنوان')}</p>
+                        ${s.date ? `<span class="text-[11px] text-gray-400 shrink-0">${escapeHtml(s.date)}</span>` : ''}
+                    </div>
+                    <div class="space-y-2">
+                        ${(s.attachments || []).map(a => nsAttachmentCardHtml(s.id, a, false)).join('') || '<p class="text-[11px] text-gray-400 px-1">لا يوجد محتوى مرفق لهذه الجلسة بعد</p>'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // فتح مجموعة موجودة بوضعية "تصميم/تعديل" — يتطلب صلاحية إدارة الدورة
+        function nsEditExistingGroup(groupId) {
+            const g = nsSessionGroupsCache.find(x => x.id === groupId);
+            if (!g) return;
+            if (!nsCanManageGroup(g)) { showToast?.('❌ لا تملك صلاحية تعديل هذه الجلسات', 'error'); return; }
+
+            nsEditingGroupId = groupId;
+            nsViewingGroupId = null;
+            nsSessionDraft = JSON.parse(JSON.stringify(g));
+            delete nsSessionDraft.id;
+            if (!Array.isArray(nsSessionDraft.sessions) || !nsSessionDraft.sessions.length) {
+                nsSessionDraft.sessions = [nsBlankSession()];
+            }
+
+            nsPopulateProgramOptions();
+            document.getElementById('nsProgramSelect').value = g.programKey || '';
+            nsPopulateCourseOptions();
+            document.getElementById('nsCourseSelect').value = g.courseKey || '';
+            document.getElementById('nsGroupTitleInput').value = g.groupTitle || '';
+            document.getElementById('nsSubjectInput').value = g.subjectName || '';
+            document.getElementById('nsYearInput').value = g.year || '';
+            document.getElementById('nsSemesterSelect').value = g.semester || '';
+            document.getElementById('nsLecturerInput').value = g.lecturerName || '';
+            document.getElementById('nsSessionCountInput').value = (g.sessions || []).length || 1;
+
+            nsRenderSessionCards();
+            nsShowDesignerForm();
+            if (window.innerWidth < 768) closeSidebar();
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+
         // ══ نظام الامتحانات - Exam System Hub ══
         // يفتح مركز نظام الامتحانات: يُظهر بطاقتي "إنشاء امتحان جديد" و"بنك الأسئلة" في لوحة العرض الرئيسية،
         // ويفتح القائمة الجانبية فارغة (سيتم لاحقاً تحديد محتواها بحسب البطاقة المختارة)
         function showExamSystemGrid() {
             sidebarMode = 'examSystem';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const addBtn = document.getElementById('sidebarAddBtn');
@@ -10062,7 +11012,7 @@
                 return;
             }
             sidebarMode = 'measureEval';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -10101,7 +11051,7 @@
                 return;
             }
             sidebarMode = 'measureEval';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -10175,6 +11125,7 @@
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarSettingsList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
             if (liveListEl) liveListEl.classList.add('hidden');
@@ -10240,6 +11191,7 @@
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             const chatListEl = document.getElementById('sidebarChatList');
             if (chatListEl) chatListEl.classList.add('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
@@ -10272,6 +11224,7 @@
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarUsersList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
             if (liveListEl) liveListEl.classList.add('hidden');
@@ -10831,6 +11784,7 @@
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
             if (liveListEl) liveListEl.classList.add('hidden');
@@ -12152,6 +13106,13 @@
                 btn.classList.remove('hidden');
                 return;
             }
+            if (sidebarMode === 'asyncSessions') {
+                // زر إنشاء جلسة غير متزامنة جديدة أعلى لوحة "الجلسات الغير
+                // متزامنة" — يبدأ نموذج إعدادات الجلسة + الجلسات المرفقة
+                btn.title = 'إنشاء جلسة غير متزامنة جديدة';
+                btn.classList.remove('hidden');
+                return;
+            }
             if (sidebarLevel === 'exam') {
                 btn.title = 'إنشاء امتحان جديد';
                 let canCreate = false;
@@ -12190,6 +13151,8 @@
                 acOpenNewCourseDesigner();
             } else if (sidebarMode === 'studentPedia') {
                 spOpenNewEntryDesigner();
+            } else if (sidebarMode === 'asyncSessions') {
+                nsOpenNewSessionDesigner();
             } else if (sidebarMode === 'users') {
                 openUserModal('add', null);
             } else if (sidebarLevel === 'exam' && activeProgramKey) {
@@ -16182,6 +17145,7 @@
                                 document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
                                 document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
                                 document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
                             }
                         });
                     } else if (type === 'course') {
@@ -16212,6 +17176,7 @@
                             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
                             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
                             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
                             buildSidebarCourses(r.programKey);
                             showCourseDetails(r.programKey, r.course.key);
                         });
@@ -23654,6 +24619,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
             updateRegistryAddButton();
@@ -23707,6 +24673,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
             updateRegistryAddButton();
@@ -24648,7 +25615,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'questionBank';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const addBtn = document.getElementById('sidebarAddBtn');
@@ -25222,7 +26189,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'registeredExams';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const addBtn = document.getElementById('sidebarAddBtn');
@@ -25543,7 +26510,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'completedSessions';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const qrBtn  = document.getElementById('chatQRBtn');
@@ -33192,7 +34159,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         const panel = document.getElementById('sidebarLiveSessionsList');
         if (!panel) return false;
         sidebarMode = 'liveSessions';
-        ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+        ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
         panel.classList.remove('hidden');
 
