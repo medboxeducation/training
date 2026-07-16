@@ -12282,6 +12282,8 @@
             const user = appUsersData.find(u => u.uid === uid);
             if (!user) return;
 
+            closeSidebarOnMobile();
+
             buildSidebarUsers();
 
             document.getElementById('userSelectHint').classList.add('hidden');
@@ -17538,6 +17540,106 @@
             showToast(`✅ تم إضافة ${trainee.nameAr} إلى الدورة`, 'success');
         }
 
+        // ── إضافة متدرب إلى دورة تدريبية من لوحة عرض بيانات المتدرب —
+        //    يختار المستخدم البرنامج أولاً، ثم تظهر دورات ذلك البرنامج فقط ──
+        let enrollTraineeModalTraineeId = null;
+
+        function openEnrollTraineeModal(traineeId) {
+            const trainee = registryTrainees.find(t => t.id === traineeId);
+            if (!trainee) return;
+            enrollTraineeModalTraineeId = traineeId;
+
+            let existingModal = document.getElementById('enrollTraineeModal');
+            if (existingModal) existingModal.remove();
+
+            const programOptions = Object.keys(programsData)
+                .map(k => `<option value="${k}">${escapeHtml(programsData[k].title || k)}</option>`).join('');
+
+            const modal = document.createElement('div');
+            modal.id = 'enrollTraineeModal';
+            modal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm';
+            modal.onclick = function(e) { if (e.target === this) closeEnrollTraineeModal(); };
+            modal.innerHTML = `
+                <div class="glass-panel bg-white/95 w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl" onclick="event.stopPropagation()">
+                    <div class="sticky top-0 bg-white/90 backdrop-blur-sm z-10 flex items-center justify-between px-6 py-4 border-b border-white/40 rounded-t-2xl">
+                        <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                            <i class="ph ph-graduation-cap text-primary"></i> إضافة إلى دورة تدريبية
+                        </h2>
+                        <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50" onclick="closeEnrollTraineeModal()">
+                            <i class="ph ph-x text-lg"></i>
+                        </button>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <p class="text-xs text-gray-500">المتدرب: <span class="font-bold text-gray-700">${escapeHtml(trainee.nameAr || '')}</span></p>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1.5">اسم البرنامج</label>
+                            <select id="enrollProgramSelect" onchange="renderEnrollCourseOptions()" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm">
+                                <option value="">— اختر البرنامج —</option>
+                                ${programOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1.5">الدورة التدريبية</label>
+                            <select id="enrollCourseSelect" disabled class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm text-gray-400">
+                                <option value="">— اختر البرنامج أولاً —</option>
+                            </select>
+                        </div>
+                        <button onclick="confirmEnrollTrainee()" class="w-full bg-primary text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5">
+                            <i class="ph ph-plus"></i> إضافة إلى الدورة
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // تحديث قائمة الدورات بناءً على البرنامج المختار
+        function renderEnrollCourseOptions() {
+            const programKey = document.getElementById('enrollProgramSelect')?.value;
+            const courseSelect = document.getElementById('enrollCourseSelect');
+            if (!courseSelect) return;
+
+            if (!programKey || !programsData[programKey]) {
+                courseSelect.innerHTML = '<option value="">— اختر البرنامج أولاً —</option>';
+                courseSelect.disabled = true;
+                courseSelect.classList.add('text-gray-400');
+                return;
+            }
+
+            const courses = programsData[programKey].courses || [];
+            if (courses.length === 0) {
+                courseSelect.innerHTML = '<option value="">لا توجد دورات في هذا البرنامج</option>';
+                courseSelect.disabled = true;
+                courseSelect.classList.add('text-gray-400');
+                return;
+            }
+
+            courseSelect.innerHTML = '<option value="">— اختر الدورة —</option>' +
+                courses.map(c => `<option value="${c.key}">${escapeHtml(c.code || c.key)}</option>`).join('');
+            courseSelect.disabled = false;
+            courseSelect.classList.remove('text-gray-400');
+        }
+
+        // تأكيد إضافة المتدرب للدورة المختارة
+        function confirmEnrollTrainee() {
+            const trainee = registryTrainees.find(t => t.id === enrollTraineeModalTraineeId);
+            if (!trainee) return;
+            const programKey = document.getElementById('enrollProgramSelect')?.value;
+            const courseKey  = document.getElementById('enrollCourseSelect')?.value;
+            if (!programKey || !courseKey) {
+                showToast('يرجى اختيار البرنامج والدورة أولاً', 'error');
+                return;
+            }
+            addRegistryTraineeToCourse(programKey, courseKey, trainee);
+            closeEnrollTraineeModal();
+        }
+
+        function closeEnrollTraineeModal() {
+            const modal = document.getElementById('enrollTraineeModal');
+            if (modal) modal.remove();
+            enrollTraineeModalTraineeId = null;
+        }
+
         // إرجاع كل الدورات التي سجّل بها متدرب معيّن (مطابقة بالاسم) مع بيانات البرنامج والحضور والتقييم
         function getTraineeEnrolledCourses(nameAr) {
             const result = [];
@@ -18814,7 +18916,7 @@
                                 <h3 class="text-lg font-bold text-gray-800 flex-1">${trainee.nameAr}</h3>
                                 <!-- أزرار الإجراءات — كبير: مقابل الاسم على اليسار -->
                                 <div class="items-center gap-1.5 hidden md:flex shrink-0">
-                                    ${trainee.authUid ? `<button data-reset-pwd-btn="trainee_${trainee.id}" onclick="sendPasswordResetHeader('trainee','${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-sky-700 flex items-center gap-1.5 hover:bg-sky-50 hover:border-sky-300 transition-colors"><i class="ph ph-key text-sm"></i> نسيت كلمة المرور</button>` : ''}
+                                    <button onclick="openEnrollTraineeModal('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-sky-700 flex items-center gap-1.5 hover:bg-sky-50 hover:border-sky-300 transition-colors"><i class="ph ph-graduation-cap text-sm"></i> إضافة إلى دورة تدريبية</button>
                                     ${_mevCanManage() ? `<button onclick="openMeasureEvalChoiceModal('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-teal-700 flex items-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors"><i class="ph ph-ruler text-sm"></i> قياس وتقييم</button>` : ''}
                                     <button onclick="editRegistryTrainee('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors"><i class="ph ph-pencil-simple text-sm"></i> تعديل</button>
                                     <button onclick="deleteRegistryTrainee('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors"><i class="ph ph-trash text-sm"></i> حذف</button>
@@ -18824,7 +18926,7 @@
                             <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold mr-5">${trainee.code}</span>
                             <!-- أزرار الإجراءات للشاشات الصغيرة — تحت الاسم -->
                             <div class="flex items-center gap-1.5 mt-2 md:hidden flex-wrap">
-                                ${trainee.authUid ? `<button data-reset-pwd-btn="trainee_${trainee.id}" onclick="sendPasswordResetHeader('trainee','${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-sky-700 flex items-center justify-center gap-1.5 hover:bg-sky-50 hover:border-sky-300 transition-colors"><i class="ph ph-key"></i> نسيت كلمة المرور</button>` : ''}
+                                <button onclick="openEnrollTraineeModal('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-sky-700 flex items-center justify-center gap-1.5 hover:bg-sky-50 hover:border-sky-300 transition-colors"><i class="ph ph-graduation-cap"></i> إضافة إلى دورة تدريبية</button>
                                 ${_mevCanManage() ? `<button onclick="openMeasureEvalChoiceModal('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-teal-700 flex items-center justify-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors"><i class="ph ph-ruler"></i> قياس وتقييم</button>` : ''}
                                 <button onclick="editRegistryTrainee('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10 transition-colors"><i class="ph ph-pencil-simple"></i> تعديل</button>
                                 <button onclick="deleteRegistryTrainee('${trainee.id}')" class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center justify-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors"><i class="ph ph-trash"></i> حذف</button>
