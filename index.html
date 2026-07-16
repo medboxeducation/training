@@ -927,7 +927,7 @@
                     </span>
                 </button>
                 <!-- زر الموسوعة الأكاديمية — ينتقل مباشرة إلى لوحة عرض
-                     الموسوعة (بطاقات: المقررات الدراسية، كتب وأبحاث،
+                     الموسوعة (بطاقات: المقررات الدراسية، أبحاث ومراجع،
                      الموسوعة الطلابية) بدل القائمة المنسدلة السابقة -->
                 <button onclick="showAcademicPediaGrid()" class="glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all">
                     <i class="ph ph-graduation-cap"></i>
@@ -1413,6 +1413,16 @@
             <div id="sidebarStudentPediaList" class="hidden flex-1 flex flex-col overflow-hidden p-3">
                 <div id="sidebarStudentPediaTree" class="flex-1 overflow-y-auto space-y-1">
                     <!-- سيتم ملء المحتوى بواسطة spRenderSidebarList() -->
+                </div>
+            </div>
+
+            <!-- لوحة تصفح "أبحاث ومراجع" الجانبية — زر "إضافة مرجع جديد"
+                 هو زر الإضافة الموحَّد في هيدر القائمة الجانبية (sidebarAddBtn)
+                 قبل زر الفرز، بنفس أسلوب باقي القوائم. شجرة بمستويين:
+                 التخصص (الفئة) ← سنة النشر -->
+            <div id="sidebarRefLibList" class="hidden flex-1 flex flex-col overflow-hidden p-3">
+                <div id="sidebarRefLibTree" class="flex-1 overflow-y-auto space-y-1">
+                    <!-- سيتم ملء المحتوى بواسطة rlRenderSidebarTree() -->
                 </div>
             </div>
 
@@ -2340,13 +2350,13 @@
                         <p class="text-sm text-gray-500">تصفح المقررات الدراسية ومحتواها التعليمي</p>
                     </div>
 
-                    <!-- بطاقة: كتب وأبحاث -->
-                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="showComingSoon('كتب وأبحاث')">
+                    <!-- بطاقة: أبحاث ومراجع -->
+                    <div class="glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="showRefLibSection()">
                         <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-primary text-3xl mb-4">
                             <i class="ph ph-book-open-text"></i>
                         </div>
-                        <h3 class="font-bold text-lg text-gray-800 mb-1">كتب وأبحاث</h3>
-                        <p class="text-xs font-mono text-primary/70 mb-3" dir="ltr">Books &amp; Researchs</p>
+                        <h3 class="font-bold text-lg text-gray-800 mb-1">أبحاث ومراجع</h3>
+                        <p class="text-xs font-mono text-primary/70 mb-3" dir="ltr">Research &amp; References</p>
                         <p class="text-sm text-gray-500">مكتبة الكتب والأبحاث العلمية المتاحة للاطلاع</p>
                     </div>
 
@@ -2371,9 +2381,6 @@
                  (acDesignerForm) حسب الحالة النشطة -->
             <div id="academicCoursesView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <div class="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <button onclick="showAcademicPediaGrid()" class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-primary flex-shrink-0">
-                        <i class="ph ph-arrow-right text-lg"></i>
-                    </button>
                     <div id="acHeaderIcon" class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
                         <i class="ph ph-chalkboard-teacher"></i>
                     </div>
@@ -2504,9 +2511,6 @@
                  جديدة (spDesignerForm) حسب الحالة النشطة -->
             <div id="studentPediaView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <button onclick="showAcademicPediaGrid()" class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-primary flex-shrink-0">
-                        <i class="ph ph-arrow-right text-lg"></i>
-                    </button>
                     <div id="spHeaderIcon" class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
                         <i class="ph ph-student"></i>
                     </div>
@@ -2534,6 +2538,12 @@
                         <div id="spViewInfoGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <!-- يُبنى بواسطة spRenderEntryInfoSection() -->
                         </div>
+                    </div>
+
+                    <!-- إعجاب / عدم إعجاب — العدد فقط يظهر للجميع، وقائمة أسماء
+                         المصوّتين تظهر للأدمن فقط عبر الضغط على العدد -->
+                    <div id="spViewVotesRow" class="flex items-center gap-2">
+                        <!-- يُبنى بواسطة spRenderVoteWidget() -->
                     </div>
 
                     <div id="spViewAttachmentsCard" class="hidden glass-element rounded-2xl p-5">
@@ -2645,8 +2655,154 @@
                 </div>
             </div>
 
+            <!-- ══════════════════════════════════════════════════════════
+                 قسم "أبحاث ومراجع" (Reference Library) — ضمن الموسوعة
+                 الأكاديمية. زر "إضافة مرجع جديد" هو زر الإضافة الموحَّد في
+                 هيدر القائمة الجانبية (sidebarAddBtn)، بنفس أسلوب باقي
+                 اللوحات. البيانات تُحفظ في Firestore (رابط: rlEntries)
+                 وملفات المرفقات وصورة الغلاف تُرفع فعلياً إلى Google Drive
+                 بنفس آلية مرفقات المقررات الدراسية (getOrCreateAttachFolder /
+                 driveUploadBinaryFile). الشجرة الجانبية بمستويين: التخصص
+                 (الفئة) ← سنة النشر، وعند فتح سنة نشر تُعرض كل المراجع
+                 المحفوظة بها كبطاقات (عنوان المرجع - اسم الكاتب) على لوحة
+                 العرض الرئيسية.
+            ══════════════════════════════════════════════════════════ -->
+            <div id="refLibView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                    <div id="rlHeaderIcon" class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
+                        <i class="ph ph-book-open-text"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 id="rlHeaderTitle" class="text-xl font-bold text-gray-800">أبحاث ومراجع</h2>
+                        <p id="rlHeaderSubtitle" class="text-xs text-gray-400">مكتبة الكتب والأبحاث العلمية المتاحة للاطلاع</p>
+                    </div>
+                    <div id="rlHeaderActions" class="hidden items-center gap-1.5 flex-wrap flex-shrink-0"></div>
+                </div>
+
+                <!-- حالة افتراضية: لا يوجد مرجع قيد الإضافة أو العرض -->
+                <div id="rlPlaceholder" class="flex-1">
+                    <div class="text-center py-16 text-gray-400">
+                        <i class="ph ph-book-open-text text-3xl block mb-2 text-gray-300"></i>
+                        <p class="text-sm">اضغط على زر "+" أعلى القائمة الجانبية لإضافة مرجع جديد، أو اختر سنة نشر من الشجرة الجانبية لعرض مراجعها</p>
+                    </div>
+                </div>
+
+                <!-- بطاقات المراجع المحفوظة بسنة نشر معيّنة -->
+                <div id="rlYearCardsContainer" class="hidden flex-1 overflow-y-auto pb-10">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i class="ph ph-calendar-blank text-primary"></i>
+                        <h3 id="rlYearCardsTitle" class="font-bold text-gray-800"></h3>
+                    </div>
+                    <div id="rlYearCardsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <!-- يُبنى بواسطة rlRenderYearCards() -->
+                    </div>
+                </div>
+
+                <!-- عرض مرجع محفوظ (قراءة فقط) -->
+                <div id="rlViewContainer" class="hidden flex-1 overflow-y-auto space-y-6 pb-10">
+                    <div class="glass-element rounded-2xl p-5">
+                        <div class="flex flex-col md:flex-row gap-5">
+                            <div id="rlViewCoverWrap" class="hidden w-full md:w-40 flex-shrink-0">
+                                <img id="rlViewCoverImg" src="" alt="غلاف المرجع" class="w-full rounded-xl object-cover border border-white/40" style="aspect-ratio:3/4;">
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <i class="ph ph-info text-primary"></i> بيانات المرجع
+                                </h3>
+                                <div id="rlViewInfoGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <!-- يُبنى بواسطة rlRenderEntryView() -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="rlViewFilesCard" class="hidden glass-element rounded-2xl p-5">
+                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="ph ph-paperclip text-primary"></i> ملفات المرجع
+                        </h3>
+                        <div id="rlViewFilesGrid" class="flex flex-wrap gap-3">
+                            <!-- يُبنى بواسطة rlRenderEntryView() -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- نموذج إضافة / تعديل مرجع -->
+                <div id="rlDesignerForm" class="hidden flex-1 overflow-y-auto space-y-6 pb-10">
+
+                    <!-- القسم الأول: إعدادات المرجع -->
+                    <div class="glass-element rounded-2xl p-5">
+                        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="ph ph-identification-badge text-primary"></i> إعدادات المرجع
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">عنوان المرجع <span class="text-red-500">*</span></label>
+                                <input type="text" id="rlTitleInput" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm" placeholder="مثال: أساسيات علم وظائف الأعضاء">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">التخصص (الفئة) <span class="text-red-500">*</span></label>
+                                <input type="text" id="rlCategoryInput" list="rlCategoryOptions" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm" placeholder="مثال: طب، تمريض، صيدلة...">
+                                <datalist id="rlCategoryOptions"></datalist>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">اسم الكاتب</label>
+                                <input type="text" id="rlAuthorInput" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm" placeholder="اسم الكاتب">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1.5">سنة النشر <span class="text-red-500">*</span></label>
+                                <input type="text" id="rlYearInput" inputmode="numeric" class="glass-panel w-full px-3 py-2.5 rounded-lg outline-none text-sm" placeholder="مثال: 2024">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- القسم الثاني: ملفات المرجع -->
+                    <div class="glass-element rounded-2xl p-5">
+                        <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                            <i class="ph ph-paperclip text-primary"></i> ملفات المرجع
+                        </h3>
+                        <p class="text-[11px] text-amber-600 mb-3"><i class="ph ph-warning-circle"></i> يجب تسجيل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" — ستُرفع الملفات وصورة الغلاف إلى Drive عند الحفظ</p>
+
+                        <div class="mb-4">
+                            <p class="text-xs font-semibold text-gray-500 mb-2">صورة غلاف المرجع</p>
+                            <div id="rlCoverPreviewWrap" class="hidden mb-2 w-28">
+                                <div class="relative w-28 h-36 rounded-lg overflow-hidden border border-white/40">
+                                    <img id="rlCoverPreviewImg" src="" class="w-full h-full object-cover">
+                                    <button onclick="rlRemoveCoverImage()" class="absolute top-1 left-1 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center text-xs">
+                                        <i class="ph ph-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <label class="cursor-pointer glass-icon-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50 w-fit">
+                                <i class="ph ph-image text-sm"></i> إرفاق صورة الغلاف
+                                <input type="file" accept="image/*" class="hidden" onchange="rlHandleCoverFile(event)">
+                            </label>
+                        </div>
+
+                        <div>
+                            <p class="text-xs font-semibold text-gray-500 mb-2">مستندات المرجع (أي صيغة)</p>
+                            <div id="rlFilesPreview" class="hidden flex flex-wrap gap-3 mb-3"></div>
+                            <label class="cursor-pointer glass-icon-btn px-3.5 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50 w-fit">
+                                <i class="ph ph-file-arrow-up text-sm"></i> إرفاق مستند
+                                <input type="file" multiple class="hidden" onchange="rlHandleDocFiles(event)">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 justify-end">
+                        <div id="rlSaveStatus" class="hidden flex items-center gap-1.5 text-xs text-gray-400 ml-auto">
+                            <i class="ph ph-circle-notch animate-spin"></i> <span>جاري الحفظ...</span>
+                        </div>
+                        <button onclick="rlCancelDesigner()" class="glass-icon-btn px-4 py-2.5 rounded-lg text-sm font-semibold text-gray-500">إلغاء</button>
+                        <button onclick="rlSaveEntry()" class="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-primary hover:bg-primary/90 transition-all flex items-center gap-1.5">
+                            <i class="ph ph-floppy-disk"></i> حفظ المرجع
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- ب-2. لوحة الجلسات الافتراضية (Virtual Sessions Grid) - مخفي افتراضياً -->
             <div id="virtualSessionsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+
                 <div class="flex items-center justify-between mb-8">
                     <div class="flex items-center gap-3">
                         <i class="ph ph-video-camera text-3xl text-primary"></i>
@@ -3275,9 +3431,6 @@
             <!-- ط٢. بنك الأسئلة (Question Bank View) -->
             <div id="questionBankView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <button onclick="qbCloseBankView()" class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-primary flex-shrink-0">
-                        <i class="ph ph-arrow-right text-lg"></i>
-                    </button>
                     <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-purple-600 text-xl flex-shrink-0">
                         <i class="ph ph-stack"></i>
                     </div>
@@ -3294,9 +3447,6 @@
             <!-- ط٣. الامتحانات المسجلة (Registered Exams View) -->
             <div id="registeredExamsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <button onclick="reCloseView()" class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-primary flex-shrink-0">
-                        <i class="ph ph-arrow-right text-lg"></i>
-                    </button>
                     <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
                         <i class="ph ph-clipboard-text"></i>
                     </div>
@@ -3312,9 +3462,6 @@
             <!-- ط-١. لوحة عرض الجلسات المنجزة (Completed Sessions View) - مخفي افتراضياً -->
             <div id="completedSessionsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <button onclick="csCloseView()" class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-primary flex-shrink-0">
-                        <i class="ph ph-arrow-right text-lg"></i>
-                    </button>
                     <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-emerald-600 text-xl flex-shrink-0">
                         <i class="ph ph-check-circle"></i>
                     </div>
@@ -3331,9 +3478,6 @@
             <!-- ط-٢. لوحة "القياس والتقييم" (Measurement &amp; Evaluation View) - مخفي افتراضياً -->
             <div id="measureEvalView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <button onclick="mevCloseView()" class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-primary flex-shrink-0">
-                        <i class="ph ph-arrow-right text-lg"></i>
-                    </button>
                     <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-teal-600 text-xl flex-shrink-0">
                         <i class="ph ph-ruler"></i>
                     </div>
@@ -4606,6 +4750,114 @@
 
     <!-- JavaScript Logic -->
     <script>
+        // ════════════════════════════════════════════════════════════════
+        // ║   نظام تشفير البيانات الحساسة (Security / sec*)              ║
+        // ════════════════════════════════════════════════════════════════
+        // يحمي هذا النظام ثلاث فئات من البيانات:
+        //  1) كلمات سر المستخدمين الداخليين (appUsers الذين ينشئهم الأدمن من
+        //     "إدارة المستخدمين") — تُخزَّن بصيغة بصمة (hash) أحادية الاتجاه
+        //     فقط عبر SHA-256 مع ملح (salt) عشوائي لكل مستخدم، ولا يمكن فك
+        //     تشفيرها أو استرجاعها إطلاقاً حتى من داخل التطبيق نفسه — هذا
+        //     أفضل ممارسة أمنية معتمدة عالمياً لكلمات السر (لا يُحفَظ النص
+        //     الأصلي أبداً في أي مكان).
+        //  2) إعدادات Firebase (apiKey وبقية بيانات المشروع) في localStorage.
+        //  3) إعدادات Google OAuth (Client ID / API Key للمزامنة مع Drive).
+        //  4) مفتاح Gemini API لخدمة القراءة الآلية (OCR).
+        // البنود 2-4 يجب أن يستخدمها التطبيق فعلياً وقت التشغيل (لإجراء
+        // اتصالات حقيقية بخوادم Google/Gemini)، لذا تُخزَّن مشفّرة تشفيراً
+        // متماثلاً (AES-GCM 256-bit عبر Web Crypto API القياسي في المتصفح)
+        // بدلاً من نص صريح في localStorage/Firestore، ثم تُفكّ تلقائياً في
+        // ذاكرة التطبيق فقط عند الحاجة.
+        //
+        // ⚠️ ملاحظة أمنية مهمة يجب معرفتها: بما أن هذا تطبيق يعمل بالكامل من
+        // جهة العميل (client-side) بلا خادم خلفي خاص، فإن أي تشفير من هذا
+        // النوع يحمي البيانات "أثناء التخزين" (Data at Rest) — أي في حال
+        // تسرّب قاعدة بيانات Firestore أو نسخة من ملفات المتصفح المحلية —
+        // لكنه لا يمنع شخصاً يملك كود التطبيق نفسه (أو صلاحية الوصول لأدوات
+        // المطوّر داخل المتصفح أثناء تشغيله) من استخراج القيم بعد فك تشفيرها
+        // تلقائياً، لأن التطبيق يحتاج فعلياً لفك التشفير ليعمل. هذه حدود أي
+        // نظام تشفير يعمل بالكامل من جهة المتصفح دون خادم وسيط يحفظ المفتاح
+        // بمعزل عن العميل. أما كلمات سر المستخدمين (البند 1) فمحمية بالكامل
+        // لأنها لا تُفك تشفيرها إطلاقاً — فقط تُقارَن كبصمات.
+        // ════════════════════════════════════════════════════════════════
+
+        const SEC_ENC_PREFIX = 'ENCv1:';
+        let _secCryptoKeyPromise = null;
+
+        function _secKeyMaterialBytes() {
+            // عبارة سر ثابتة مضمّنة بالكود + اسم المضيف — تُستخدم لاشتقاق
+            // مفتاح AES-GCM عبر PBKDF2. لا يمكن نقلها لخادم خاص لأن التطبيق
+            // بالكامل من جهة العميل بلا باك-إند مستقل.
+            return new TextEncoder().encode('MedBoxEdu::SettingsAtRest::v1::' + (location.hostname || 'local'));
+        }
+
+        async function _secGetCryptoKey() {
+            if (_secCryptoKeyPromise) return _secCryptoKeyPromise;
+            _secCryptoKeyPromise = (async () => {
+                const keyMaterial = await crypto.subtle.importKey(
+                    'raw', _secKeyMaterialBytes(), { name: 'PBKDF2' }, false, ['deriveKey']
+                );
+                return crypto.subtle.deriveKey(
+                    { name: 'PBKDF2', salt: new TextEncoder().encode('MedBoxEdu-Static-Salt-9f3a'), iterations: 150000, hash: 'SHA-256' },
+                    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+                );
+            })();
+            return _secCryptoKeyPromise;
+        }
+
+        function _secBufToB64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+        function _secB64ToBuf(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
+
+        // تشفير نص عادي — يعيد نصاً بادئته "ENCv1:" جاهزاً للتخزين مباشرة
+        // في localStorage أو Firestore
+        async function secEncryptText(plainText) {
+            try {
+                if (!window.crypto || !crypto.subtle) return plainText; // بيئة لا تدعم Web Crypto
+                const key = await _secGetCryptoKey();
+                const iv  = crypto.getRandomValues(new Uint8Array(12));
+                const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plainText));
+                return SEC_ENC_PREFIX + _secBufToB64(iv) + ':' + _secBufToB64(cipherBuf);
+            } catch (e) {
+                console.error('secEncryptText error:', e);
+                return plainText; // تفادي فقدان البيانات إن تعذّر التشفير
+            }
+        }
+
+        // فك التشفير — يتعرّف تلقائياً إن كان النص مشفَّراً (بادئة ENCv1:)؛
+        // وإن كان نصاً محفوظاً قبل تفعيل هذه الميزة (توافق رجعي) يُعاد كما هو
+        async function secDecryptText(storedText) {
+            if (!storedText || typeof storedText !== 'string') return storedText;
+            if (!storedText.startsWith(SEC_ENC_PREFIX)) return storedText;
+            try {
+                const [, ivB64, cipherB64] = storedText.split(':');
+                const key = await _secGetCryptoKey();
+                const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: _secB64ToBuf(ivB64) }, key, _secB64ToBuf(cipherB64));
+                return new TextDecoder().decode(plainBuf);
+            } catch (e) {
+                console.error('secDecryptText error:', e);
+                return null;
+            }
+        }
+
+        async function secEncryptJSON(obj) { return secEncryptText(JSON.stringify(obj)); }
+        async function secDecryptJSON(storedText) {
+            const text = await secDecryptText(storedText);
+            if (!text) return null;
+            try { return JSON.parse(text); } catch (e) { return null; }
+        }
+
+        // ── تجزئة كلمات سر المستخدمين الداخليين (appUsers) — أحادية الاتجاه،
+        //    لا يمكن ولا يجوز فك تشفيرها مطلقاً؛ فقط تُقارَن كبصمات ──
+        function secRandomSaltHex(len = 16) {
+            const arr = crypto.getRandomValues(new Uint8Array(len));
+            return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        async function secHashPassword(password, saltHex) {
+            const data = new TextEncoder().encode(saltHex + ':' + password);
+            const hashBuf = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
         // ======== Firebase Initialization ========
 
         // ======== منطق تسجيل الدخول ========
@@ -5006,7 +5258,27 @@
                     .map(d => ({ uid: d.id, ...d.data() }))
                     .find(u => (u.username || '').toLowerCase() === username.toLowerCase());
 
-                const verified = !!matchedUser && matchedUser.password === pin;
+                // كلمات السر مخزَّنة كبصمة (hash) أحادية الاتجاه (passwordHash +
+                // passwordSalt) — لا تُفك أبداً، فقط تُقارَن. للحسابات القديمة
+                // التي لا تزال بصيغة نص صريح (password) قبل تفعيل هذه الميزة:
+                // نتحقق منها مباشرة كتوافق رجعي، ثم نُرقّيها تلقائياً وبصمت إلى
+                // hash بعد نجاح الدخول (بدون التأثير على تجربة المستخدم)
+                let verified = false;
+                if (matchedUser && matchedUser.passwordHash && matchedUser.passwordSalt) {
+                    const computedHash = await secHashPassword(pin, matchedUser.passwordSalt);
+                    verified = computedHash === matchedUser.passwordHash;
+                } else if (matchedUser && matchedUser.password) {
+                    verified = matchedUser.password === pin;
+                    if (verified) {
+                        // ترقية صامتة إلى بصمة مشفَّرة + حذف النص الصريح القديم
+                        const salt = secRandomSaltHex();
+                        const hash = await secHashPassword(pin, salt);
+                        db.collection('appUsers').doc(matchedUser.uid).update({
+                            passwordHash: hash, passwordSalt: salt,
+                            password: firebase.firestore.FieldValue.delete()
+                        }).catch(e => console.warn('تعذّرت ترقية كلمة السر تلقائياً:', e));
+                    }
+                }
 
                 setLoginLoading(false);
 
@@ -5918,20 +6190,26 @@
         //    من شاشة الإعدادات دون الحاجة لتعديل الكود)
         // 2) إعدادات Firebase الافتراضية المضمّنة في الكود أعلاه (إن لم تكن هناك إعدادات
         //    محفوظة محلياً بعد — وهي حالة أول استخدام للتطبيق على هذا المتصفح)
+        // ذاكرة مؤقتة (بيانات مفكوكة التشفير) لإعدادات Firebase — تُملأ عند
+        // بدء التشغيل أو عند الحفظ من شاشة الإعدادات
+        let _firebaseConfigCache = null;
+
         (async () => {
             try {
                 let config = null;
                 const raw = localStorage.getItem('medbox_firebaseConfig');
                 if (raw) {
-                    config = JSON.parse(raw);
+                    config = await secDecryptJSON(raw); // يدعم القيم القديمة غير المشفَّرة تلقائياً
                 } else {
                     const deployConfig = getValidDeployFirebaseConfig();
                     if (deployConfig) {
                         config = deployConfig;
-                        // حفظها محلياً مرة واحدة فقط لتعمل بقية الواجهة (شارة الحالة، نموذج الإعدادات) بشكل طبيعي
-                        localStorage.setItem('medbox_firebaseConfig', JSON.stringify(config));
+                        // حفظها محلياً مرة واحدة فقط (مشفَّرة) لتعمل بقية الواجهة (شارة الحالة، نموذج الإعدادات) بشكل طبيعي
+                        localStorage.setItem('medbox_firebaseConfig', await secEncryptJSON(config));
                     }
                 }
+
+                _firebaseConfigCache = config;
 
                 if (config) {
                     const ok = await initFirebase(config);
@@ -6088,7 +6366,7 @@
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView', 'asyncSessionsView'];
+        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'refLibView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView', 'asyncSessionsView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -6343,7 +6621,7 @@
         function openChatSidebar() {
             if (!currentUser) { showToast('يجب تسجيل الدخول أولاً لاستخدام المحادثات', 'error'); return; }
             sidebarMode = 'chat';
-            ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarLiveSessionsList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarLiveSessionsList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const chatList = document.getElementById('sidebarChatList');
             if (chatList) chatList.classList.remove('hidden');
@@ -8061,7 +8339,7 @@
 
         // ══ الموسوعة الأكاديمية - Academic Pedia ══
         // يفتح لوحة عرض الموسوعة الأكاديمية: بطاقات المقررات الدراسية،
-        // كتب وأبحاث، والموسوعة الطلابية — بدل القائمة المنسدلة السابقة
+        // أبحاث ومراجع، والموسوعة الطلابية — بدل القائمة المنسدلة السابقة
         function showAcademicPediaGrid() {
             showView('academicPediaGridView');
             exitSettingsSidebar();
@@ -8080,7 +8358,7 @@
 
         async function showAcademicCoursesSection() {
             sidebarMode = 'academicCourses';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -9989,6 +10267,7 @@
             spViewingEntryId = id;
             const infoGrid = document.getElementById('spViewInfoGrid');
             if (infoGrid) infoGrid.innerHTML = spRenderEntryInfoSection(e);
+            spRenderVoteWidget(e);
             spRenderEntryAttachments(e);
             spRenderEntryContentSection(e);
             spHideAllBodies();
@@ -10124,6 +10403,631 @@
             }
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        // ══ إعجاب / عدم إعجاب على معلومات الموسوعة الطلابية (sp*Vote) ══
+        // كل مستخدم مسجَّل دخوله (أدمن / مدرب / متدرب) يصوّت بهويته الكاملة
+        // (uid, name, role) ضمن مصفوفة واحدة entry.votes — تصويت واحد فقط
+        // لكل مستخدم على نفس المعلومة (إعجاب أو عدم إعجاب)، ويمكنه تغييره
+        // أو إلغاءه بالضغط مجدداً. العرض: يظهر للجميع العدد الإجمالي فقط،
+        // بينما يظهر للأدمن حصراً — بالضغط على العدد — قائمة بأسماء من صوّت
+        // ونوع تصويت كل منهم (عبر spOpenVotersModal).
+        // ══════════════════════════════════════════════════════════════════
+
+        function spVoteCount(entry, type) {
+            return ((entry && entry.votes) || []).filter(v => v.type === type).length;
+        }
+
+        function spMyVote(entry) {
+            if (!currentUser || !currentUser.uid) return null;
+            const v = ((entry && entry.votes) || []).find(v => v.uid === currentUser.uid);
+            return v ? v.type : null;
+        }
+
+        // بناء صف أزرار الإعجاب/عدم الإعجاب أسفل بيانات المعلومة المعروضة
+        function spRenderVoteWidget(e) {
+            const row = document.getElementById('spViewVotesRow');
+            if (!row) return;
+            const myVote   = spMyVote(e);
+            const likes    = spVoteCount(e, 'like');
+            const dislikes = spVoteCount(e, 'dislike');
+            const isAdmin  = currentUser && currentUser.role === 'admin';
+
+            row.innerHTML = `
+                <button onclick="spToggleVote('${(e.id || '').replace(/'/g, "\\'")}','like')" class="glass-icon-btn w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${myVote === 'like' ? 'text-primary' : 'text-gray-400'}" title="إعجاب">
+                    <i class="ph ${myVote === 'like' ? 'ph-fill ph-thumbs-up' : 'ph-thumbs-up'}"></i>
+                </button>
+                <span class="text-xs text-gray-500 -mr-1 ${isAdmin ? 'cursor-pointer hover:text-primary hover:underline' : ''}" ${isAdmin ? `onclick="spOpenVotersModal('${(e.id || '').replace(/'/g, "\\'")}','like')" title="عرض من أعجبته المعلومة"` : ''}>${likes}</span>
+
+                <button onclick="spToggleVote('${(e.id || '').replace(/'/g, "\\'")}','dislike')" class="glass-icon-btn w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${myVote === 'dislike' ? 'text-red-500' : 'text-gray-400'}" title="عدم إعجاب">
+                    <i class="ph ${myVote === 'dislike' ? 'ph-fill ph-thumbs-down' : 'ph-thumbs-down'}"></i>
+                </button>
+                <span class="text-xs text-gray-500 -mr-1 ${isAdmin ? 'cursor-pointer hover:text-red-500 hover:underline' : ''}" ${isAdmin ? `onclick="spOpenVotersModal('${(e.id || '').replace(/'/g, "\\'")}','dislike')" title="عرض من لم تعجبه المعلومة"` : ''}>${dislikes}</span>
+            `;
+        }
+
+        // تبديل تصويت المستخدم الحالي (إعجاب/عدم إعجاب) على معلومة محفوظة —
+        // تصويت واحد فقط لكل مستخدم: الضغط على نفس النوع يلغيه، والضغط على
+        // النوع الآخر يبدّله
+        async function spToggleVote(entryId, type) {
+            if (!currentUser || !currentUser.uid) {
+                showToast?.('⚠️ يجب تسجيل الدخول للتصويت', 'error');
+                return;
+            }
+            const entry = spEntriesCache.find(x => x.id === entryId);
+            if (!entry) return;
+            if (!Array.isArray(entry.votes)) entry.votes = [];
+
+            const uid = currentUser.uid;
+            const name = currentUser.displayName || currentUser.nameAr || currentUser.traineeName || 'مستخدم';
+            const role = currentUser.role || '';
+            const existingIdx = entry.votes.findIndex(v => v.uid === uid);
+
+            if (existingIdx > -1 && entry.votes[existingIdx].type === type) {
+                entry.votes.splice(existingIdx, 1); // إلغاء نفس التصويت
+            } else if (existingIdx > -1) {
+                entry.votes[existingIdx] = { uid, name, role, type }; // تغيير نوع التصويت
+            } else {
+                entry.votes.push({ uid, name, role, type });
+            }
+
+            spRenderVoteWidget(entry);
+            await spPersistVotes(entryId, entry.votes);
+        }
+
+        // حفظ التصويت في Firestore فوراً (بدون إعادة حفظ باقي بيانات المعلومة)
+        async function spPersistVotes(entryId, votes) {
+            if (!db) return;
+            try {
+                await db.collection('studentPediaEntries').doc(entryId).set({ votes }, { merge: true });
+            } catch (err) {
+                console.error('spPersistVotes error:', err);
+                showToast?.('❌ تعذّر حفظ التصويت', 'error');
+            }
+        }
+
+        // نافذة عرض قائمة المصوّتين (بالاسم) — للأدمن فقط
+        function spOpenVotersModal(entryId, type) {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            const entry = spEntriesCache.find(x => x.id === entryId);
+            const voters = ((entry && entry.votes) || []).filter(v => v.type === type);
+
+            const existing = document.getElementById('spVotersModal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'spVotersModal';
+            modal.className = 'fixed inset-0 z-[10000] flex items-center justify-center p-4';
+            modal.style.background = 'rgba(0,0,0,0.75)';
+
+            const roleLabel = { admin: 'أدمن', trainer: 'مدرب', trainee: 'متدرب' };
+            const listHtml = voters.length
+                ? voters.map(v => `
+                    <div class="glass-panel rounded-lg px-3 py-2 flex items-center gap-2">
+                        <i class="ph ph-user-circle text-primary"></i>
+                        <span class="text-sm text-gray-700 flex-1">${escapeHtml(v.name || 'مستخدم')}</span>
+                        <span class="text-[10px] text-gray-400">${escapeHtml(roleLabel[v.role] || v.role || '')}</span>
+                    </div>`).join('')
+                : `<p class="text-center text-xs text-gray-400 py-6">لا يوجد أحد بعد</p>`;
+
+            modal.innerHTML = `
+                <div class="glass-panel rounded-2xl shadow-2xl w-full max-w-sm p-5 relative" style="backdrop-filter:blur(24px);">
+                    <button onclick="document.getElementById('spVotersModal').remove()" class="absolute top-3 left-3 w-8 h-8 glass-icon-btn rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100"><i class="ph ph-x text-sm"></i></button>
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2 pl-10">
+                        <i class="ph ${type === 'like' ? 'ph-thumbs-up text-primary' : 'ph-thumbs-down text-red-500'}"></i>
+                        ${type === 'like' ? 'أعجبتهم هذه المعلومة' : 'لم تعجبهم هذه المعلومة'}
+                    </h3>
+                    <div class="space-y-2 max-h-80 overflow-y-auto">${listHtml}</div>
+                </div>`;
+            document.body.appendChild(modal);
+        }
+
+
+        // بيانات المرجع تُحفظ في Firestore (مجموعة refLibEntries)، وملفات
+        // المرجع + صورة الغلاف تُرفع فعلياً إلى Google Drive بنفس آلية
+        // مرفقات المقررات الدراسية (getOrCreateAttachFolder / driveUploadBinaryFile
+        // / driveMakeFilePublic). الشجرة الجانبية بمستويين: التخصص (الفئة)
+        // ← سنة النشر — وعند فتح سنة نشر تُعرض كل مراجعها كبطاقات
+        // (عنوان المرجع - اسم الكاتب) على لوحة العرض الرئيسية.
+        // ══════════════════════════════════════════════════════════════════
+        let rlEntriesCache   = [];        // تخزين مؤقت بالذاكرة، محمَّل من Firestore
+        let rlEntriesLoaded  = false;
+        let rlEntryDraft     = null;       // مسودة المرجع قيد الإضافة/التعديل
+        let rlEditingEntryId = null;       // معرّف المرجع قيد التعديل (null = إنشاء جديد)
+        let rlPendingCoverFile = null;     // ملف صورة الغلاف بانتظار الرفع عند الحفظ
+        let rlPendingDocFiles  = [];       // ملفات المستندات بانتظار الرفع عند الحفظ
+        const rlSidebarState = { expandedNodes: new Set() }; // حالة الطي/الفتح لعقد شجرة (الفئة / السنة)
+        let rlActiveCategory = null;       // الفئة المعروضة حالياً على لوحة البطاقات
+        let rlActiveYear     = null;       // سنة النشر المعروضة حالياً على لوحة البطاقات
+
+        function rlJsAttr(s) {
+            return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        }
+
+        // زر بطاقة "أبحاث ومراجع" — يفتح اللوحة الرئيسية + القائمة الجانبية
+        async function showRefLibSection() {
+            sidebarMode = 'refLib';
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+                .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+
+            const qrBtn = document.getElementById('chatQRBtn');
+            if (qrBtn) qrBtn.classList.add('hidden');
+            const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+            const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+            if (quickNewBtn)    quickNewBtn.classList.add('hidden');
+            if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
+
+            const sidebarList = document.getElementById('sidebarRefLibList');
+            if (sidebarList) sidebarList.classList.remove('hidden');
+
+            rlResetDraft();
+            rlShowPlaceholder();
+            updateSidebarAddButton();
+            openSidebar();
+            showView('refLibView');
+
+            await rlLoadEntriesFromFirestore();
+            rlRenderSidebarTree();
+        }
+
+        function rlResetDraft() {
+            rlEntryDraft = { title: '', category: '', author: '', year: '', coverImage: null, files: [] };
+            rlEditingEntryId  = null;
+            rlPendingCoverFile = null;
+            rlPendingDocFiles  = [];
+        }
+
+        function rlHideAllBodies() {
+            document.getElementById('rlPlaceholder')?.classList.add('hidden');
+            document.getElementById('rlYearCardsContainer')?.classList.add('hidden');
+            document.getElementById('rlViewContainer')?.classList.add('hidden');
+            document.getElementById('rlDesignerForm')?.classList.add('hidden');
+        }
+
+        function rlShowPlaceholder() {
+            rlHideAllBodies();
+            document.getElementById('rlPlaceholder')?.classList.remove('hidden');
+            document.getElementById('rlHeaderActions')?.classList.add('hidden');
+            rlResetHeaderTitle();
+        }
+
+        function rlResetHeaderTitle() {
+            const title = document.getElementById('rlHeaderTitle');
+            if (title) title.textContent = 'أبحاث ومراجع';
+            const subtitle = document.getElementById('rlHeaderSubtitle');
+            if (subtitle) subtitle.textContent = 'مكتبة الكتب والأبحاث العلمية المتاحة للاطلاع';
+        }
+
+        // ── تحميل المراجع من Firestore ──
+        async function rlLoadEntriesFromFirestore() {
+            if (rlEntriesLoaded) return;
+            try {
+                if (!db) return;
+                const snap = await db.collection('refLibEntries').get();
+                rlEntriesCache = [];
+                snap.forEach(doc => rlEntriesCache.push({ id: doc.id, ...doc.data() }));
+                rlEntriesLoaded = true;
+            } catch (err) {
+                console.error('rlLoadEntriesFromFirestore error:', err);
+                showToast?.('❌ تعذّر تحميل المراجع', 'error');
+            }
+        }
+
+        // ── فتح نموذج "إضافة مرجع جديد" ──
+        function rlOpenNewEntryDesigner() {
+            rlResetDraft();
+            rlHideAllBodies();
+            document.getElementById('rlDesignerForm')?.classList.remove('hidden');
+            document.getElementById('rlHeaderActions')?.classList.add('hidden');
+
+            const title = document.getElementById('rlHeaderTitle');
+            if (title) title.textContent = 'إضافة مرجع جديد';
+            const subtitle = document.getElementById('rlHeaderSubtitle');
+            if (subtitle) subtitle.textContent = 'إعدادات المرجع وملفاته';
+
+            ['rlTitleInput', 'rlCategoryInput', 'rlAuthorInput', 'rlYearInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            rlRenderCoverPreview();
+            rlRenderDocFilesPreview();
+            rlPopulateCategoryDatalist();
+        }
+
+        function rlPopulateCategoryDatalist() {
+            const dl = document.getElementById('rlCategoryOptions');
+            if (!dl) return;
+            const categories = [...new Set(rlEntriesCache.map(e => (e.category || '').trim()).filter(Boolean))];
+            dl.innerHTML = categories.map(c => `<option value="${escapeHtml(c)}"></option>`).join('');
+        }
+
+        function rlCancelDesigner() {
+            rlResetDraft();
+            rlShowPlaceholder();
+        }
+
+        // ── صورة الغلاف: اختيار / معاينة / إزالة ──
+        function rlHandleCoverFile(event) {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast?.('⚠️ يرجى اختيار ملف صورة لغلاف المرجع', 'error');
+                return;
+            }
+            rlPendingCoverFile = file;
+            rlRenderCoverPreview();
+        }
+
+        function rlRemoveCoverImage() {
+            rlPendingCoverFile = null;
+            if (rlEntryDraft) rlEntryDraft.coverImage = null;
+            rlRenderCoverPreview();
+        }
+
+        function rlRenderCoverPreview() {
+            const wrap = document.getElementById('rlCoverPreviewWrap');
+            const img  = document.getElementById('rlCoverPreviewImg');
+            if (!wrap || !img) return;
+            if (rlPendingCoverFile) {
+                img.src = URL.createObjectURL(rlPendingCoverFile);
+                wrap.classList.remove('hidden');
+            } else if (rlEntryDraft && rlEntryDraft.coverImage && rlEntryDraft.coverImage.previewUrl) {
+                img.src = rlEntryDraft.coverImage.previewUrl;
+                wrap.classList.remove('hidden');
+            } else {
+                img.src = '';
+                wrap.classList.add('hidden');
+            }
+        }
+
+        // ── مستندات المرجع: إضافة / إزالة / معاينة (قبل الرفع) ──
+        function rlHandleDocFiles(event) {
+            const files = Array.from(event.target.files || []);
+            event.target.value = '';
+            if (!files.length) return;
+            rlPendingDocFiles.push(...files);
+            rlRenderDocFilesPreview();
+        }
+
+        function rlRemovePendingDocFile(idx) {
+            rlPendingDocFiles.splice(idx, 1);
+            rlRenderDocFilesPreview();
+        }
+
+        function rlRemoveSavedDocFile(fileId) {
+            if (!rlEntryDraft) return;
+            rlEntryDraft.files = (rlEntryDraft.files || []).filter(f => f.id !== fileId);
+            rlRenderDocFilesPreview();
+        }
+
+        function rlRenderDocFilesPreview() {
+            const wrap = document.getElementById('rlFilesPreview');
+            if (!wrap) return;
+            const savedFiles   = (rlEntryDraft && rlEntryDraft.files) || [];
+            const pendingChips = rlPendingDocFiles.map((f, idx) => `
+                <div class="glass-panel rounded-lg px-3 py-2 flex items-center gap-2 text-xs">
+                    <i class="ph ph-file-arrow-up text-primary"></i>
+                    <span class="max-w-[140px] truncate">${escapeHtml(f.name)}</span>
+                    <span class="text-[10px] text-amber-500">بانتظار الرفع</span>
+                    <button onclick="rlRemovePendingDocFile(${idx})" class="text-red-400 hover:text-red-500"><i class="ph ph-x"></i></button>
+                </div>`).join('');
+            const savedChips = savedFiles.map(f => `
+                <div class="glass-panel rounded-lg px-3 py-2 flex items-center gap-2 text-xs">
+                    <i class="ph ${acAttachmentIcon(acAttachmentKind(f.mimeType))} text-primary"></i>
+                    <span class="max-w-[140px] truncate">${escapeHtml(f.name)}</span>
+                    <button onclick="rlRemoveSavedDocFile('${rlJsAttr(f.id)}')" class="text-red-400 hover:text-red-500"><i class="ph ph-x"></i></button>
+                </div>`).join('');
+            const html = savedChips + pendingChips;
+            wrap.innerHTML = html;
+            wrap.classList.toggle('hidden', !html);
+        }
+
+        // ── حفظ المرجع: رفع صورة الغلاف والمستندات إلى Drive ثم الحفظ في Firestore ──
+        async function rlSaveEntry() {
+            const title    = document.getElementById('rlTitleInput')?.value.trim() || '';
+            const category = document.getElementById('rlCategoryInput')?.value.trim() || '';
+            const author   = document.getElementById('rlAuthorInput')?.value.trim() || '';
+            const year     = document.getElementById('rlYearInput')?.value.trim() || '';
+
+            if (!title || !category || !year) {
+                showToast?.('⚠️ يرجى إدخال عنوان المرجع والتخصص (الفئة) وسنة النشر على الأقل', 'error');
+                return;
+            }
+
+            const needsUpload = rlPendingCoverFile || rlPendingDocFiles.length;
+            if (needsUpload) {
+                if (!driveToken) {
+                    showToast?.('⚠️ يرجى تسجيل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات"', 'error');
+                    return;
+                }
+                if (!gapiReady) {
+                    try { await initGapi(); }
+                    catch (e) { showToast?.('❌ تعذّرت تهيئة Google API — تحقق من إعدادات المزامنة', 'error'); return; }
+                }
+            }
+
+            const statusEl = document.getElementById('rlSaveStatus');
+            if (statusEl) statusEl.classList.remove('hidden');
+
+            try {
+                if (!db) throw new Error('لا يوجد اتصال بقاعدة البيانات');
+
+                let coverImage = (rlEntryDraft && rlEntryDraft.coverImage) || null;
+                let files = [...((rlEntryDraft && rlEntryDraft.files) || [])];
+
+                if (rlPendingCoverFile || rlPendingDocFiles.length) {
+                    const folderId = await getOrCreateAttachFolder();
+
+                    if (rlPendingCoverFile) {
+                        const uploaded = await driveUploadBinaryFile(rlPendingCoverFile, folderId);
+                        await driveMakeFilePublic(uploaded.id);
+                        coverImage = {
+                            name: uploaded.name || rlPendingCoverFile.name,
+                            driveFileId: uploaded.id,
+                            previewUrl: driveFileViewUrl(uploaded.id)
+                        };
+                    }
+
+                    for (const file of rlPendingDocFiles) {
+                        const uploaded = await driveUploadBinaryFile(file, folderId);
+                        await driveMakeFilePublic(uploaded.id);
+                        const mimeType = uploaded.mimeType || file.type || '';
+                        files.push({
+                            id: acUid(),
+                            name: uploaded.name || file.name,
+                            mimeType,
+                            kind: acAttachmentKind(mimeType),
+                            driveFileId: uploaded.id,
+                            previewUrl: driveFilePreviewUrl(uploaded.id),
+                            downloadUrl: driveFileDownloadUrl(uploaded.id)
+                        });
+                    }
+                }
+
+                const entryId = rlEditingEntryId || db.collection('refLibEntries').doc().id;
+                const data = {
+                    title, category, author, year,
+                    coverImage, files,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                if (rlEditingEntryId) {
+                    await db.collection('refLibEntries').doc(rlEditingEntryId).set(data, { merge: true });
+                } else {
+                    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await db.collection('refLibEntries').doc(entryId).set(data);
+                    rlEditingEntryId = entryId;
+                }
+
+                showToast?.('✅ تم حفظ المرجع بنجاح', 'success');
+                rlEntriesLoaded = false;
+                await rlLoadEntriesFromFirestore();
+                rlRenderSidebarTree();
+                rlResetDraft();
+                rlShowPlaceholder();
+            } catch (err) {
+                console.error('rlSaveEntry error:', err);
+                showToast?.('❌ فشل حفظ المرجع: ' + (err.message || ''), 'error');
+            } finally {
+                if (statusEl) statusEl.classList.add('hidden');
+            }
+        }
+
+        function rlCanManageEntry() {
+            // إدارة المراجع (إضافة/تعديل/حذف) متاحة حالياً لكل من يستطيع فتح
+            // لوحة "أبحاث ومراجع" (نفس تعامل الموسوعة الطلابية والمقررات الدراسية)
+            return true;
+        }
+
+        function rlOpenEditEntryDesigner(id) {
+            const e = rlEntriesCache.find(x => x.id === id);
+            if (!e) return;
+            rlEditingEntryId = id;
+            rlEntryDraft = { title: e.title || '', category: e.category || '', author: e.author || '', year: e.year || '', coverImage: e.coverImage || null, files: [...(e.files || [])] };
+            rlPendingCoverFile = null;
+            rlPendingDocFiles  = [];
+
+            rlHideAllBodies();
+            document.getElementById('rlDesignerForm')?.classList.remove('hidden');
+            document.getElementById('rlHeaderActions')?.classList.add('hidden');
+
+            const title = document.getElementById('rlHeaderTitle');
+            if (title) title.textContent = 'تعديل مرجع';
+            const subtitle = document.getElementById('rlHeaderSubtitle');
+            if (subtitle) subtitle.textContent = 'إعدادات المرجع وملفاته';
+
+            document.getElementById('rlTitleInput').value    = e.title || '';
+            document.getElementById('rlCategoryInput').value = e.category || '';
+            document.getElementById('rlAuthorInput').value   = e.author || '';
+            document.getElementById('rlYearInput').value      = e.year || '';
+            rlPopulateCategoryDatalist();
+            rlRenderCoverPreview();
+            rlRenderDocFilesPreview();
+        }
+
+        async function rlDeleteEntry(id) {
+            if (!rlCanManageEntry()) {
+                showToast?.('⚠️ لا تملك صلاحية حذف هذا المرجع', 'error');
+                return;
+            }
+            if (!confirm('هل تريد حذف هذا المرجع نهائياً؟ لا يمكن التراجع عن هذا الإجراء. (لن تُحذف الملفات من Google Drive تلقائياً)')) return;
+            try {
+                if (db) await db.collection('refLibEntries').doc(id).delete();
+                rlEntriesCache = rlEntriesCache.filter(x => x.id !== id);
+                rlRenderSidebarTree();
+                if (rlActiveYear) rlRenderYearCards();
+                showToast?.('🗑️ تم حذف المرجع', 'info');
+            } catch (err) {
+                console.error('rlDeleteEntry error:', err);
+                showToast?.('❌ فشل حذف المرجع', 'error');
+            }
+        }
+
+        // ── الشجرة الجانبية: التخصص (الفئة) ← سنة النشر ──
+        function rlToggleSidebarNode(key) {
+            if (rlSidebarState.expandedNodes.has(key)) rlSidebarState.expandedNodes.delete(key);
+            else rlSidebarState.expandedNodes.add(key);
+            rlRenderSidebarTree();
+        }
+
+        function rlRenderSidebarTree() {
+            const container = document.getElementById('sidebarRefLibTree');
+            if (!container) return;
+
+            if (!rlEntriesCache.length) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-gray-400">
+                        <i class="ph ph-book-open-text text-3xl block mb-2 text-gray-300"></i>
+                        <p class="text-xs">اضغط على زر "+" أعلى القائمة لإضافة مرجع جديد</p>
+                    </div>`;
+                return;
+            }
+
+            const byCategory = {};
+            rlEntriesCache.forEach(e => {
+                const cat = (e.category || 'بدون تخصص').trim() || 'بدون تخصص';
+                if (!byCategory[cat]) byCategory[cat] = {};
+                const y = (e.year || 'سنة غير محددة').trim() || 'سنة غير محددة';
+                if (!byCategory[cat][y]) byCategory[cat][y] = [];
+                byCategory[cat][y].push(e);
+            });
+            const categories = Object.keys(byCategory).sort((a, b) => a.localeCompare(b, 'ar'));
+
+            container.innerHTML = categories.map(cat => {
+                const catKey  = `c:${cat}`;
+                const catOpen = rlSidebarState.expandedNodes.has(catKey);
+                const years   = Object.keys(byCategory[cat]).sort((a, b) => b.localeCompare(a, 'ar'));
+                const catCount = Object.values(byCategory[cat]).reduce((s, arr) => s + arr.length, 0);
+
+                const yearsHTML = years.map(y => {
+                    const yKey = `${catKey}|y:${y}`;
+                    const isActive = rlActiveCategory === cat && rlActiveYear === y;
+                    return `
+                        <button onclick="rlShowYearCards('${rlJsAttr(cat)}','${rlJsAttr(y)}')"
+                            class="w-full text-right flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-primary/5'}">
+                            <span class="flex items-center gap-2 min-w-0">
+                                <i class="ph ph-calendar-blank text-primary/70 flex-shrink-0"></i>
+                                <span class="truncate">${escapeHtml(y)}</span>
+                            </span>
+                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0">${byCategory[cat][y].length}</span>
+                        </button>`;
+                }).join('');
+
+                return `
+                <div class="mb-1">
+                    <button onclick="rlToggleSidebarNode('${rlJsAttr(catKey)}')"
+                        class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-bold text-gray-700 hover:bg-primary/5 transition-colors">
+                        <span class="flex items-center gap-2 min-w-0">
+                            <i class="ph ph-folder text-primary/70 flex-shrink-0"></i>
+                            <span class="truncate">${escapeHtml(cat)}</span>
+                        </span>
+                        <span class="flex items-center gap-1.5 flex-shrink-0">
+                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${catCount}</span>
+                            <i class="ph ph-caret-down text-[10px] text-gray-400 transition-transform" style="transform: rotate(${catOpen ? '180' : '0'}deg)"></i>
+                        </span>
+                    </button>
+                    ${catOpen ? `<div class="pr-3 pl-1 space-y-1 mb-1">${yearsHTML}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        // ── عرض بطاقات المراجع المحفوظة بسنة نشر معيّنة (ضمن فئة معيّنة) ──
+        function rlShowYearCards(category, year) {
+            rlActiveCategory = category;
+            rlActiveYear     = year;
+            rlHideAllBodies();
+            document.getElementById('rlYearCardsContainer')?.classList.remove('hidden');
+
+            const title = document.getElementById('rlHeaderTitle');
+            if (title) title.textContent = 'أبحاث ومراجع';
+            const subtitle = document.getElementById('rlHeaderSubtitle');
+            if (subtitle) subtitle.textContent = `${category} — ${year}`;
+
+            const cardsTitle = document.getElementById('rlYearCardsTitle');
+            if (cardsTitle) cardsTitle.textContent = `مراجع سنة ${year} — ${category}`;
+
+            rlRenderSidebarTree();
+            rlRenderYearCards();
+        }
+
+        function rlRenderYearCards() {
+            const grid = document.getElementById('rlYearCardsGrid');
+            if (!grid) return;
+            const entries = rlEntriesCache.filter(e =>
+                ((e.category || 'بدون تخصص').trim() || 'بدون تخصص') === rlActiveCategory &&
+                ((e.year || 'سنة غير محددة').trim() || 'سنة غير محددة') === rlActiveYear
+            );
+
+            if (!entries.length) {
+                grid.innerHTML = `<p class="col-span-full text-center text-xs text-gray-400 py-10">لا توجد مراجع محفوظة بهذه السنة</p>`;
+                return;
+            }
+
+            grid.innerHTML = entries.map(e => `
+                <div class="glass-element rounded-2xl p-4 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all flex gap-3" onclick="rlOpenEntryView('${rlJsAttr(e.id)}')">
+                    ${e.coverImage && e.coverImage.previewUrl ? `
+                    <img src="${e.coverImage.previewUrl}" alt="" class="w-14 h-20 rounded-lg object-cover flex-shrink-0 border border-white/40">` : `
+                    <div class="w-14 h-20 rounded-lg flex items-center justify-center bg-primary/10 text-primary text-xl flex-shrink-0"><i class="ph ph-book-open-text"></i></div>`}
+                    <div class="min-w-0 flex-1">
+                        <h4 class="font-bold text-sm text-gray-800 mb-1 leading-snug">${escapeHtml(e.title || '—')}</h4>
+                        <p class="text-xs text-gray-400">${escapeHtml(e.author || 'مؤلف غير محدد')}</p>
+                    </div>
+                </div>`).join('');
+        }
+
+        // ── عرض تفاصيل مرجع واحد (قراءة كاملة) ──
+        function rlOpenEntryView(id) {
+            const e = rlEntriesCache.find(x => x.id === id);
+            if (!e) return;
+            rlHideAllBodies();
+            document.getElementById('rlViewContainer')?.classList.remove('hidden');
+
+            const title = document.getElementById('rlHeaderTitle');
+            if (title) title.textContent = e.title || 'مرجع';
+            const subtitle = document.getElementById('rlHeaderSubtitle');
+            if (subtitle) subtitle.textContent = `${e.category || ''} — ${e.year || ''}`;
+
+            const actions = document.getElementById('rlHeaderActions');
+            if (actions) {
+                actions.classList.remove('hidden');
+                actions.innerHTML = `
+                    <button onclick="rlOpenEditEntryDesigner('${rlJsAttr(e.id)}')" class="glass-icon-btn px-3 h-8 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold"><i class="ph ph-pencil-simple"></i> تعديل</button>
+                    <button onclick="rlDeleteEntry('${rlJsAttr(e.id)}')" class="glass-icon-btn px-3 h-8 rounded-lg flex items-center gap-1.5 text-red-500 text-xs font-semibold"><i class="ph ph-trash"></i> حذف</button>`;
+            }
+
+            const coverWrap = document.getElementById('rlViewCoverWrap');
+            const coverImg  = document.getElementById('rlViewCoverImg');
+            if (e.coverImage && e.coverImage.previewUrl) {
+                coverImg.src = e.coverImage.previewUrl;
+                coverWrap.classList.remove('hidden');
+            } else {
+                coverWrap.classList.add('hidden');
+            }
+
+            const infoGrid = document.getElementById('rlViewInfoGrid');
+            if (infoGrid) {
+                infoGrid.innerHTML = `
+                    <div><p class="text-xs text-gray-400 mb-0.5">عنوان المرجع</p><p class="text-sm font-semibold text-gray-800">${escapeHtml(e.title || '—')}</p></div>
+                    <div><p class="text-xs text-gray-400 mb-0.5">التخصص (الفئة)</p><p class="text-sm font-semibold text-gray-800">${escapeHtml(e.category || '—')}</p></div>
+                    <div><p class="text-xs text-gray-400 mb-0.5">اسم الكاتب</p><p class="text-sm font-semibold text-gray-800">${escapeHtml(e.author || '—')}</p></div>
+                    <div><p class="text-xs text-gray-400 mb-0.5">سنة النشر</p><p class="text-sm font-semibold text-gray-800">${escapeHtml(e.year || '—')}</p></div>`;
+            }
+
+            const filesCard = document.getElementById('rlViewFilesCard');
+            const filesGrid = document.getElementById('rlViewFilesGrid');
+            const files = e.files || [];
+            if (files.length && filesCard && filesGrid) {
+                filesCard.classList.remove('hidden');
+                filesGrid.innerHTML = files.map(f => `
+                    <a href="${f.previewUrl}" target="_blank" rel="noopener" class="glass-panel rounded-lg px-3 py-2 flex items-center gap-2 text-xs hover:border-primary/50">
+                        <i class="ph ${acAttachmentIcon(f.kind)} text-primary"></i>
+                        <span class="max-w-[160px] truncate">${escapeHtml(f.name)}</span>
+                    </a>`).join('');
+            } else if (filesCard) {
+                filesCard.classList.add('hidden');
+            }
+        }
+
         // ══ الجلسات الافتراضية - Virtual Sessions ══
         function showVirtualSessionsGrid() {
             showView('virtualSessionsView');
@@ -10155,7 +11059,7 @@
         // زر بطاقة "الجلسات الغير متزامنة" — يفتح اللوحة الرئيسية + القائمة الجانبية
         async function showAsyncSessionsSection() {
             sidebarMode = 'asyncSessions';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -10963,7 +11867,7 @@
         // ويفتح القائمة الجانبية فارغة (سيتم لاحقاً تحديد محتواها بحسب البطاقة المختارة)
         function showExamSystemGrid() {
             sidebarMode = 'examSystem';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const addBtn = document.getElementById('sidebarAddBtn');
@@ -11012,7 +11916,7 @@
                 return;
             }
             sidebarMode = 'measureEval';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -11051,7 +11955,7 @@
                 return;
             }
             sidebarMode = 'measureEval';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -11125,6 +12029,7 @@
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarSettingsList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
@@ -11191,6 +12096,7 @@
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             const chatListEl = document.getElementById('sidebarChatList');
             if (chatListEl) chatListEl.classList.add('hidden');
@@ -11224,6 +12130,7 @@
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarUsersList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
@@ -11460,10 +12367,12 @@
                                 <i class="ph ph-lock-key text-primary text-xs"></i> كلمة الدخول
                             </p>
                             <div class="flex items-center gap-2">
-                                <span id="userPassDisplay_${uid}" class="font-mono text-sm text-gray-700 tracking-widest flex-1">••••••••</span>
-                                <button onclick="toggleUserPass('${uid}','${(user.password||'').replace(/'/g,"\\'")}')"
+                                <span class="font-mono text-xs text-green-700 flex items-center gap-1 flex-1" title="كلمة السر مخزَّنة كبصمة SHA-256 مشفَّرة ولا يمكن استرجاع نصّها الأصلي إطلاقاً — حتى من داخل التطبيق نفسه">
+                                    <i class="ph ph-shield-check"></i> محمية بالتشفير (لا يمكن عرضها)
+                                </span>
+                                <button onclick="openUserModal('edit','${uid}')" title="تعيين كلمة سر جديدة"
                                     class="w-7 h-7 rounded-lg glass-icon-btn flex items-center justify-center text-gray-400 hover:text-primary shrink-0">
-                                    <i id="userPassEye_${uid}" class="ph ph-eye text-sm"></i>
+                                    <i class="ph ph-key text-sm"></i>
                                 </button>
                             </div>
                         </div>
@@ -11502,17 +12411,6 @@
                     </div>
                 </div>
             `;
-        }
-
-        // إظهار/إخفاء كلمة سر المستخدم
-        let _userPassVisible = {};
-        function toggleUserPass(uid, pass) {
-            const el = document.getElementById(`userPassDisplay_${uid}`);
-            const eye = document.getElementById(`userPassEye_${uid}`);
-            if (!el) return;
-            _userPassVisible[uid] = !_userPassVisible[uid];
-            el.textContent = _userPassVisible[uid] ? (pass || '—') : '••••••••';
-            eye.className = _userPassVisible[uid] ? 'ph ph-eye-slash text-sm' : 'ph ph-eye text-sm';
         }
 
         // توليد كلمة السر تلقائياً
@@ -11555,9 +12453,13 @@
                 document.getElementById('umFullName').value  = user.fullName  || '';
                 document.getElementById('umUsername').value  = user.username  || '';
                 document.getElementById('umRole').value      = user.role      || '';
-                document.getElementById('umPassword').value  = user.password  || '';
-                // في وضع التعديل: كلمة السر موجودة بالفعل وقد تكون مستخدمة فعلياً —
-                // لا نريد أن يستبدلها تعديل اسم المستخدم تلقائياً دون قصد
+                // كلمة السر مخزَّنة كبصمة (hash) أحادية الاتجاه ولا يمكن استرجاع
+                // نصّها الأصلي إطلاقاً — يُترك الحقل فارغاً، وإن تُرك فارغاً عند
+                // الحفظ تبقى كلمة السر الحالية دون تغيير؛ الكتابة فيه تُعيّن
+                // كلمة سر جديدة بدلاً منها
+                document.getElementById('umPassword').value = '';
+                document.getElementById('umPassword').placeholder = '•• اتركه فارغاً للإبقاء على كلمة السر الحالية ••';
+                // في وضع التعديل: لا نريد أن يستبدل تعديل اسم المستخدم الحقل تلقائياً دون قصد
                 umPasswordManuallyEdited = true;
                 // تحميل الصلاحيات
                 const perms = user.permissions || {};
@@ -11571,6 +12473,7 @@
                 document.getElementById('umFullName').value  = '';
                 document.getElementById('umUsername').value  = '';
                 document.getElementById('umRole').value      = '';
+                document.getElementById('umPassword').placeholder = 'تلقائي';
                 document.getElementById('umPassword').value  = '';
                 umPasswordManuallyEdited = false;
                 USER_PERM_KEYS.forEach(k => {
@@ -11656,13 +12559,14 @@
             const fullName = document.getElementById('umFullName').value.trim();
             const username = document.getElementById('umUsername').value.trim();
             const role     = document.getElementById('umRole').value;
-            const password = document.getElementById('umPassword').value.trim();
+            const password = document.getElementById('umPassword').value.trim(); // فارغ في وضع التعديل = إبقاء كلمة السر الحالية
 
             // التحقق من الحقول
             if (!fullName)  { showUserModalError('يرجى إدخال الاسم الثلاثي'); return; }
             if (!username)  { showUserModalError('يرجى إدخال اسم المستخدم'); return; }
             if (!role)      { showUserModalError('يرجى اختيار صفة المستخدم'); return; }
-            if (!password)  { showUserModalError('كلمة السر فارغة — أدخل اسم المستخدم لتوليدها تلقائياً'); return; }
+            // في وضع الإضافة كلمة السر إلزامية؛ في وضع التعديل يجوز تركها فارغة للإبقاء على الحالية
+            if (!password && userModalMode !== 'edit') { showUserModalError('كلمة السر فارغة — أدخل اسم المستخدم لتوليدها تلقائياً'); return; }
 
             // التحقق من تكرار اسم المستخدم
             const isDuplicate = appUsersData.some(u =>
@@ -11679,12 +12583,26 @@
             try {
                 if (userModalMode === 'edit' && userModalEditUid) {
                     // ── تعديل مستخدم موجود ──
-                    const updateData = { fullName, username, role, password, permissions, updatedAt: now };
+                    // كلمات السر تُخزَّن كبصمة (hash) أحادية الاتجاه فقط — لا
+                    // تُحفَظ أو تُسترجَع كنص صريح مطلقاً. إن تُرك الحقل فارغاً
+                    // لا تُغيَّر كلمة السر الحالية إطلاقاً
+                    const updateData = { fullName, username, role, permissions, updatedAt: now };
+                    if (password) {
+                        const salt = secRandomSaltHex();
+                        updateData.passwordHash = await secHashPassword(password, salt);
+                        updateData.passwordSalt = salt;
+                        updateData.password = firebase.firestore.FieldValue.delete(); // إزالة أي بقايا نص صريح قديم
+                    }
                     await db.collection('appUsers').doc(userModalEditUid).update(updateData);
 
-                    // تحديث البيانات المحلية
+                    // تحديث البيانات المحلية (نحتفظ محلياً فقط بالبصمة وليس بأي نص صريح)
                     const idx = appUsersData.findIndex(u => u.uid === userModalEditUid);
-                    if (idx !== -1) Object.assign(appUsersData[idx], updateData);
+                    if (idx !== -1) {
+                        const localUpdate = { ...updateData };
+                        delete localUpdate.password;
+                        Object.assign(appUsersData[idx], localUpdate);
+                        if (password) delete appUsersData[idx].password;
+                    }
 
                     closeUserModal();
                     buildSidebarUsers();
@@ -11694,9 +12612,12 @@
                     logActivity('edit', 'user', fullName, userModalEditUid, `تم تعديل بيانات المستخدم (${username})`);
 
                 } else {
-                    // ── إضافة مستخدم جديد ──
+                    // ── إضافة مستخدم جديد ── كلمة السر تُخزَّن كبصمة SHA-256 مملّحة فقط
+                    const salt = secRandomSaltHex();
+                    const passwordHash = await secHashPassword(password, salt);
                     const newUser = {
-                        fullName, username, role, password,
+                        fullName, username, role,
+                        passwordHash, passwordSalt: salt,
                         permissions,
                         isProtected: false,
                         createdAt: now,
@@ -11784,6 +12705,7 @@
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
@@ -12274,8 +13196,8 @@
             return JSON.stringify({ trainees }, null, 2);
         }
 
-        function buildSettingsJson() {
-            const fbConfig = getSavedFirebaseConfig() || {};
+        async function buildSettingsJson() {
+            const fbConfig = (await getSavedFirebaseConfigAsync()) || {};
             const users = appUsersData || [];
             const syncCfg = {
                 clientId: getSyncClientId(),
@@ -12303,7 +13225,7 @@
                     'programs.json' : buildProgramsJson(),
                     'trainers.json' : await buildTrainersJson(),
                     'trainees.json' : await buildTraineesJson(),
-                    'settings.json' : buildSettingsJson(),
+                    'settings.json' : await buildSettingsJson(),
                 };
 
                 for (const [name, content] of Object.entries(payloads)) {
@@ -12513,7 +13435,8 @@
 
             if (fname === 'settings.json') {
                 if (data.firebase) {
-                    localStorage.setItem('medbox_firebaseConfig', JSON.stringify(data.firebase));
+                    localStorage.setItem('medbox_firebaseConfig', await secEncryptJSON(data.firebase));
+                    _firebaseConfigCache = data.firebase;
                 }
                 if (data.users) {
                     for (const u of data.users) {
@@ -12523,10 +13446,11 @@
                 }
                 if (data.sync) {
                     const cfg = { clientId: data.sync.clientId || '', apiKey: data.sync.apiKey || '' };
-                    localStorage.setItem('medbox_syncConfig', JSON.stringify(cfg));
+                    const encStr = await secEncryptJSON(cfg);
+                    localStorage.setItem('medbox_syncConfig', encStr);
                     _syncConfigCache = cfg;
                     if (db) {
-                        try { await db.collection('appSettings').doc('syncConfig').set(cfg, { merge: true }); } catch(_) {}
+                        try { await db.collection('appSettings').doc('syncConfig').set({ enc: encStr }, { merge: true }); } catch(_) {}
                     }
                 }
             }
@@ -12536,8 +13460,20 @@
         //  إعدادات المزامنة (Client ID / API Key) ← Firestore + localStorage fallback
         // ════════════════════════════════════════════════════════════════
 
-        // ── ذاكرة مؤقتة لتجنّب الطلبات المتكررة ──
+        // ── ذاكرة مؤقتة (بيانات مفكوكة التشفير) لتجنّب الطلبات المتكررة ──
         let _syncConfigCache = null;
+
+        // يفكّ تشفير كائن إعدادات مخزَّن إما بصيغة { enc: '<ciphertext>' } (الصيغة
+        // الجديدة المشفَّرة) أو بصيغة قديمة غير مشفَّرة { clientId, apiKey } مباشرة
+        // (توافق رجعي مع بيانات محفوظة قبل تفعيل التشفير)
+        async function _secResolveStoredConfig(data) {
+            if (!data) return {};
+            if (data.enc) {
+                const decrypted = await secDecryptJSON(data.enc);
+                return decrypted || {};
+            }
+            return data; // صيغة قديمة غير مشفَّرة
+        }
 
         // قراءة الإعدادات: Firestore أولاً، ثم localStorage كـ fallback
         async function fetchSyncConfig() {
@@ -12545,22 +13481,25 @@
                 try {
                     const snap = await db.collection('appSettings').doc('syncConfig').get();
                     if (snap.exists) {
-                        _syncConfigCache = snap.data();
-                        localStorage.setItem('medbox_syncConfig', JSON.stringify(_syncConfigCache));
+                        _syncConfigCache = await _secResolveStoredConfig(snap.data());
+                        localStorage.setItem('medbox_syncConfig', await secEncryptJSON(_syncConfigCache));
                         return _syncConfigCache;
                     }
                 } catch(_) {}
             }
-            // fallback: localStorage
-            try { _syncConfigCache = JSON.parse(localStorage.getItem('medbox_syncConfig')) || {}; }
+            // fallback: localStorage (قد تكون القيمة مشفَّرة أو قديمة غير مشفَّرة)
+            try {
+                const raw = localStorage.getItem('medbox_syncConfig');
+                _syncConfigCache = (await secDecryptJSON(raw)) || (raw ? JSON.parse(raw) : {}) || {};
+            }
             catch(_) { _syncConfigCache = {}; }
             return _syncConfigCache;
         }
 
-        // نسخة متزامنة (للحالات التي لا تدعم await) — تقرأ من الذاكرة أو localStorage
+        // نسخة متزامنة (للحالات التي لا تدعم await) — تقرأ من الذاكرة المفكوكة
+        // التشفير فقط (تُملأ بعد أول استدعاء لـ fetchSyncConfig)
         function getSyncConfig() {
-            if (_syncConfigCache) return _syncConfigCache;
-            try { return JSON.parse(localStorage.getItem('medbox_syncConfig')) || {}; } catch(_) { return {}; }
+            return _syncConfigCache || {};
         }
         function getSyncClientId() { return getSyncConfig().clientId || ''; }
         function getSyncApiKey()   { return getSyncConfig().apiKey   || ''; }
@@ -12586,14 +13525,15 @@
                 clientId: document.getElementById('syncClientIdInput').value.trim(),
                 apiKey:   document.getElementById('syncApiKeyInput').value.trim(),
             };
-            // حفظ في localStorage دائماً (fallback سريع)
-            localStorage.setItem('medbox_syncConfig', JSON.stringify(cfg));
+            const encStr = await secEncryptJSON(cfg);
+            // حفظ في localStorage دائماً (fallback سريع) — مشفَّر
+            localStorage.setItem('medbox_syncConfig', encStr);
             _syncConfigCache = cfg;
-            // حفظ في Firestore إن كان متاحاً
+            // حفظ في Firestore إن كان متاحاً — مشفَّر أيضاً ضمن حقل واحد (enc)
             if (db) {
                 try {
-                    await db.collection('appSettings').doc('syncConfig').set(cfg, { merge: true });
-                    appendSyncLog('☁️ تم حفظ إعدادات OAuth في Firebase', 'success');
+                    await db.collection('appSettings').doc('syncConfig').set({ enc: encStr }, { merge: true });
+                    appendSyncLog('☁️ تم حفظ إعدادات OAuth في Firebase (مشفَّرة)', 'success');
                 } catch(e) {
                     appendSyncLog('⚠️ تعذّر الحفظ في Firebase: ' + e.message, 'warn');
                 }
@@ -12826,19 +13766,33 @@
         }
 
         // قراءة البيانات المحفوظة وتعبئة الحقول
-        function loadFirebaseConfigToForm() {
-            const saved = getSavedFirebaseConfig();
+        async function loadFirebaseConfigToForm() {
+            const saved = await getSavedFirebaseConfigAsync();
             firebaseConfigFields.forEach(f => {
                 document.getElementById(f.id).value = saved ? (saved[f.key] || '') : '';
             });
             updateFirebaseConfigStatusBadge(!!saved);
         }
 
-        // قراءة بيانات Firebase المحفوظة من التخزين المحلي
+        // قراءة بيانات Firebase المحفوظة (نسخة متزامنة) — تعتمد على الذاكرة
+        // المؤقتة المفكوكة التشفير (_firebaseConfigCache) التي تُملأ عند بدء
+        // التشغيل أو عند الحفظ من شاشة الإعدادات؛ البيانات الفعلية على القرص
+        // (localStorage) مشفَّرة دائماً
         function getSavedFirebaseConfig() {
+            return _firebaseConfigCache;
+        }
+
+        // نسخة غير متزامنة تفكّ التشفير مباشرة من التخزين المحلي إن لم تكن
+        // الذاكرة المؤقتة قد امتلأت بعد (مثلاً إن استُدعيت هذه الدالة قبل
+        // اكتمال تهيئة التطبيق)
+        async function getSavedFirebaseConfigAsync() {
+            if (_firebaseConfigCache) return _firebaseConfigCache;
             try {
                 const raw = localStorage.getItem('medbox_firebaseConfig');
-                return raw ? JSON.parse(raw) : null;
+                if (!raw) return null;
+                const config = await secDecryptJSON(raw);
+                _firebaseConfigCache = config;
+                return config;
             } catch (e) {
                 return null;
             }
@@ -12889,7 +13843,8 @@
                 return;
             }
 
-            localStorage.setItem('medbox_firebaseConfig', JSON.stringify(config));
+            localStorage.setItem('medbox_firebaseConfig', await secEncryptJSON(config));
+            _firebaseConfigCache = config;
             updateFirebaseConfigStatusBadge(true);
             setFirebaseFormEditMode(false);
             firebaseConfigBeforeEdit = null;
@@ -12921,7 +13876,7 @@
 
         // تصدير الإعدادات الحالية كنص JSON ونسخه للحافظة
         async function exportFirebaseConfig() {
-            const saved = getSavedFirebaseConfig();
+            const saved = await getSavedFirebaseConfigAsync();
             if (!saved) {
                 showToast('⚠️ لا توجد إعدادات محفوظة لتصديرها', 'error');
                 return;
@@ -13106,6 +14061,13 @@
                 btn.classList.remove('hidden');
                 return;
             }
+            if (sidebarMode === 'refLib') {
+                // زر إضافة مرجع جديد أعلى لوحة "أبحاث ومراجع" — يبدأ نموذج
+                // إعدادات المرجع وملفاته
+                btn.title = 'إضافة مرجع جديد';
+                btn.classList.remove('hidden');
+                return;
+            }
             if (sidebarMode === 'asyncSessions') {
                 // زر إنشاء جلسة غير متزامنة جديدة أعلى لوحة "الجلسات الغير
                 // متزامنة" — يبدأ نموذج إعدادات الجلسة + الجلسات المرفقة
@@ -13151,6 +14113,8 @@
                 acOpenNewCourseDesigner();
             } else if (sidebarMode === 'studentPedia') {
                 spOpenNewEntryDesigner();
+            } else if (sidebarMode === 'refLib') {
+                rlOpenNewEntryDesigner();
             } else if (sidebarMode === 'asyncSessions') {
                 nsOpenNewSessionDesigner();
             } else if (sidebarMode === 'users') {
@@ -17145,6 +18109,7 @@
                                 document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
                                 document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
                                 document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+                                document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
                             }
                         });
@@ -17176,6 +18141,7 @@
                             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
                             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
                             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+                            document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
                             buildSidebarCourses(r.programKey);
                             showCourseDetails(r.programKey, r.course.key);
@@ -22663,22 +23629,25 @@
                 try {
                     const snap = await db.collection('appSettings').doc('geminiConfig').get();
                     if (snap.exists) {
-                        _geminiConfigCache = snap.data();
-                        localStorage.setItem('medbox_geminiConfig', JSON.stringify(_geminiConfigCache));
+                        _geminiConfigCache = await _secResolveStoredConfig(snap.data());
+                        localStorage.setItem('medbox_geminiConfig', await secEncryptJSON(_geminiConfigCache));
                         return _geminiConfigCache;
                     }
                 } catch(_) {}
             }
-            // fallback: localStorage
-            try { _geminiConfigCache = JSON.parse(localStorage.getItem('medbox_geminiConfig')) || {}; }
+            // fallback: localStorage (قد تكون القيمة مشفَّرة أو قديمة غير مشفَّرة)
+            try {
+                const raw = localStorage.getItem('medbox_geminiConfig');
+                _geminiConfigCache = (await secDecryptJSON(raw)) || (raw ? JSON.parse(raw) : {}) || {};
+            }
             catch(_) { _geminiConfigCache = {}; }
             return _geminiConfigCache;
         }
 
-        // نسخة متزامنة (للاستخدام داخل نظام تصحيح الأوراق) — تقرأ من الذاكرة أو localStorage
+        // نسخة متزامنة (للاستخدام داخل نظام تصحيح الأوراق) — تقرأ من الذاكرة
+        // المفكوكة التشفير فقط (تُملأ بعد أول استدعاء لـ fetchGeminiConfig)
         function getGeminiConfig() {
-            if (_geminiConfigCache) return _geminiConfigCache;
-            try { return JSON.parse(localStorage.getItem('medbox_geminiConfig')) || {}; } catch(_) { return {}; }
+            return _geminiConfigCache || {};
         }
 
         // فتح شاشة إعدادات القراءة الآلية في لوحة العرض الرئيسية
@@ -22731,14 +23700,15 @@
             const model  = document.getElementById('geminiModelInput')?.value.trim() || 'gemini-2.5-flash';
             if (!apiKey) { showToast('⚠️ الرجاء إدخال مفتاح Gemini API', 'warning'); return; }
             const cfg = { apiKey, model };
-            // حفظ في localStorage دائماً (fallback سريع)
-            localStorage.setItem('medbox_geminiConfig', JSON.stringify(cfg));
+            const encStr = await secEncryptJSON(cfg);
+            // حفظ في localStorage دائماً (fallback سريع) — مشفَّر
+            localStorage.setItem('medbox_geminiConfig', encStr);
             _geminiConfigCache = cfg;
-            // حفظ في Firebase إن كان متاحاً
+            // حفظ في Firebase إن كان متاحاً — مشفَّر ضمن حقل واحد (enc)
             if (db) {
                 try {
-                    await db.collection('appSettings').doc('geminiConfig').set(cfg, { merge: true });
-                    showToast('✅ تم حفظ إعدادات القراءة الآلية في Firebase', 'success');
+                    await db.collection('appSettings').doc('geminiConfig').set({ enc: encStr }, { merge: true });
+                    showToast('✅ تم حفظ إعدادات القراءة الآلية في Firebase (مشفَّرة)', 'success');
                 } catch (e) {
                     showToast('⚠️ تم الحفظ محلياً فقط — تعذّر الحفظ في Firebase: ' + e.message, 'warning');
                 }
@@ -24619,6 +25589,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
@@ -24673,6 +25644,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarMeasureEvalList')?.classList.add('hidden');
             document.getElementById('sidebarAcademicCoursesList')?.classList.add('hidden');
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
+            document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
@@ -24896,11 +25868,23 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             }
 
             // ── نظام الإشعارات المشترك بين الحسابات ──
-            // (كل حساب مسجَّل يقرأ/يضيف إشعارات، ويحذف أي إشعار — الحذف
-            // يُطبَّق على وثيقة Firestore مباشرة فيختفي فوراً من كل الحسابات)
+            // (كل حساب مسجَّل يقرأ/يضيف إشعارات. الحذف الفعلي للوثيقة
+            // المشتركة أصبح للأدمن فقط؛ "حذف/مسح" العادي من واجهة المستخدم
+            // يكتب الآن في notifUserState الخاصة بكل مستخدم بدلاً من حذف
+            // الوثيقة، حتى لا يؤثر حذف متدرب لإشعاره على بقية الحسابات)
             match /notifications/{notifId} {
-              allow read, create, delete: if isAuth();
-              allow update: if false;
+              allow read, create: if isAuth();
+              allow delete: if isAdmin();
+              // يسمح فقط لمنشئ الإشعار نفسه بتحديثه لاحقاً (يُستخدم لدمج
+              // إشعارَي رسالتين متتاليتين من نفس المحادثة في وثيقة واحدة
+              // بدل إسقاط الثانية بصمت)
+              allow update: if isAuth() && request.auth.uid == resource.data.actorUid;
+            }
+
+            // ── حالة كل مستخدم الخاصة بإشعاراته (مقروء/محذوف عنده) ──
+            // كل مستخدم يقرأ ويكتب وثيقته الخاصة فقط
+            match /notifUserState/{uid} {
+              allow read, write: if isAuth() && request.auth.uid == uid;
             }
 
             // ── الجلسات المتزامنة (Live Sync Sessions) ──
@@ -25615,7 +26599,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'questionBank';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const addBtn = document.getElementById('sidebarAddBtn');
@@ -25737,9 +26721,9 @@ ${JSON.stringify(payload, null, 0)}
         container.innerHTML = topButtonHTML + qbSidebarState.programs.map(p => {
             const isPkOpen = qbSidebarState.expandedPk === p.pk;
             return `
-            <div class="mb-1">
+            <div class="glass-panel rounded-xl mb-2 overflow-hidden">
                 <button onclick="qbToggleSidebarProgram('${p.pk}')"
-                    class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-primary/5 transition-colors">
+                    class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/5 transition-colors">
                     <span class="flex items-center gap-2 min-w-0">
                         <i class="ph ph-folder-notch text-primary/70 flex-shrink-0"></i>
                         <span class="truncate">${escapeHtml(p.title)}</span>
@@ -25747,14 +26731,14 @@ ${JSON.stringify(payload, null, 0)}
                     <i class="ph ph-caret-down text-xs text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isPkOpen ? '180' : '0'}deg)"></i>
                 </button>
                 ${isPkOpen ? `
-                <div class="pr-3 pl-1 space-y-0.5 mb-1">
+                <div class="px-2 pb-2 space-y-1.5">
                     ${p.years.map(y => {
                         const yearKey = `${p.pk}__${y.year}`;
                         const isYearOpen = qbSidebarState.expandedYearKey === yearKey;
                         return `
-                        <div class="mb-0.5">
+                        <div class="glass-element rounded-lg overflow-hidden">
                             <button onclick="qbToggleSidebarYear('${yearKey}')"
-                                class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+                                class="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
                                 <span class="flex items-center gap-2 min-w-0">
                                     <i class="ph ph-calendar-blank text-gray-400 flex-shrink-0"></i>
                                     <span class="truncate">${escapeHtml(y.year)}</span>
@@ -25762,14 +26746,14 @@ ${JSON.stringify(payload, null, 0)}
                                 <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isYearOpen ? '180' : '0'}deg)"></i>
                             </button>
                             ${isYearOpen ? `
-                            <div class="pr-3 pl-1 space-y-0.5 mb-0.5">
+                            <div class="px-2 pb-2 space-y-1">
                                 ${y.semesters.map(s => {
                                     const semKey = `${yearKey}__${s.semester}`;
                                     const isSemOpen = qbSidebarState.expandedSemKey === semKey;
                                     return `
-                                    <div class="mb-0.5">
+                                    <div class="bg-white/50 rounded-lg overflow-hidden">
                                         <button onclick="qbToggleSidebarSemester('${semKey}')"
-                                            class="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 transition-colors">
+                                            class="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] font-semibold text-gray-500 hover:bg-white/70 transition-colors">
                                             <span class="flex items-center gap-2 min-w-0">
                                                 <i class="ph ph-book-bookmark text-gray-400 flex-shrink-0"></i>
                                                 <span class="truncate">${escapeHtml(s.semester)}</span>
@@ -25777,12 +26761,12 @@ ${JSON.stringify(payload, null, 0)}
                                             <i class="ph ph-caret-down text-[9px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isSemOpen ? '180' : '0'}deg)"></i>
                                         </button>
                                         ${isSemOpen ? `
-                                        <div class="pr-3 pl-1 space-y-0.5">
+                                        <div class="px-2 pb-2 space-y-1">
                                             ${s.subjects.map(subj => {
                                                 const isActive = qbSidebarState.activeSubjectKey === `${semKey}__${subj.subject}`;
                                                 return `
                                                 <button onclick="qbShowBankViewBySubjectNode(${subj.idx})"
-                                                    class="w-full text-right flex items-start gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-gray-600 hover:bg-gray-100'}">
+                                                    class="w-full text-right flex items-start gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-gray-600 hover:bg-white'}">
                                                     <i class="ph ph-book-open text-sm flex-shrink-0 mt-0.5 ${isActive ? 'text-primary' : 'text-gray-400'}"></i>
                                                     <span class="flex-1 min-w-0 leading-snug whitespace-normal break-words">${escapeHtml(subj.subject)}</span>
                                                     <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0">${subj.count}</span>
@@ -26189,7 +27173,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'registeredExams';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const addBtn = document.getElementById('sidebarAddBtn');
@@ -26294,9 +27278,9 @@ ${JSON.stringify(payload, null, 0)}
         container.innerHTML = reSidebarState.programs.map(p => {
             const isPkOpen = reSidebarState.expandedPk === p.pk;
             return `
-            <div class="mb-1">
+            <div class="glass-panel rounded-xl mb-2 overflow-hidden">
                 <button onclick="reToggleSidebarProgram('${p.pk}')"
-                    class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-primary/5 transition-colors">
+                    class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/5 transition-colors">
                     <span class="flex items-center gap-2 min-w-0">
                         <i class="ph ph-folder-notch text-primary/70 flex-shrink-0"></i>
                         <span class="truncate">${escapeHtml(p.title)}</span>
@@ -26304,14 +27288,14 @@ ${JSON.stringify(payload, null, 0)}
                     <i class="ph ph-caret-down text-xs text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isPkOpen ? '180' : '0'}deg)"></i>
                 </button>
                 ${isPkOpen ? `
-                <div class="pr-3 pl-1 space-y-0.5 mb-1">
+                <div class="px-2 pb-2 space-y-1.5">
                     ${p.years.map(y => {
                         const yearKey = `${p.pk}__${y.year}`;
                         const isYearOpen = reSidebarState.expandedYearKey === yearKey;
                         return `
-                        <div class="mb-0.5">
+                        <div class="glass-element rounded-lg overflow-hidden">
                             <button onclick="reToggleSidebarYear('${yearKey}')"
-                                class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+                                class="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
                                 <span class="flex items-center gap-2 min-w-0">
                                     <i class="ph ph-calendar-blank text-gray-400 flex-shrink-0"></i>
                                     <span class="truncate">${escapeHtml(y.year)}</span>
@@ -26319,14 +27303,14 @@ ${JSON.stringify(payload, null, 0)}
                                 <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isYearOpen ? '180' : '0'}deg)"></i>
                             </button>
                             ${isYearOpen ? `
-                            <div class="pr-3 pl-1 space-y-0.5 mb-0.5">
+                            <div class="px-2 pb-2 space-y-1">
                                 ${y.semesters.map(s => {
                                     const semKey = `${yearKey}__${s.semester}`;
                                     const isSemOpen = reSidebarState.expandedSemKey === semKey;
                                     return `
-                                    <div class="mb-0.5">
+                                    <div class="bg-white/50 rounded-lg overflow-hidden">
                                         <button onclick="reToggleSidebarSemester('${semKey}')"
-                                            class="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:bg-gray-100 transition-colors">
+                                            class="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] font-semibold text-gray-500 hover:bg-white/70 transition-colors">
                                             <span class="flex items-center gap-2 min-w-0">
                                                 <i class="ph ph-book-bookmark text-gray-400 flex-shrink-0"></i>
                                                 <span class="truncate">${escapeHtml(s.semester)}</span>
@@ -26334,12 +27318,12 @@ ${JSON.stringify(payload, null, 0)}
                                             <i class="ph ph-caret-down text-[9px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isSemOpen ? '180' : '0'}deg)"></i>
                                         </button>
                                         ${isSemOpen ? `
-                                        <div class="pr-3 pl-1 space-y-0.5">
+                                        <div class="px-2 pb-2 space-y-1">
                                             ${s.subjects.map(subj => {
                                                 const isActive = reSidebarState.activeSubjectKey === `${semKey}__${subj.subject}`;
                                                 return `
                                                 <button onclick="reShowSubjectExams(${subj.idx})"
-                                                    class="w-full text-right flex items-start gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-gray-600 hover:bg-gray-100'}">
+                                                    class="w-full text-right flex items-start gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-gray-600 hover:bg-white'}">
                                                     <i class="ph ph-bookmark-simple text-sm flex-shrink-0 mt-0.5 ${isActive ? 'text-primary' : 'text-gray-400'}"></i>
                                                     <span class="flex-1 min-w-0 leading-snug whitespace-normal break-words">${escapeHtml(subj.subject)}</span>
                                                     <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0">${subj.count}</span>
@@ -26510,7 +27494,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'completedSessions';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const qrBtn  = document.getElementById('chatQRBtn');
@@ -26647,9 +27631,9 @@ ${JSON.stringify(payload, null, 0)}
         container.innerHTML = csSidebarState.courses.map(c => {
             const isOpen = csSidebarState.expandedCourseKey === c.key;
             return `
-            <div class="mb-1">
+            <div class="glass-panel rounded-xl mb-2 overflow-hidden">
                 <button onclick="csToggleSidebarCourse('${c.key}')"
-                    class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-primary/5 transition-colors">
+                    class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/5 transition-colors">
                     <span class="flex items-center gap-2 min-w-0">
                         <i class="ph ${c.isFreeGroup ? 'ph-users-three' : 'ph-graduation-cap'} text-primary/70 flex-shrink-0"></i>
                         <span class="truncate">${escapeHtml(c.title)}</span>
@@ -26657,13 +27641,13 @@ ${JSON.stringify(payload, null, 0)}
                     <i class="ph ph-caret-down text-xs text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
                 </button>
                 ${isOpen ? `
-                <div class="pr-3 pl-1 space-y-0.5 mb-1">
+                <div class="px-2 pb-2 space-y-1">
                     ${c.subjects.map(s => {
                         const subjKey = `${c.key}__${s.subject}`;
                         const isActive = csSidebarState.activeSubjectKey === subjKey;
                         return `
                         <button onclick="csShowSubjectSessions(${s.idx})"
-                            class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-100'}">
+                            class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-gray-600 hover:bg-white'}">
                             <span class="flex items-center gap-2 min-w-0">
                                 <i class="ph ${c.isFreeGroup ? 'ph-user' : 'ph-book-open-text'} ${isActive ? 'text-primary' : 'text-gray-400'} flex-shrink-0"></i>
                                 <span class="truncate">${escapeHtml(s.subject)}</span>
@@ -28717,6 +29701,16 @@ ${JSON.stringify(payload, null, 0)}
         try {
             let docId;
             const isEditingExam = !!emsEditingExamId;
+            // مدرّبو الدورة/الدورات المشمولة (الأساسي والمساعدَين) — تُستخدم
+            // في إشعار الإنشاء والتحديث معاً
+            const _examTrainerNames = new Set();
+            courseKeys.forEach(k => {
+                const c = (program?.courses || []).find(cc => cc.key === k);
+                if (!c) return;
+                [c.mainTrainer, c.assistTrainer1, c.assistTrainer2].forEach(n => {
+                    if (n && n.trim()) _examTrainerNames.add(n.trim());
+                });
+            });
             if (emsEditingExamId) {
                 docId = emsEditingExamId;
                 await offlineAwareWrite(
@@ -28728,6 +29722,20 @@ ${JSON.stringify(payload, null, 0)}
                         activity: { action: 'edit', type: 'exam', name: examLabel, id: docId, details: `${payload.examType || 'امتحان'} — ضمن البرنامج: ${program?.title || ''}` }
                     }
                 );
+
+                // إشعار بتحديث الامتحان — يظهر لمدرّبي الدورة/الدورات المشمولة
+                // وللأدمن، بنفس منطق إشعار الإنشاء (كانت وحدة الامتحانات لا
+                // تُرسل أي إشعار فعلي رغم وجود بنية جاهزة له في الواجهة)
+                if (typeof addNotification === 'function') {
+                    addNotification({
+                        type  : 'exam',
+                        action: 'update',
+                        title : '✏️ تحديث امتحان',
+                        body  : `${payload.examType || 'امتحان'} — ${examLabel}${program?.title ? ' — ' + program.title : ''}`,
+                        targetTrainerNames: Array.from(_examTrainerNames),
+                        programKey: pk, courseKey: ck
+                    });
+                }
             } else {
                 payload.createdAt = new Date().toISOString();
                 const result = await offlineAwareWrite(
@@ -28747,20 +29755,13 @@ ${JSON.stringify(payload, null, 0)}
                 // "إضافة متدرب" المباشر (بدون دورة) لا يوجد مدربون مستهدَفون
                 // بعينهم، فيُكتفى بإشعار الأدمن فقط (targetTrainerNames فارغة)
                 if (typeof addNotification === 'function') {
-                    const _trainerNames = new Set();
-                    courseKeys.forEach(k => {
-                        const c = (program?.courses || []).find(cc => cc.key === k);
-                        if (!c) return;
-                        [c.mainTrainer, c.assistTrainer1, c.assistTrainer2].forEach(n => {
-                            if (n && n.trim()) _trainerNames.add(n.trim());
-                        });
-                    });
                     addNotification({
                         type  : 'exam',
                         action: 'add',
                         title : '📝 امتحان جديد',
                         body  : `${payload.examType || 'امتحان'} — ${examLabel}${program?.title ? ' — ' + program.title : ''}`,
-                        targetTrainerNames: Array.from(_trainerNames)
+                        targetTrainerNames: Array.from(_examTrainerNames),
+                        programKey: pk, courseKey: ck
                     });
                 }
             }
@@ -33207,6 +34208,18 @@ let   _notifChatListener = null;     // مستمع رسائل الدردشة
 let   _notifFirestoreListener = null; // مستمع مجموعة notifications الحي (مزامنة بين الحسابات)
 let   _notifInitDone  = false;       // هل تمّ التهيئة؟
 
+// ── حالة كل مستخدم الخاصة بإشعاراته (مقروء/محذوف محلياً) ──
+// تُخزَّن في وثيقة واحدة لكل مستخدم notifUserState/{uid}، وتُزامَن حيّاً
+// بين كل أجهزة نفس الحساب. هذا يفصل "حذف/قراءة الإشعار عندي" عن الوثيقة
+// المشتركة نفسها في notifications، فلا يعود حذف إشعار عند متدرب يحذفه
+// عند الأدمن والمدربين أيضاً (كان يُحذف من Firestore مباشرة سابقاً)
+let   _notifUserState         = { read: {}, dismissed: {} };
+let   _notifUserStateListener = null;
+// هل هذه أول دفعة نتائج تصل من مستمع Firestore؟ تُستخدم لتفادي رنين
+// الجرس وطوفان التوستات لعشرات الإشعارات القديمة عند أول اتصال على
+// جهاز/متصفح جديد (تصل جميعها كـ"added" دفعة واحدة)
+let   _notifFirstSnapshot = true;
+
 // ═══════════════════════════════════════════════════
 //  التهيئة: تُستدعى بعد تسجيل الدخول (من enterApp)
 // ═══════════════════════════════════════════════════
@@ -33245,6 +34258,8 @@ function initNotificationSystem() {
     _loadNotifFromStorage();
     _renderNotifList();
     _updateNotifBadge();
+    _notifFirstSnapshot = true;
+    _listenNotifUserState();
     _listenChatForNotif();
     _listenNotificationsFromFirebase();
     // طلب إذن إشعارات المتصفح (OS-level) ثم تحديث الزر
@@ -33277,16 +34292,54 @@ function _loadNotifFromStorage() {
 }
 
 // ═══════════════════════════════════════════════════
-//  إضافة إشعار جديد — يُحفظ في Firestore (مجموعة notifications)
-//  ليصل فورياً لبقية الحسابات المسجّلة عبر مستمع _listenNotificationsFromFirebase،
-//  وليُحذف من القاعدة تلقائياً لدى الجميع عند حذفه من أي حساب
-//  type: 'program' | 'course' | 'trainee' | 'trainer' | 'message' | 'call' | 'feature'
-//  action: 'add' | 'update'
+//  حالة القراءة/الحذف الخاصة بكل مستخدم — notifUserState/{uid}
+//  مستمع حي: يُزامن "مقروء" و"محذوف عندي" بين كل أجهزة نفس الحساب،
+//  ولا يمسّ وثيقة الإشعار المشتركة في notifications إطلاقاً
 // ═══════════════════════════════════════════════════
-function addNotification({ type, action, title, body, icon, targetRole, targetTraineeIds, targetTrainerNames }) {
-    // تحقق من صلاحية المستخدم الحالي
+function _listenNotifUserState() {
+    const cu = currentUser;
+    if (!db || !cu) return;
+    if (_notifUserStateListener) _notifUserStateListener();
+    _notifUserStateListener = db.collection('notifUserState').doc(cu.uid)
+        .onSnapshot(doc => {
+            const data = doc.exists ? (doc.data() || {}) : {};
+            _notifUserState = { read: data.read || {}, dismissed: data.dismissed || {} };
+            // طبّق الحالة المُحدَّثة على القائمة المحلية فوراً (تُخفي أي عنصر
+            // مُحذوف عندي من جهاز آخر، وتُحدّث علامة "مقروء")
+            _notifItems = _notifItems.filter(n => !_notifUserState.dismissed[n.id]);
+            _notifItems.forEach(n => { if (_notifUserState.read[n.id]) n.read = true; });
+            _renderNotifList();
+            _updateNotifBadge();
+        }, err => console.warn('[Notif] userState listener error', err));
+}
+
+// دمج مفاتيح إضافية داخل حقل خريطة متداخل (map) في وثيقة notifUserState
+// باستخدام dot-path حتى لا تُستبدَل بقية المفاتيح الموجودة مسبقاً
+function _writeNotifUserState(field, ids) {
+    const cu = currentUser;
+    if (!db || !cu || !ids || !ids.length) return;
+    const patch = {};
+    ids.forEach(id => { patch[`${field}.${id}`] = true; });
+    db.collection('notifUserState').doc(cu.uid).set(patch, { merge: true })
+        .catch(err => console.warn('_writeNotifUserState: فشل الحفظ:', err));
+}
+
+// ═══════════════════════════════════════════════════
+//  إضافة إشعار جديد — يُحفظ في Firestore (مجموعة notifications)
+//  ليصل فورياً لبقية الحسابات المسجّلة عبر مستمع _listenNotificationsFromFirebase
+//  type: 'program' | 'course' | 'trainee' | 'trainer' | 'message' | 'call' | 'feature' | 'exam'
+//  action: 'add' | 'update' | 'delete' | 'new'
+// ═══════════════════════════════════════════════════
+function addNotification({ type, action, title, body, icon, targetRole, targetTraineeIds, targetTrainerNames, targetUids, programKey, courseKey, convId, actionType }) {
+    // نتحقق فقط لتحديد هل يظهر هذا الإشعار محلياً وفورياً *لصاحب الحدث نفسه*
+    // (المُنفِّذ الحالي). هذا لا يمنع إطلاقاً حفظ الإشعار في Firestore —
+    // فصل الحفظ عن العرض المحلي ضروري: قد ينفّذ متدرب حدثاً (مثل تعديل
+    // بياناته الذاتية) لا يظهر إشعاره له هو، لكنه يجب أن يصل للأدمن/المدرب
     const role = currentUser?.role || '';
-    if (!_shouldShowNotif({ type, action, targetRole, targetTraineeIds, targetTrainerNames }, role, currentUser)) return;
+    const shouldShowToActor = _shouldShowNotif(
+        { type, action, targetRole, targetTraineeIds, targetTrainerNames, targetUids, programKey, courseKey },
+        role, currentUser
+    );
 
     // نولّد مرجع Firestore مسبقاً (دون انتظار الشبكة) للحصول على معرّف موحّد
     // يُستخدم محلياً فوراً، ونفس المعرّف يصل به بقية الحسابات عبر المستمع الحي
@@ -33302,19 +34355,24 @@ function addNotification({ type, action, title, body, icon, targetRole, targetTr
         icon : icon || _defaultIcon(type),
         ts   : Date.now(),
         read : false,
-        actorUid : currentUser?.uid || null
+        actorUid : currentUser?.uid || null,
+        convId   : convId || null,
+        actionType: actionType || null
     };
 
-    _notifItems.unshift(notif);
-    if (_notifItems.length > _NOTIF_MAX) _notifItems = _notifItems.slice(0, _NOTIF_MAX);
+    // العرض الفوري محلياً — فقط إذا كان المُنفِّذ نفسه من ضمن الفئة المستهدَفة
+    if (shouldShowToActor) {
+        _notifItems.unshift(notif);
+        if (_notifItems.length > _NOTIF_MAX) _notifItems = _notifItems.slice(0, _NOTIF_MAX);
+        _saveNotifToStorage();
+        _renderNotifList();
+        _updateNotifBadge();
+        _ringBell();
+        _showNotifToast(notif);
+    }
 
-    _saveNotifToStorage();
-    _renderNotifList();
-    _updateNotifBadge();
-    _ringBell();
-    _showNotifToast(notif);
-
-    // حفظ في Firestore ليصل لبقية الحسابات ولضمان إمكانية حذفه من القاعدة لاحقاً
+    // حفظ في Firestore دائماً (بصرف النظر عن كون المُنفِّذ نفسه يراه أم لا)
+    // ليصل لبقية الحسابات المستهدَفة الفعلية عبر المستمع الحي
     if (ref) {
         ref.set({
             type, action, title, body,
@@ -33325,6 +34383,13 @@ function addNotification({ type, action, title, body, icon, targetRole, targetTr
             // (مثال: مدربو دورة أُنشئ لها امتحان) — بالإضافة دوماً للأدمن بجميع حساباته
             targetTraineeIds  : (Array.isArray(targetTraineeIds)  && targetTraineeIds.length)  ? targetTraineeIds  : null,
             targetTrainerNames: (Array.isArray(targetTrainerNames) && targetTrainerNames.length) ? targetTrainerNames : null,
+            targetUids        : (Array.isArray(targetUids) && targetUids.length) ? targetUids : null,
+            // البرنامج/الدورة المرتبطة بالإشعار (تُستخدم لتقييد ظهور إشعارات
+            // البرامج/الدورات على المتدربين المسجَّلين فعلياً في ذلك البرنامج)
+            programKey : programKey || null,
+            courseKey  : courseKey  || null,
+            convId     : convId     || null,
+            actionType : actionType || null,
             actorUid   : currentUser?.uid || null,
             actorName  : (currentUser && (currentUser.displayName || currentUser.nameAr || currentUser.email)) || 'مستخدم غير معروف',
             actorRole  : currentUser?.role || null,
@@ -33332,14 +34397,34 @@ function addNotification({ type, action, title, body, icon, targetRole, targetTr
             createdAt  : firebase.firestore.FieldValue.serverTimestamp()
         }).catch(err => console.warn('addNotification: فشل الحفظ في Firestore:', err));
     }
+    return notif;
+}
+
+// هل المتدرب الحالي مسجَّل فعلياً في هذا البرنامج (بأي دورة تابعة له)؟
+// يُستخدم لتقييد ظهور إشعارات برامج/دورات لا يخصّه بها أي تسجيل فعلي
+function _isTraineeInProgram(cu, programKey) {
+    if (!programKey) return true; // إشعار عام غير مرتبط ببرنامج محدد
+    if (!cu || !cu.traineeId || typeof registryTrainees === 'undefined') return false;
+    const t = registryTrainees.find(x => x.id === cu.traineeId);
+    if (!t || !t.nameAr) return false;
+    if (typeof getTraineeEnrolledCourses !== 'function') return true; // احتياطي إن لم تتوفر الدالة
+    const enrolled = getTraineeEnrolledCourses(t.nameAr) || [];
+    return enrolled.some(c => c.programKey === programKey);
 }
 
 // تحديد ما إذا كان يجب عرض الإشعار للمستخدم الحالي
-// data: { type, action, targetRole, targetTraineeIds, targetTrainerNames }
-// cu:   كائن currentUser الحالي (للوصول لـ traineeId / name عند الحاجة للاستهداف الدقيق)
+// data: { type, action, targetRole, targetTraineeIds, targetTrainerNames, targetUids, programKey, courseKey }
+// cu:   كائن currentUser الحالي (للوصول لـ traineeId / name / uid عند الحاجة للاستهداف الدقيق)
 function _shouldShowNotif(data, userRole, cu) {
     if (!userRole) return false; // غير مسجل
-    const { type, targetTraineeIds, targetTrainerNames, targetRole } = data || {};
+    const { type, targetTraineeIds, targetTrainerNames, targetUids, targetRole, programKey } = data || {};
+
+    // ── استهداف دقيق: مستخدم واحد بعينه أو مجموعة محدَّدة بالـ uid ──
+    // (مثل إشعارات الرسائل/المكالمات الخاصة بمحادثة معيّنة)
+    if (Array.isArray(targetUids) && targetUids.length) {
+        if (userRole === 'admin') return true;
+        return !!(cu && cu.uid && targetUids.includes(cu.uid));
+    }
 
     // ── استهداف دقيق: متدرب واحد بعينه (مثل تعديل حضوره/تقييمه) ──
     // يظهر للأدمن (بجميع حساباته) وللمتدرب المستهدف فقط، وليس لبقية
@@ -33367,10 +34452,15 @@ function _shouldShowNotif(data, userRole, cu) {
 
     // الميزات الجديدة — للجميع
     if (type === 'feature') return true;
-    // الرسائل والمكالمات — للجميع المسجلين
+    // الرسائل والمكالمات: بدون targetUids (حالة قديمة/احتياطية) تظهر للجميع
     if (type === 'message' || type === 'call') return true;
-    // البرامج والدورات — للجميع المسجلين
-    if (type === 'program' || type === 'course') return true;
+    // البرامج والدورات — تظهر للأدمن والمدربين دائماً، وللمتدرب فقط إن كان
+    // مسجَّلاً فعلياً في نفس البرنامج المرتبط بالإشعار (لا يرى متدرب برنامج A
+    // إشعارات دورة من برنامج B غير مسجَّل به)
+    if (type === 'program' || type === 'course') {
+        if (userRole === 'trainee') return _isTraineeInProgram(cu, programKey);
+        return true;
+    }
     // المدرب/المتدرب الجديد أو تحديثهم — تظهر للجميع افتراضياً
     if (type === 'trainer' || type === 'trainee') return true;
     // الامتحانات (بدون استهداف دقيق مُحدَّد) — تظهر للجميع افتراضياً كحل احتياطي
@@ -33394,15 +34484,17 @@ function _defaultIcon(type) {
 
 // ═══════════════════════════════════════════════════
 //  مستمع رسائل الدردشة لاكتشاف الرسائل الجديدة
+//  — يمرّ الآن دوماً عبر addNotification فيُحفظ في Firestore (خاصاً
+//    بهذا المستخدم عبر targetUids)، فيصل الإشعار لنفس الحساب من أي جهاز
 // ═══════════════════════════════════════════════════
 function _listenChatForNotif() {
-    const db = window._rtcGetDb ? window._rtcGetDb() : null;
+    const rtcDb = window._rtcGetDb ? window._rtcGetDb() : null;
     const cu = currentUser;
-    if (!db || !cu) return;
+    if (!rtcDb || !cu) return;
 
     // استمع لتغيّرات محادثات المستخدم الحالي
     if (_notifChatListener) _notifChatListener();
-    _notifChatListener = db.collection('chats')
+    _notifChatListener = rtcDb.collection('chats')
         .where('participants', 'array-contains', cu.uid)
         .onSnapshot(snap => {
             snap.docChanges().forEach(change => {
@@ -33410,38 +34502,43 @@ function _listenChatForNotif() {
                 const data = change.doc.data();
                 const unreadCount = (data.unread || {})[cu.uid] || 0;
                 if (unreadCount <= 0) return;
-                // تجنّب الإشعارات المكررة لنفس المحادثة في وقت قصير
+
                 const convId = change.doc.id;
                 const isCall     = (data.lastMsg || '')?.includes('مكالمة') || (data.lastMsg || '')?.includes('call');
-                const lastNotifForConv = _notifItems.find(n =>
-                    n.type === (isCall ? 'call' : 'message') && n.convId === convId
-                );
-                const now = Date.now();
-                if (lastNotifForConv && (now - lastNotifForConv.ts) < 5000) return;
-
+                const type       = isCall ? 'call' : 'message';
                 const senderName = data.lastSenderName || 'مستخدم';
                 const lastMsg    = data.lastMsg || 'رسالة جديدة';
                 const isVoice    = lastMsg === '🎤 رسالة صوتية';
+                const title = isCall ? '📞 مكالمة واردة' : (isVoice ? '🎤 رسالة صوتية' : '💬 رسالة جديدة');
+                const body  = `من: ${senderName}${isVoice ? '' : ' — ' + lastMsg.slice(0,40)}`;
+                const now = Date.now();
 
-                const notif = {
-                    id     : 'n_' + now + '_' + Math.random().toString(36).slice(2,6),
-                    type   : isCall ? 'call' : 'message',
-                    action : 'new',
-                    title  : isCall ? '📞 مكالمة واردة' : (isVoice ? '🎤 رسالة صوتية' : '💬 رسالة جديدة'),
-                    body   : `من: ${senderName}${isVoice ? '' : ' — ' + lastMsg.slice(0,40)}`,
-                    icon   : isCall ? 'ph-phone' : (isVoice ? 'ph-microphone-stage' : 'ph-chat-circle-dots'),
-                    ts     : now,
-                    read   : false,
-                    convId,
-                    action_fn: `openChatWindow('${convId}')`
-                };
-                _notifItems.unshift(notif);
-                if (_notifItems.length > _NOTIF_MAX) _notifItems = _notifItems.slice(0, _NOTIF_MAX);
-                _saveNotifToStorage();
-                _renderNotifList();
-                _updateNotifBadge();
-                _ringBell();
-                _showNotifToast(notif);
+                // بدل إسقاط الإشعار الثاني بصمت عند وصول رسالتين خلال نافذة
+                // قصيرة من نفس المحادثة (قد يفوّت رسالة فعلية)، نُحدِّث نفس
+                // الإشعار (نصاً ووقتاً) بدلاً من تجاهله
+                const existing = _notifItems.find(n => n.type === type && n.convId === convId);
+                if (existing && (now - existing.ts) < 5000) {
+                    existing.title = title; existing.body = body; existing.ts = now;
+                    existing.read = false;
+                    _notifUserState.read[existing.id] = false;
+                    _saveNotifToStorage();
+                    _renderNotifList();
+                    _updateNotifBadge();
+                    _ringBell();
+                    if (db) {
+                        db.collection('notifications').doc(existing.id).update({ title, body, clientTs: now })
+                            .catch(err => console.warn('_listenChatForNotif: تحديث الإشعار فشل:', err));
+                    }
+                } else {
+                    // إشعار خاص بهذا المستخدم فقط (targetUids) — يُحفظ في
+                    // Firestore عبر addNotification فيصل لنفس الحساب من أي جهاز
+                    addNotification({
+                        type, action: 'new', title, body,
+                        icon: isCall ? 'ph-phone' : (isVoice ? 'ph-microphone-stage' : 'ph-chat-circle-dots'),
+                        targetUids: [cu.uid],
+                        convId, actionType: 'openChat'
+                    });
+                }
 
                 // ── إشعار المتصفح (OS-level) عند غياب المستخدم ──
                 {
@@ -33479,16 +34576,23 @@ function _listenNotificationsFromFirebase() {
     if (!db || !cu) return;
 
     if (_notifFirestoreListener) _notifFirestoreListener();
+    _notifFirstSnapshot = true;
     _notifFirestoreListener = db.collection('notifications')
         .orderBy('clientTs', 'desc')
         .limit(_NOTIF_MAX)
         .onSnapshot(snap => {
+            // أول دفعة نتائج تصل عند الاتصال (أو إعادة الاتصال) تحتوي كل
+            // الوثائق الموجودة فعلاً بصرف النظر عن قدمها؛ لا نريد رنين الجرس
+            // ولا عشرات التوستات لإشعارات قديمة عند أول فتح على جهاز جديد
+            const isInitialBatch = _notifFirstSnapshot;
+            _notifFirstSnapshot = false;
+
             snap.docChanges().forEach(change => {
                 const id   = change.doc.id;
                 const data = change.doc.data() || {};
 
                 if (change.type === 'removed') {
-                    // حُذف الإشعار من القاعدة (من أي حساب) — نزيله محلياً أيضاً
+                    // حُذفت الوثيقة المشتركة فعلياً (مثلاً من قِبل الأدمن) — نزيلها محلياً
                     const existed = _notifItems.some(n => n.id === id);
                     if (existed) {
                         _notifItems = _notifItems.filter(n => n.id !== id);
@@ -33503,6 +34607,8 @@ function _listenNotificationsFromFirebase() {
                 // تجاهل الإشعار إن كان مضافاً محلياً بالفعل (تمّت إضافته فوراً
                 // من نفس الجلسة عبر addNotification قبل وصول رد الشبكة)
                 if (_notifItems.some(n => n.id === id)) return;
+                // تجاهل الإشعار إن كنت قد حذفته "عندي" سابقاً من أي جهاز
+                if (_notifUserState.dismissed[id]) return;
 
                 const role = cu.role || '';
                 if (!_shouldShowNotif({
@@ -33510,7 +34616,10 @@ function _listenNotificationsFromFirebase() {
                     action: data.action,
                     targetRole: data.targetRole,
                     targetTraineeIds: data.targetTraineeIds,
-                    targetTrainerNames: data.targetTrainerNames
+                    targetTrainerNames: data.targetTrainerNames,
+                    targetUids: data.targetUids,
+                    programKey: data.programKey,
+                    courseKey: data.courseKey
                 }, role, cu)) return;
 
                 const notif = {
@@ -33521,8 +34630,10 @@ function _listenNotificationsFromFirebase() {
                     body    : data.body,
                     icon    : data.icon || _defaultIcon(data.type),
                     ts      : data.clientTs || Date.now(),
-                    read    : false,
-                    actorUid: data.actorUid || null
+                    read    : isInitialBatch ? true : !!_notifUserState.read[id],
+                    actorUid: data.actorUid || null,
+                    convId  : data.convId || null,
+                    actionType: data.actionType || null
                 };
 
                 _notifItems.unshift(notif);
@@ -33531,8 +34642,9 @@ function _listenNotificationsFromFirebase() {
                 _renderNotifList();
                 _updateNotifBadge();
 
-                // نبّه المستخدم فقط إذا كان الإشعار من حساب آخر (وليس نفس المستخدم الحالي)
-                if (data.actorUid && data.actorUid !== cu.uid) {
+                // لا ننبّه إطلاقاً أثناء الدفعة الأولى (إشعارات قديمة سابقة
+                // للاتصال الحالي)، وننبّه بعدها فقط إذا كان الإشعار من حساب آخر
+                if (!isInitialBatch && data.actorUid && data.actorUid !== cu.uid) {
                     _ringBell();
                     _showNotifToast(notif);
                 }
@@ -33592,6 +34704,11 @@ function _renderNotifList() {
     const unreadEl = document.getElementById('notifUnreadCount');
     if (!list || !empty) return;
 
+    // ترتيب دائم من الأحدث إلى الأقدم — يضمن الترتيب الصحيح حتى مع تحديث
+    // إشعار موجود مسبقاً (مثل دمج رسالتين متتاليتين) أو وصول دفعة إشعارات
+    // من Firestore بترتيب غير متسلسل تماماً مع مصفوفة العرض المحلية
+    _notifItems.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
     // تصفية حسب الفلتر
     const catMap = {
         program : ['program', 'course', 'exam'],
@@ -33631,7 +34748,7 @@ function _renderNotifList() {
         const timeAgo = _timeAgo(n.ts);
         const iconClass = _iconClass(n.type);
         const unreadDot = !n.read ? 'unread' : '';
-        const actionFn  = n.action_fn ? `onclick="${n.action_fn}; markNotifRead('${n.id}'); toggleNotifPanel();"` : `onclick="markNotifRead('${n.id}')"`;
+        const actionFn  = `onclick="_notifItemClick('${n.id}')"`;
         return `
         <div class="notif-item ${unreadDot}" id="notifItem_${n.id}" ${actionFn}>
             <div class="notif-icon-wrap notif-icon-${n.type}">
@@ -33669,43 +34786,78 @@ function _iconClass(type) {
 // ═══════════════════════════════════════════════════
 //  إجراءات: قراءة / مسح
 // ═══════════════════════════════════════════════════
-function markNotifRead(id) {
-    const n = _notifItems.find(x => x.id === id);
-    if (n) { n.read = true; _saveNotifToStorage(); _renderNotifList(); _updateNotifBadge(); }
-}
-
-function dismissNotif(id) {
-    _notifItems = _notifItems.filter(x => x.id !== id);
-    _saveNotifToStorage();
-    _renderNotifList();
-    _updateNotifBadge();
-    // حذف من Firestore — يختفي بذلك من قاعدة البيانات ومن كل الحسابات
-    if (db) {
-        db.collection('notifications').doc(id).delete()
-            .catch(err => console.warn('dismissNotif: فشل الحذف من Firestore:', err));
+// ═══════════════════════════════════════════════════
+//  تنفيذ إجراء الإشعار عند النقر — دون استخدام eval() إطلاقاً
+//  (بديل آمن: تحويل actionType/بيانات مرافقة إلى استدعاء دالة محدَّدة)
+// ═══════════════════════════════════════════════════
+function _dispatchNotifAction(notif) {
+    if (!notif) return;
+    // توافق مع إشعارات قديمة محفوظة محلياً قبل هذا التحديث: كانت تحمل
+    // convId بدون actionType (كانت تعتمد على action_fn المبني على eval).
+    // بما أن convId لا يُخزَّن إلا لإشعارات الرسائل/المكالمات، يكفي وجوده
+    // لاستنتاج نفس السلوك القديم بأمان دون الحاجة لتنفيذ أي كود مخزَّن
+    const actionType = notif.actionType || (notif.convId ? 'openChat' : null);
+    if (!actionType) return;
+    switch (actionType) {
+        case 'openChat':
+            if (notif.convId) { try { openChatWindow(notif.convId); } catch(_) {} }
+            break;
+        default:
+            break; // نوع إجراء غير معروف — لا تنفيذ تعسفي لأي كود
     }
 }
 
-function markAllNotifRead() {
-    _notifItems.forEach(n => n.read = true);
+// معالج النقر على عنصر إشعار داخل اللوحة
+function _notifItemClick(id) {
+    const n = _notifItems.find(x => x.id === id);
+    _dispatchNotifAction(n);
+    markNotifRead(id);
+    toggleNotifPanel();
+}
+
+function markNotifRead(id) {
+    const n = _notifItems.find(x => x.id === id);
+    if (n) {
+        n.read = true;
+        _notifUserState.read[id] = true;
+        _saveNotifToStorage();
+        _renderNotifList();
+        _updateNotifBadge();
+        _writeNotifUserState('read', [id]);
+    }
+}
+
+// حذف إشعار "عندي" فقط — لا يحذف الوثيقة المشتركة في Firestore، لذا لا
+// يتأثر بقية المستخدمين (أدمن/مدربين/متدربين آخرين) بهذا الإجراء
+function dismissNotif(id) {
+    _notifItems = _notifItems.filter(x => x.id !== id);
+    _notifUserState.dismissed[id] = true;
     _saveNotifToStorage();
     _renderNotifList();
     _updateNotifBadge();
+    _writeNotifUserState('dismissed', [id]);
 }
 
+function markAllNotifRead() {
+    const ids = _notifItems.map(n => n.id);
+    _notifItems.forEach(n => { n.read = true; _notifUserState.read[n.id] = true; });
+    _saveNotifToStorage();
+    _renderNotifList();
+    _updateNotifBadge();
+    _writeNotifUserState('read', ids);
+}
+
+// مسح كل الإشعارات "عندي" فقط — يُخفيها من حسابي وحده عبر تسجيلها كمحذوفة
+// في notifUserState الخاصة بي، دون حذف الوثائق المشتركة من Firestore
 function clearAllNotif() {
-    if (!confirm('هل تريد مسح جميع الإشعارات؟')) return;
-    const idsToDelete = _notifItems.map(n => n.id);
+    if (!confirm('هل تريد مسح جميع الإشعارات من عندك؟')) return;
+    const ids = _notifItems.map(n => n.id);
+    ids.forEach(id => { _notifUserState.dismissed[id] = true; });
     _notifItems = [];
     _saveNotifToStorage();
     _renderNotifList();
     _updateNotifBadge();
-    // حذف كل الإشعارات من Firestore — تختفي بذلك من القاعدة ومن كل الحسابات
-    if (db && idsToDelete.length) {
-        const batch = db.batch();
-        idsToDelete.forEach(id => batch.delete(db.collection('notifications').doc(id)));
-        batch.commit().catch(err => console.warn('clearAllNotif: فشل الحذف الجماعي من Firestore:', err));
-    }
+    _writeNotifUserState('dismissed', ids);
 }
 
 // ═══════════════════════════════════════════════════
@@ -33749,7 +34901,7 @@ function _showNotifToast(notif) {
     el.style.background = 'rgba(255,255,255,0.95)';
     el.style.backdropFilter = 'blur(16px)';
     el.onclick = () => {
-        if (notif.action_fn) { try { eval(notif.action_fn); } catch(_) {} }
+        _dispatchNotifAction(notif);
         markNotifRead(notif.id);
         el.remove();
     };
@@ -33789,22 +34941,24 @@ function _timeAgo(ts) {
 // ═══════════════════════════════════════════════════
 
 // ── 1. برنامج جديد أو تحديث ──
-function _notifOnProgramSave(isEdit, programTitle) {
+function _notifOnProgramSave(isEdit, programTitle, programKey) {
     addNotification({
         type  : 'program',
         action: isEdit ? 'update' : 'add',
         title : isEdit ? '✏️ تحديث برنامج' : '📚 برنامج تدريبي جديد',
-        body  : programTitle || 'تم ' + (isEdit ? 'تحديث' : 'إضافة') + ' برنامج تدريبي'
+        body  : programTitle || 'تم ' + (isEdit ? 'تحديث' : 'إضافة') + ' برنامج تدريبي',
+        programKey
     });
 }
 
 // ── 2. دورة جديدة أو تحديث ──
-function _notifOnCourseSave(isEdit, courseCode, programTitle) {
+function _notifOnCourseSave(isEdit, courseCode, programTitle, programKey, courseKey) {
     addNotification({
         type  : 'course',
         action: isEdit ? 'update' : 'add',
         title : isEdit ? '✏️ تحديث دورة' : '🎓 دورة جديدة',
-        body  : (courseCode || 'دورة') + (programTitle ? ' — ' + programTitle : '')
+        body  : (courseCode || 'دورة') + (programTitle ? ' — ' + programTitle : ''),
+        programKey, courseKey
     });
 }
 
@@ -33873,12 +35027,20 @@ function sendFeatureNotification(title, body) {
             window.saveProgramModal = async function() {
                 // قراءة حالة الوضع قبل الاستدعاء
                 const isEdit  = (typeof modalMode !== 'undefined' && modalMode === 'edit');
+                const editKeyBefore = (typeof modalActiveKey !== 'undefined') ? modalActiveKey : null;
+                const keysBefore = (typeof programsData !== 'undefined') ? Object.keys(programsData) : [];
                 const nameAr  = document.getElementById('programNameArInput')?.value?.trim() ||
                                 document.getElementById('progNameAr')?.value?.trim() || '';
                 const nameEn  = document.getElementById('programNameEnInput')?.value?.trim() ||
                                 document.getElementById('progNameEn')?.value?.trim() || '';
                 const result  = await _origSaveProg.apply(this, arguments);
-                _notifOnProgramSave(isEdit, (nameAr || nameEn));
+                // البرنامج المعنيّ: مفتاحه عند التعديل معروف مسبقاً، وعند
+                // الإضافة نستنتجه بالفرق بين مفاتيح programsData قبل/بعد الحفظ
+                let programKey = isEdit ? editKeyBefore : null;
+                if (!isEdit && typeof programsData !== 'undefined') {
+                    programKey = Object.keys(programsData).find(k => !keysBefore.includes(k)) || null;
+                }
+                _notifOnProgramSave(isEdit, (nameAr || nameEn), programKey);
                 return result;
             };
         }
@@ -33890,11 +35052,19 @@ function sendFeatureNotification(title, body) {
                 const isEdit    = (typeof courseModalMode !== 'undefined' && courseModalMode === 'edit');
                 const code      = document.getElementById('courseCodeInput')?.value?.trim() || '';
                 const progKey   = typeof courseModalProgramKey !== 'undefined' ? courseModalProgramKey : '';
+                const editCourseKeyBefore = (typeof courseModalActiveCourseKey !== 'undefined') ? courseModalActiveCourseKey : null;
+                const courseKeysBefore = (typeof programsData !== 'undefined' && programsData[progKey])
+                                          ? (programsData[progKey].courses || []).map(c => c.key) : [];
                 const progTitle = (typeof programsData !== 'undefined' && programsData[progKey])
                                   ? (programsData[progKey].title || programsData[progKey].titleEn || progKey)
                                   : progKey;
                 const result    = await _origSaveCourse.apply(this, arguments);
-                _notifOnCourseSave(isEdit, code, progTitle);
+                let courseKey = isEdit ? editCourseKeyBefore : null;
+                if (!isEdit && typeof programsData !== 'undefined' && programsData[progKey]) {
+                    const newCourse = (programsData[progKey].courses || []).find(c => !courseKeysBefore.includes(c.key));
+                    courseKey = newCourse ? newCourse.key : null;
+                }
+                _notifOnCourseSave(isEdit, code, progTitle, progKey, courseKey);
                 return result;
             };
         }
@@ -33945,7 +35115,7 @@ function sendFeatureNotification(title, body) {
                 const result = await _origDeleteProgram.apply(this, arguments);
                 const stillExists = !!(typeof programsData !== 'undefined' && programsData[programKey]);
                 if (existedBefore && !stillExists) {
-                    addNotification({ type:'program', action:'delete', title:'🗑️ حذف برنامج', body: title });
+                    addNotification({ type:'program', action:'delete', title:'🗑️ حذف برنامج', body: title, programKey });
                 }
                 return result;
             };
@@ -33962,7 +35132,7 @@ function sendFeatureNotification(title, body) {
                 const result = await _origDeleteCourse.apply(this, arguments);
                 const stillExists = !!(prog && prog.courses && prog.courses.find(c => c.key === courseKey));
                 if (courseBefore && !stillExists) {
-                    addNotification({ type:'course', action:'delete', title:'🗑️ حذف دورة', body: code + (progTitle ? ' — ' + progTitle : '') });
+                    addNotification({ type:'course', action:'delete', title:'🗑️ حذف دورة', body: code + (progTitle ? ' — ' + progTitle : ''), programKey, courseKey });
                 }
                 return result;
             };
@@ -34159,7 +35329,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         const panel = document.getElementById('sidebarLiveSessionsList');
         if (!panel) return false;
         sidebarMode = 'liveSessions';
-        ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+        ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
         panel.classList.remove('hidden');
 
