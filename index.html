@@ -2510,15 +2510,27 @@
                  تعرض إما رسالة "اضغط + لإضافة معلومة" أو نموذج إضافة معلومة
                  جديدة (spDesignerForm) حسب الحالة النشطة -->
             <div id="studentPediaView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
-                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <div id="spHeaderIcon" class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
-                        <i class="ph ph-student"></i>
+                <div class="mb-5 pb-4 border-b border-white/40">
+                    <div class="flex items-center gap-3">
+                        <div id="spHeaderIcon" class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
+                            <i class="ph ph-student"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h2 id="spHeaderTitle" class="text-xl font-bold text-gray-800">الموسوعة الطلابية</h2>
+                            <p id="spHeaderSubtitle" class="text-xs text-gray-400">مشاركة معلومات وأفكار المتدربين مع بعضهم البعض (تعليم الأقران)</p>
+                        </div>
+                        <div id="spHeaderActions" class="hidden items-center gap-1.5 flex-wrap flex-shrink-0"></div>
                     </div>
-                    <div class="min-w-0 flex-1">
-                        <h2 id="spHeaderTitle" class="text-xl font-bold text-gray-800">الموسوعة الطلابية</h2>
-                        <p id="spHeaderSubtitle" class="text-xs text-gray-400">مشاركة معلومات وأفكار المتدربين مع بعضهم البعض (تعليم الأقران)</p>
+                    <!-- صف تعديل/حذف ثم إعجاب/عدم إعجاب — يظهر أسفل اسم وعنوان
+                         المعلومة مباشرة، فقط عند عرض معلومة محفوظة (وليس عند
+                         الإضافة/التعديل). العدد يظهر للجميع، وقائمة أسماء
+                         المصوّتين تظهر للأدمن فقط عبر الضغط على العدد -->
+                    <div id="spViewActionsRow" class="hidden items-center gap-2 flex-wrap mt-3">
+                        <div id="spViewManageActions" class="flex items-center gap-1.5 flex-wrap"></div>
+                        <div id="spViewVotesRow" class="flex items-center gap-2">
+                            <!-- يُبنى بواسطة spRenderVoteWidget() -->
+                        </div>
                     </div>
-                    <div id="spHeaderActions" class="hidden items-center gap-1.5 flex-wrap flex-shrink-0"></div>
                 </div>
 
                 <!-- حالة افتراضية: لا توجد معلومة قيد الإضافة أو العرض -->
@@ -2538,12 +2550,6 @@
                         <div id="spViewInfoGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <!-- يُبنى بواسطة spRenderEntryInfoSection() -->
                         </div>
-                    </div>
-
-                    <!-- إعجاب / عدم إعجاب — العدد فقط يظهر للجميع، وقائمة أسماء
-                         المصوّتين تظهر للأدمن فقط عبر الضغط على العدد -->
-                    <div id="spViewVotesRow" class="flex items-center gap-2">
-                        <!-- يُبنى بواسطة spRenderVoteWidget() -->
                     </div>
 
                     <div id="spViewAttachmentsCard" class="hidden glass-element rounded-2xl p-5">
@@ -9730,6 +9736,8 @@
             spResetHeaderTitle();
             const el = document.getElementById('spHeaderActions');
             if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+            const row = document.getElementById('spViewActionsRow');
+            if (row) { row.classList.add('hidden'); row.classList.remove('flex'); }
         }
         function spShowDesignerForm() {
             spHideAllBodies();
@@ -9759,12 +9767,15 @@
                 btns.push(['ph-trash', 'حذف', `spDeleteEntry('${entryId}')`, 'text-red-500 hover:bg-red-50 hover:border-red-300']);
                 btns.push(['ph-pencil-simple', 'تعديل', `spEditExistingEntry('${entryId}')`, 'text-primary hover:bg-primary/10 hover:border-primary/40']);
             }
-            const el = document.getElementById('spHeaderActions');
-            if (el) {
-                el.innerHTML = btns.map(b => spHeaderBtnDesktop(...b)).join('');
-                el.classList.toggle('hidden', btns.length === 0);
-                el.classList.toggle('flex', btns.length > 0);
-            }
+            const manageEl = document.getElementById('spViewManageActions');
+            if (manageEl) manageEl.innerHTML = btns.map(b => spHeaderBtnDesktop(...b)).join('');
+
+            const row = document.getElementById('spViewActionsRow');
+            if (row) { row.classList.remove('hidden'); row.classList.add('flex'); }
+
+            // أزرار الحفظ/الإلغاء الخاصة بنموذج الإضافة/التعديل لا تظهر أثناء العرض
+            const headerActionsEl = document.getElementById('spHeaderActions');
+            if (headerActionsEl) { headerActionsEl.innerHTML = ''; headerActionsEl.classList.add('hidden'); headerActionsEl.classList.remove('flex'); }
         }
         function spSetHeaderActionsEdit() {
             const btns = [
@@ -9776,6 +9787,9 @@
                 el.innerHTML = btns.map(b => spHeaderBtnDesktop(...b)).join('');
                 el.classList.remove('hidden'); el.classList.add('flex');
             }
+            // صف تعديل/حذف + إعجاب/عدم إعجاب خاص بحالة العرض فقط، يُخفى أثناء التصميم
+            const row = document.getElementById('spViewActionsRow');
+            if (row) { row.classList.add('hidden'); row.classList.remove('flex'); }
         }
 
         // زر "+" أعلى القائمة الجانبية — يبدأ إضافة معلومة جديدة
@@ -10221,6 +10235,9 @@
                             </button>
                         </div>` : ''}
                     </div>
+                    <div class="flex items-center gap-2 mt-2 pt-2 border-t border-white/40">
+                        ${spVoteButtonsHtml(e, true)}
+                    </div>
                 </div>`;
             }).join('');
         }
@@ -10423,26 +10440,39 @@
             return v ? v.type : null;
         }
 
-        // بناء صف أزرار الإعجاب/عدم الإعجاب أسفل بيانات المعلومة المعروضة
-        function spRenderVoteWidget(e) {
-            const row = document.getElementById('spViewVotesRow');
-            if (!row) return;
+        // يبني HTML أزرار الإعجاب/عدم الإعجاب لمعلومة معينة — قابل لإعادة
+        // الاستخدام في صف العرض الرئيسي وفي بطاقة القائمة الجانبية. العدد
+        // يظهر للجميع، وعرض قائمة المصوّتين (بالضغط على العدد) للأدمن فقط.
+        // compact=true يستخدم أزراراً أصغر تناسب بطاقة القائمة الجانبية،
+        // ويوقف انتشار الضغطة (event.stopPropagation) حتى لا يفتح المعلومة
+        function spVoteButtonsHtml(e, compact) {
             const myVote   = spMyVote(e);
             const likes    = spVoteCount(e, 'like');
             const dislikes = spVoteCount(e, 'dislike');
             const isAdmin  = currentUser && currentUser.role === 'admin';
+            const idSafe   = (e.id || '').replace(/'/g, "\\'");
+            const stop     = compact ? 'event.stopPropagation(); ' : '';
+            const btnSize  = compact ? 'w-7 h-7' : 'w-8 h-8';
+            const iconSize = compact ? ' text-xs' : '';
 
-            row.innerHTML = `
-                <button onclick="spToggleVote('${(e.id || '').replace(/'/g, "\\'")}','like')" class="glass-icon-btn w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${myVote === 'like' ? 'text-primary' : 'text-gray-400'}" title="إعجاب">
-                    <i class="ph ${myVote === 'like' ? 'ph-fill ph-thumbs-up' : 'ph-thumbs-up'}"></i>
+            return `
+                <button onclick="${stop}spToggleVote('${idSafe}','like')" class="glass-icon-btn ${btnSize} rounded-full flex items-center justify-center text-sm shrink-0 ${myVote === 'like' ? 'text-primary' : 'text-gray-400'}" title="إعجاب">
+                    <i class="ph ${myVote === 'like' ? 'ph-fill ph-thumbs-up' : 'ph-thumbs-up'}${iconSize}"></i>
                 </button>
-                <span class="text-xs text-gray-500 -mr-1 ${isAdmin ? 'cursor-pointer hover:text-primary hover:underline' : ''}" ${isAdmin ? `onclick="spOpenVotersModal('${(e.id || '').replace(/'/g, "\\'")}','like')" title="عرض من أعجبته المعلومة"` : ''}>${likes}</span>
+                <span class="text-xs text-gray-500 -mr-1 ${isAdmin ? 'cursor-pointer hover:text-primary hover:underline' : ''}" ${isAdmin ? `onclick="${stop}spOpenVotersModal('${idSafe}','like')" title="عرض من أعجبته المعلومة"` : ''}>${likes}</span>
 
-                <button onclick="spToggleVote('${(e.id || '').replace(/'/g, "\\'")}','dislike')" class="glass-icon-btn w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${myVote === 'dislike' ? 'text-red-500' : 'text-gray-400'}" title="عدم إعجاب">
-                    <i class="ph ${myVote === 'dislike' ? 'ph-fill ph-thumbs-down' : 'ph-thumbs-down'}"></i>
+                <button onclick="${stop}spToggleVote('${idSafe}','dislike')" class="glass-icon-btn ${btnSize} rounded-full flex items-center justify-center text-sm shrink-0 ${myVote === 'dislike' ? 'text-red-500' : 'text-gray-400'}" title="عدم إعجاب">
+                    <i class="ph ${myVote === 'dislike' ? 'ph-fill ph-thumbs-down' : 'ph-thumbs-down'}${iconSize}"></i>
                 </button>
-                <span class="text-xs text-gray-500 -mr-1 ${isAdmin ? 'cursor-pointer hover:text-red-500 hover:underline' : ''}" ${isAdmin ? `onclick="spOpenVotersModal('${(e.id || '').replace(/'/g, "\\'")}','dislike')" title="عرض من لم تعجبه المعلومة"` : ''}>${dislikes}</span>
+                <span class="text-xs text-gray-500 -mr-1 ${isAdmin ? 'cursor-pointer hover:text-red-500 hover:underline' : ''}" ${isAdmin ? `onclick="${stop}spOpenVotersModal('${idSafe}','dislike')" title="عرض من لم تعجبه المعلومة"` : ''}>${dislikes}</span>
             `;
+        }
+
+        // بناء صف أزرار الإعجاب/عدم الإعجاب أسفل اسم وعنوان المعلومة المعروضة
+        function spRenderVoteWidget(e) {
+            const row = document.getElementById('spViewVotesRow');
+            if (!row) return;
+            row.innerHTML = spVoteButtonsHtml(e, false);
         }
 
         // تبديل تصويت المستخدم الحالي (إعجاب/عدم إعجاب) على معلومة محفوظة —
@@ -10471,6 +10501,7 @@
             }
 
             spRenderVoteWidget(entry);
+            spRenderSidebarList();
             await spPersistVotes(entryId, entry.votes);
         }
 
@@ -14019,6 +14050,10 @@
         function updateSidebarAddButton() {
             const btn = document.getElementById('sidebarAddBtn');
             if (!btn) return;
+            // إعادة ضبط القيد الافتراضي (ظهور للأدمن فقط) قبل فحص كل حالة —
+            // بعض اللوحات مثل الموسوعة الطلابية تلغي هذا القيد لاحقاً لتسمح
+            // لجميع المسجلين (غير الزوار) بالإضافة
+            btn.classList.add('admin-only');
             if (sidebarMode === 'registry') {
                 updateRegistryAddButton();
                 return;
@@ -14056,9 +14091,12 @@
             }
             if (sidebarMode === 'studentPedia') {
                 // زر إنشاء معلومة جديدة أعلى لوحة "الموسوعة الطلابية" —
-                // يبدأ نموذج إضافة معلومة جديدة من المتدرب الحالي
+                // يبدأ نموذج إضافة معلومة جديدة من المستخدم الحالي. يُسمح
+                // بالإضافة لجميع المسجلين (مدرب/متدرب/أدمن) بنفس الآلية،
+                // ويُمنع الزوار فقط من الإضافة
                 btn.title = 'إنشاء معلومة جديدة';
-                btn.classList.remove('hidden');
+                btn.classList.remove('admin-only');
+                btn.classList.toggle('hidden', document.body.classList.contains('guest-mode'));
                 return;
             }
             if (sidebarMode === 'refLib') {
