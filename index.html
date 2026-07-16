@@ -18829,7 +18829,10 @@
                 return;
             }
 
-            const sortedTrainees = sortItems(registryTrainees, t => t.nameAr, t => t.registrationDate);
+            // الترتيب حسب "الأحدث/الأقدم" يعتمد على وقت إضافة المتدرب الفعلي للنظام
+            // (createdAt، بالتاريخ والساعة) وليس تاريخ التسجيل المُدخَل يدوياً — مع
+            // الرجوع لتاريخ التسجيل فقط للمتدربين القدامى الذين لا يملكون createdAt
+            const sortedTrainees = sortItems(registryTrainees, t => t.nameAr, t => t.createdAt || t.registrationDate);
             sortedTrainees.forEach(trainee => {
                 const isActive = trainee.id === activeTraineeId;
                 const card = document.createElement('div');
@@ -21642,6 +21645,7 @@
                 }
             } else {
                 traineeCodeCounter++;
+                traineeData.createdAt = new Date(); // وقت الإضافة الفعلي للنظام (لا علاقة له بتاريخ التسجيل المُدخَل يدوياً) — يُستخدم لاحقاً في إعادة الترتيب حسب الأحدث/الأقدم
                 const courseCtx = pendingCourseTraineeContext;
                 closeRegistryTraineeModal();
                 showToast('⏳ جاري الحفظ...', 'info');
