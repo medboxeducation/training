@@ -7102,6 +7102,18 @@
                 }, err => console.warn('msgs listener error', err));
         }
 
+        // يحدّد صاحب معرّف الدخول (uid) هل هو متدرب أو مدرب في السجلات، ويعيد
+        // نفس رابط الملف الشخصي المستخدم لبناء كيو ار كوده في سجل المتدربين/
+        // المدربين — بدل توليد كيو ار كود جديد خاص بالمحادثة
+        function getRegistryProfileURLForUid(uid) {
+            if (!uid) return null;
+            const trainee = registryTrainees.find(t => t.authUid === uid);
+            if (trainee) return getTraineeProfileURL(trainee.id);
+            const trainer = registryTrainers.find(t => t.authUid === uid);
+            if (trainer) return getTrainerProfileURL(trainer.id);
+            return null;
+        }
+
         // ── تحديث هيدر نافذة المحادثة ──
         function _updateChatHeader(conv) {
             const isOnline  = chatOnlineStatus[conv.otherUid] || false;
@@ -7117,12 +7129,13 @@
                 onlineDot.title = isOnline ? 'متصل' : 'غير متصل';
             }
             updateChatContactStatus(_getContactStatusState(conv.otherUid, conv.id));
-            // QR
+            // QR — نفس كيو ار كود الملف الشخصي للمتدرب/المدرب في السجل، وليس كيو ار كود جديد للمحادثة
             const qrDiv = document.getElementById('chatHeaderQR');
             if (qrDiv) {
                 qrDiv.innerHTML = '';
                 try {
-                    new QRCode(qrDiv, { text: conv.code || conv.id || 'chat', width:52, height:52, colorDark: '#0790AC', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+                    const profileURL = getRegistryProfileURLForUid(conv.otherUid) || conv.code || conv.id || 'chat';
+                    new QRCode(qrDiv, { text: profileURL, width:52, height:52, colorDark: '#0790AC', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
                 } catch(e) { qrDiv.innerHTML = '<i class="ph ph-qr-code text-2xl text-primary/60"></i>'; }
             }
         }
@@ -13042,7 +13055,7 @@
 
         // ── ثوابت المجلد على Drive ──────────────────────────────────────
         const DRIVE_FOLDER_NAME = 'MedBox Education Backups';
-        const DRIVE_SCOPES      = 'https://www.googleapis.com/auth/drive.file';
+        const DRIVE_SCOPES      = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
         const SYNC_FILES = ['programs.json','trainers.json','trainees.json','settings.json'];
 
         let gapiReady   = false;   // هل gapi.client جاهز؟
@@ -13180,10 +13193,11 @@
             try {
                 const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo',
                     { headers: { Authorization: 'Bearer ' + token } });
+                if (!r.ok) { appendSyncLog('⚠️ تعذّر جلب اسم حساب Google (صلاحية ناقصة) — الاسم: ' + r.status, 'warn'); return; }
                 const u = await r.json();
                 document.getElementById('driveUserName').textContent  = u.name  || '—';
                 document.getElementById('driveUserEmail').textContent = u.email || '—';
-            } catch(_) {}
+            } catch(e) { appendSyncLog('⚠️ تعذّر جلب بيانات حساب Google: ' + e.message, 'warn'); }
         }
 
         // ── تسجيل الخروج ─────────────────────────────────────────────────
@@ -15603,18 +15617,6 @@
             openSidebar();
         }
 
-        // ── عرض جميع الامتحانات المسجلة لبرنامج كامل (كل الدورات المسموحة) ──
-        // تُستدعى من زر "الامتحانات" في هيدر بيانات البرنامج بلوحة العرض
-        // الرئيسية. تفتح القائمة الجانبية (إن كانت مغلقة) وتعرض كل امتحان
-        // محفوظ ضمن أي دورة من دورات البرنامج المسموحة للمستخدم الحالي،
-        // بصرف النظر عن الدورة. تزيل التكرار عبر id الامتحان لأن الامتحان
-        // الواحد قد يكون مرتبطاً بأكثر من دورة (courseKeys).
-        let _emsSidebarProgramExamsCurrent = []; // [{exam, course}] المعروضة حالياً
-
-        // ─── عرض امتحانات البرنامج في لوحة العرض الرئيسية (الموبايل) ─────
-        // نفس بيانات ومحتوى بطاقات الامتحان المعروضة في القائمة الجانبية
-        // للشاشات الكبيرة، لكن مرسومة داخل لوحة العرض الرئيسية لنظام
-        // الامتحانات (examinationView) بدل القائمة الجانبية
         // ─── يحدد السطر الثالث في بطاقة الامتحان: رمز الدورة عادةً، أو اسم/أسماء
         // المتدرب(ين) إن كان الامتحان مُسجَّلاً مباشرة لمتدرب حر دون أي دورة ───
         function esExamCourseOrTraineeLabel(exam, ck) {
@@ -15625,257 +15627,6 @@
                 return { label: exam.assignedTraineeNames.join('، '), isTrainee: true };
             }
             return { label: exam.courseCode || ck || '', isTrainee: false };
-        }
-
-        function _renderProgramExamsMainView(programKey, items) {
-            const program = programsData[programKey];
-            showView('examinationView');
-            document.getElementById('examinationViewTitle').textContent = 'امتحانات البرنامج';
-            document.getElementById('examinationViewSubtitle').textContent = program?.title || '';
-            document.getElementById('examinationViewActions').innerHTML = `
-                <button onclick="showProgramDetails('${programKey}')"
-                    class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
-                    <i class="ph ph-arrow-right text-sm"></i> رجوع لبيانات البرنامج
-                </button>`;
-
-            if (!items || items.length === 0) {
-                document.getElementById('examinationViewBody').innerHTML = `
-                    <div class="text-center py-16 text-gray-400">
-                        <i class="ph ph-exam text-4xl block mb-3 text-gray-300"></i>
-                        <p class="text-sm">لا يوجد امتحان مسجَّل لهذا البرنامج بعد</p>
-                    </div>`;
-                return;
-            }
-
-            const role      = currentUser ? String(currentUser.role || '').trim().toLowerCase() : '';
-            const isAdmin   = role === 'admin';
-            const isTrainer = role === 'trainer';
-
-            const cardsHTML = items.map((item, idx) => {
-                const { exam, course } = item;
-                const courseKey = course.key;
-                const locked    = exam?.id ? !!_emsSubmissionLockCache[exam.id] : false;
-                const canManage = !locked && (isAdmin || (isTrainer && !!(course.mainTrainer && course.mainTrainer.includes(currentUser?.name || currentUser?.displayName || ''))));
-                const typeInfo  = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
-                const qCount    = exam.questions?.length || 0;
-                const totalMark = exam.totalMark || 0;
-                const examDateStr = exam.examDate
-                    ? exam.examDate + (exam.examTime ? ' · ' + exam.examTime : '')
-                    : '—';
-                const courseOrTrainee = esExamCourseOrTraineeLabel(exam, courseKey);
-
-                return `
-                <div class="glass-element p-3 rounded-xl cursor-pointer hover:border-primary/50 transition-all hover:-translate-y-0.5 mb-2"
-                    onclick="emsCurrentProgramKey='${programKey}'; emsCurrentCourseKey='${courseKey}'; emsShowExamViewer('${programKey}','${courseKey}', _emsSidebarProgramExamsCurrent[${idx}].exam)">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <div class="flex items-center gap-1.5 min-w-0">
-                            <div class="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-sm shrink-0">
-                                <i class="ph ${typeInfo.icon}"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <p class="font-bold text-sm text-gray-800 truncate">${escapeHtml(exam.subjectName || esExamTypeLabel(exam))}</p>
-                                ${(exam.academicYear || exam.semester) ? `<p class="text-[10px] text-gray-400 truncate">${escapeHtml([exam.academicYear, exam.semester].filter(Boolean).join(' · '))}</p>` : ''}
-                                ${courseOrTrainee.label ? `<p class="text-[10px] text-gray-400 truncate flex items-center gap-1"><i class="ph ${courseOrTrainee.isTrainee ? 'ph-user' : 'ph-bookmark-simple'} text-[9px]"></i> ${escapeHtml(courseOrTrainee.label)}</p>` : ''}
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
-                            ${canManage ? `
-                            <button onclick="emsCurrentProgramKey='${programKey}'; emsCurrentCourseKey='${courseKey}'; emsRequestEditExam('${programKey}','${courseKey}','${exam.id}')"
-                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
-                                <i class="ph ph-pencil-simple text-xs"></i>
-                            </button>
-                            <button onclick="emsConfirmDeleteExam('${programKey}','${courseKey}','${exam.id}')"
-                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
-                                <i class="ph ph-trash text-xs"></i>
-                            </button>` : ''}
-                            <button onclick="emsPrintExam('${programKey}','${courseKey}','${exam.id}')"
-                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100" title="طباعة">
-                                <i class="ph ph-printer text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <p class="text-[10px] text-gray-500 flex items-center gap-1 mb-2">
-                        <i class="ph ph-calendar-blank text-primary text-xs"></i> ${examDateStr}
-                    </p>
-                    <div class="flex flex-wrap gap-1">
-                        <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${qCount} سؤال</span>
-                        <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${totalMark} علامة</span>
-                        ${exam.duration ? `<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${exam.duration} د</span>` : ''}
-                        ${locked ? `<span class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1"><i class="ph ph-lock-key"></i>مقفل</span>` : ''}
-                    </div>
-                </div>`;
-            }).join('');
-
-            document.getElementById('examinationViewBody').innerHTML = `
-                <div class="space-y-2">
-                    <div class="px-1 py-1 mb-1">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1">
-                            <i class="ph ph-exam text-xs text-primary"></i> جميع الامتحانات المسجلة (${items.length})
-                        </span>
-                    </div>
-                    ${cardsHTML}
-                </div>`;
-        }
-
-        async function _buildSidebarExamPanelForProgram(programKey) {
-            const program = programsData[programKey];
-            if (!program) return;
-
-            const allowedCourses = emsAllowedCoursesForProgram(programKey);
-            if (allowedCourses.length === 0) {
-                showToast?.('⛔ لا توجد دورات مسجل فيها كمدرب أساسي ضمن هذا البرنامج', 'error');
-                return;
-            }
-
-            // تفعيل مستوى "exam" في القائمة الجانبية — زر "+" العلوي (بجانب
-            // زر الترتيب) يتحول تلقائياً إلى "إنشاء امتحان جديد" طالما هذا
-            // المستوى مفعّل (عبر updateSidebarAddButton/handleSidebarAddClick)
-            sidebarLevel = 'exam';
-            activeProgramKey = programKey;
-            activeCourseKey  = null;
-
-            // تحميل امتحانات كل دورة مسموحة لم تُحمَّل بعد
-            await Promise.all(allowedCourses.map(c => {
-                if (!getCachedExamList(programKey, c.key)) return emsLoadExam(programKey, c.key);
-                return Promise.resolve();
-            }));
-
-            // تجميع كل الامتحانات من كل الدورات مع إزالة التكرار حسب id الامتحان
-            const byId = {};
-            allowedCourses.forEach(course => {
-                const list = getCachedExamList(programKey, course.key) || [];
-                list.forEach(exam => {
-                    if (!byId[exam.id]) byId[exam.id] = { exam, course };
-                });
-            });
-            const items = Object.values(byId).sort((a, b) => {
-                const ta = new Date(a.exam.updatedAt || a.exam.createdAt || 0).getTime();
-                const tb = new Date(b.exam.updatedAt || b.exam.createdAt || 0).getTime();
-                return tb - ta; // الأحدث أولاً
-            });
-
-            _emsSidebarProgramExamsCurrent = items;
-
-            // على الموبايل: اعرض امتحانات البرنامج في لوحة العرض الرئيسية الخاصة
-            // بنظام الامتحانات مباشرة، مع إخفاء القائمة الجانبية بدل فتحها —
-            // بخلاف الشاشات الكبيرة حيث تبقى القائمة الجانبية هي وسيلة التصفح
-            if (window.innerWidth < 768) {
-                _renderProgramExamsMainView(programKey, items);
-                closeSidebar();
-                return;
-            }
-
-            // إخفاء القائمة الرئيسية وإظهار لوحة الامتحان المستقلة
-            const mainList  = document.getElementById('sidebarProgramList');
-            const examPanel = document.getElementById('sidebarExamPanel');
-            if (mainList)  mainList.classList.add('hidden');
-            if (examPanel) {
-                examPanel.classList.remove('hidden');
-                examPanel.innerHTML = '';
-            } else return;
-
-            // هيدر: رجوع + عنوان البرنامج + زر "+" لإنشاء امتحان جديد (بنفس الطريقة المعتمدة حالياً)
-            const header = document.createElement('div');
-            header.className = 'flex items-center gap-2 pb-2 mb-2 border-b border-white/30';
-            header.innerHTML = `
-                <button class="w-7 h-7 rounded-full glass-icon-btn flex items-center justify-center text-primary flex-shrink-0 hover:bg-primary/10"
-                    onclick="_hideSidebarExamPanel(); buildSidebarCourses('${programKey}')" title="رجوع">
-                    <i class="ph ph-arrow-right text-sm"></i>
-                </button>
-                <div class="flex-1 min-w-0">
-                    <button onclick="showProgramDetails('${programKey}')" class="text-[10px] text-gray-400 hover:text-primary transition-colors truncate block text-right w-full">${program.title}</button>
-                    <span class="text-xs font-bold text-primary truncate block text-right w-full">امتحانات البرنامج</span>
-                </div>
-            `;
-            examPanel.appendChild(header);
-            // تحديث زر "+" العلوي (بجانب زر الترتيب) ليصبح "إنشاء امتحان جديد"
-            updateSidebarAddButton();
-
-            // عنوان
-            const subTitle = document.createElement('div');
-            subTitle.className = 'px-1 py-1 mb-2';
-            subTitle.innerHTML = `<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><i class="ph ph-exam text-xs text-primary"></i> جميع الامتحانات المسجلة${items.length ? ` (${items.length})` : ''}</span>`;
-            examPanel.appendChild(subTitle);
-
-            if (items.length === 0) {
-                const empty = document.createElement('div');
-                empty.className = 'text-center py-10 text-gray-400';
-                empty.innerHTML = `<i class="ph ph-exam text-3xl block mb-2 text-gray-300"></i><p class="text-sm">لا يوجد امتحان مسجَّل لهذا البرنامج بعد</p>`;
-                examPanel.appendChild(empty);
-                openSidebar();
-                return;
-            }
-
-            const role      = currentUser ? String(currentUser.role || '').trim().toLowerCase() : '';
-            const isAdmin   = role === 'admin';
-            const isTrainer = role === 'trainer';
-
-            // بطاقة لكل امتحان محفوظ (من أي دورة ضمن البرنامج)
-            items.forEach((item, idx) => {
-                const { exam, course } = item;
-                const courseKey = course.key;
-                const locked    = exam?.id ? !!_emsSubmissionLockCache[exam.id] : false;
-                const canManage = !locked && (isAdmin || (isTrainer && !!(course.mainTrainer && course.mainTrainer.includes(currentUser?.name || currentUser?.displayName || ''))));
-                const typeInfo  = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
-                const qCount    = exam.questions?.length || 0;
-                const totalMark = exam.totalMark || 0;
-                const examDateStr = exam.examDate
-                    ? exam.examDate + (exam.examTime ? ' · ' + exam.examTime : '')
-                    : '—';
-
-                const card = document.createElement('div');
-                card.className = 'glass-element p-3 rounded-xl cursor-pointer hover:border-primary/50 transition-all hover:-translate-y-0.5 mb-2';
-                card.onclick = () => {
-                    emsCurrentProgramKey = programKey;
-                    emsCurrentCourseKey  = courseKey;
-                    emsShowExamViewer(programKey, courseKey, _emsSidebarProgramExamsCurrent[idx].exam);
-                    if (window.innerWidth < 768) closeSidebar();
-                };
-                card.innerHTML = `
-                    <!-- صف النوع + اسم المقرر + أزرار -->
-                    <div class="flex items-center justify-between mb-1.5">
-                        <div class="flex items-center gap-1.5 min-w-0">
-                            <div class="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-sm shrink-0">
-                                <i class="ph ${typeInfo.icon}"></i>
-                            </div>
-                            <span class="font-bold text-sm text-gray-800 truncate">${typeInfo.ar}</span>
-                            ${exam.subjectName ? `<span class="text-[10px] text-gray-400 truncate">— ${exam.subjectName}</span>` : ''}
-                        </div>
-                        <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
-                            ${canManage ? `
-                            <button onclick="emsCurrentProgramKey='${programKey}'; emsCurrentCourseKey='${courseKey}'; emsRequestEditExam('${programKey}','${courseKey}','${exam.id}')"
-                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
-                                <i class="ph ph-pencil-simple text-xs"></i>
-                            </button>
-                            <button onclick="emsConfirmDeleteExam('${programKey}','${courseKey}','${exam.id}')"
-                                class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
-                                <i class="ph ph-trash text-xs"></i>
-                            </button>` : ''}
-                            <div class="flex flex-col gap-1">
-                                <button onclick="emsPrintExam('${programKey}','${courseKey}','${exam.id}')"
-                                    class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100" title="طباعة">
-                                    <i class="ph ph-printer text-xs"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- تاريخ الامتحان -->
-                    <p class="text-[10px] text-gray-500 flex items-center gap-1 mb-2">
-                        <i class="ph ph-calendar-blank text-primary text-xs"></i> ${examDateStr}
-                    </p>
-                    <!-- شارات -->
-                    <div class="flex flex-wrap gap-1">
-                        <span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">${qCount} سؤال</span>
-                        <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${totalMark} علامة</span>
-                        ${exam.duration ? `<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${exam.duration} د</span>` : ''}
-                        ${locked ? `<span class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1"><i class="ph ph-lock-key"></i>مقفل</span>` : ''}
-                    </div>
-                `;
-                examPanel.appendChild(card);
-            });
-
-            // فتح الشريط الجانبي إن كان مغلقاً
-            openSidebar();
         }
 
         // بناء HTML جدول الدرجات الشامل - المرحلة 3
@@ -16612,7 +16363,6 @@
                         ${hasPermission('editProgram') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors" onclick="editProgram('${programKey}')"><i class="ph ph-pencil-simple text-sm"></i> تعديل</button>` : ''}
                         ${hasPermission('deleteProgram') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash text-sm"></i> حذف</button>` : ''}
                         ${hasPermission('addCourse') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300 transition-colors" onclick="addCourse('${programKey}')"><i class="ph ph-plus text-sm"></i> إضافة دورة</button>` : ''}
-                        ${canCreateExamForProgram(programKey) ? `<button id="examPrgBtn_${programKey}" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 hover:border-primary/40 transition-colors" onclick="handleProgramExamBtnClick('${programKey}')"><i class="ph ${getProgramExamBtnIcon(programKey)} text-sm"></i> ${getProgramExamBtnLabel(programKey)}</button>` : ''}
                     </span>
                 ` : '';
             }
@@ -16628,7 +16378,6 @@
                         ${hasPermission('editProgram') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10" onclick="editProgram('${programKey}')"><i class="ph ph-pencil-simple"></i> تعديل</button>` : ''}
                         ${hasPermission('deleteProgram') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center justify-center gap-1.5 hover:bg-red-50 hover:border-red-300" onclick="deleteProgram('${programKey}')"><i class="ph ph-trash"></i> حذف</button>` : ''}
                         ${hasPermission('addCourse') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300" onclick="addCourse('${programKey}')"><i class="ph ph-plus"></i> إضافة دورة</button>` : ''}
-                        ${canCreateExamForProgram(programKey) ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10 hover:border-primary/40" onclick="handleProgramExamBtnClick('${programKey}')"><i class="ph ${getProgramExamBtnIcon(programKey)}"></i> ${getProgramExamBtnLabel(programKey)}</button>` : ''}
                     </div>` : ''}
                     <!-- بطاقة معلومات البرنامج -->
                     <div class="glass-element rounded-xl p-5">
@@ -28480,33 +28229,6 @@ ${JSON.stringify(payload, null, 0)}
 
     function getExamBtnLabel(pk, ck) {
         return getCachedExam(pk, ck) ? 'عرض الامتحان' : 'إنشاء امتحان';
-    }
-
-    // ─── مساعدات على مستوى البرنامج ──────────────────────────
-    function getProgramExamBtnIcon(pk) {
-        // إن كان هناك امتحان لأي دورة مسموحة للمستخدم الحالي في هذا البرنامج
-        const allowedCourses = emsAllowedCoursesForProgram(pk);
-        const hasSome = allowedCourses.some(c => getCachedExam(pk, c.key));
-        return hasSome ? 'ph-exam' : 'ph-plus-circle';
-    }
-
-    function getProgramExamBtnLabel(pk) {
-        // اسم الزر ثابت دائماً "الامتحانات" بصرف النظر عن وجود امتحان محفوظ
-        // من عدمه، حتى لا يتغير اسمه بين أول دخول للبرنامج والدخول التالي
-        return 'الامتحانات';
-    }
-
-    // زر الامتحانات في هيدر بيانات البرنامج (لوحة العرض الرئيسية): يفتح
-    // القائمة الجانبية (إن كانت مغلقة) ويعرض فيها جميع الامتحانات المحفوظة
-    // لهذا البرنامج بصرف النظر عن الدورة. إنشاء امتحان جديد أصبح متاحاً من
-    // زر "+" الموجود في هيدر اللوحة الجانبية نفسها.
-    async function handleProgramExamBtnClick(pk) {
-        emsCurrentProgramKey = pk;
-        emsCurrentCourseKey  = null;
-        const program = programsData[pk];
-        if (!program) return;
-
-        await _buildSidebarExamPanelForProgram(pk);
     }
 
     async function handleExamBtnClick(pk, ck) {
