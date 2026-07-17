@@ -6844,11 +6844,6 @@
             }
         }
 
-        // ── تبديل زر الفرز (تحولت للموحدة) ──
-        function toggleChatSortDropdown() {
-            toggleUnifiedSortDropdown();
-        }
-
         function setChatSort(mode) {
             chatSortMode = mode;
             // تحديث أيقونة الهيدر الموحد
@@ -7236,12 +7231,6 @@
                        </div>`;
             }).join('');
             if (wasAtBottom || msgs.length <= 3) area.scrollTop = area.scrollHeight;
-        }
-
-        // دالة بديلة للتوافق مع الكود القديم
-        function renderChatMessages(conv) {
-            if (!currentUser) return;
-            _renderMessages([], currentUser.uid);
         }
 
         // ── إرسال رسالة إلى Firestore ──
@@ -7949,11 +7938,6 @@
             showToast?.('🗑️ تم حذف المحادثة من الطرفين', 'info');
         }
 
-        // ── دالة احتياطية فارغة (لا حاجة لـ localStorage بعد الآن) ──
-        function saveChatConversations() { /* Firestore handles persistence */ }
-
-
-
         // ── دالة مساعدة لتجنب XSS ──
         function escapeHtml(str) {
             return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -8317,8 +8301,6 @@
         const _origHideAllViewsForChat = window.hideAllViews;
 
         // ── دالة احتياطية (للتوافق مع أي مرجع قديم) ──
-        function closeChatContact() { /* deprecated — no-op */ }
-
         // ══ نهاية نظام المحادثة الخاصة ══
 
         /*
@@ -12837,12 +12819,6 @@
             }
         }
 
-        // الرجوع من السجلات إلى قائمة البرامج
-        function exitRegistrySidebar() {
-            document.getElementById('sidebarRegistryList').classList.add('hidden');
-            document.getElementById('sidebarProgramList').classList.remove('hidden');
-        }
-
         // ======== عرض سجل التدقيق (Audit Log View) ========
         let auditLogUnsubscribe = null; // دالة إلغاء الاشتراك بالمستمع اللحظي الحالي
         let auditLogCache = [];         // آخر دفعة من عناصر السجل تم تحميلها (غير مُفلترة)
@@ -15103,42 +15079,6 @@
             return            { label: 'راسب',    color: 'text-red-600',    bg: 'bg-red-50 border-red-200' };
         }
 
-        // حساب درجة متدرب من نوع تقييم (مذاكرة/عملي/فحص/مشروع)
-        function getTraineeTypeScore(courseKey, tIndex, typeKey) {
-            const stored = (window._gradesData || {})[`${courseKey}_${tIndex}_${typeKey}`];
-            return stored !== undefined ? parseFloat(stored) : null;
-        }
-
-        // حفظ درجة في الذاكرة وFirestore
-        async function saveTraineeGrade(programKey, courseKey, tIndex, typeKey, itemIndex, value) {
-            const storeKey = `${courseKey}_${tIndex}_${typeKey}_${itemIndex}`;
-            if (!window._gradesData) window._gradesData = {};
-            window._gradesData[storeKey] = parseFloat(value) || 0;
-
-            // تحديث المجموع في الصف
-            recalcTraineeFinalScore(programKey, courseKey, tIndex);
-
-            // حفظ في Firestore
-            if (db) {
-                const program = programsData[programKey];
-                const course  = program && program.courses ? program.courses.find(c => c.key === courseKey) : null;
-                if (!course) return;
-                if (!course.grades) course.grades = {};
-                if (!course.grades[String(tIndex)]) course.grades[String(tIndex)] = {};
-                if (!course.grades[String(tIndex)][typeKey]) course.grades[String(tIndex)][typeKey] = [];
-                course.grades[String(tIndex)][typeKey][itemIndex] = parseFloat(value) || 0;
-                const traineeName = (course.traineesList && course.traineesList[tIndex]) || `متدرب #${tIndex}`;
-                await offlineAwareWrite(
-                    ['programs', programKey, 'courses', courseKey], 'update', { grades: course.grades },
-                    {
-                        label: `درجة: ${traineeName}`,
-                        silentOnlineSuccess: true,
-                        activity: { action: 'edit', type: 'examResult', name: traineeName, id: null, details: `تعديل درجة (${typeKey}) — دورة: ${course.code || courseKey}` }
-                    }
-                );
-            }
-        }
-
         // حساب التفاصيل الكاملة لتقييم متدرب في دورة معيّنة: كل علامة مفردة + المجاميع + المجموع النهائي والتقدير
         // تُستخدم في جدول الدرجات وفي بطاقة الدورة المعروضة بصفحة بيانات المتدرب (تفاصيل النتائج الكاملة)
         function getTraineeCourseFullBreakdown(programKey, courseKey, tIndex) {
@@ -16131,7 +16071,6 @@
                         ${hasPermission('editCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors" onclick="editCourse('${programKey}', '${course.key}')"><i class="ph ph-pencil-simple text-sm"></i> تعديل</button>` : ''}
                         ${hasPermission('deleteCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors" onclick="deleteCourse('${programKey}', '${course.key}')"><i class="ph ph-trash text-sm"></i> حذف</button>` : ''}
                         ${hasPermission('addTrainee') && !document.body.classList.contains('trainer-mode') ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300 transition-colors" onclick="addTrainee('${programKey}', '${course.key}')"><i class="ph ph-user-plus text-sm"></i> إضافة متدرب</button>` : ''}
-                        ${(emsCurrentRole() === 'admin' || (emsCurrentRole() === 'trainer' && emsIsMainTrainerOfCourse(course))) ? `<button class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 hover:border-primary/40 transition-colors" onclick="emsCurrentProgramKey='${programKey}'; emsCurrentCourseKey='${course.key}'; _buildSidebarExamCard('${programKey}','${course.key}')"><i class="ph ph-list-bullets text-sm"></i> الامتحانات</button>` : ''}
                     </span>
                 `;
             }
@@ -16146,7 +16085,6 @@
                     ${hasPermission('editCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10" onclick="editCourse('${programKey}', '${course.key}')"><i class="ph ph-pencil-simple"></i> تعديل</button>` : ''}
                     ${hasPermission('deleteCourse') && !document.body.classList.contains('trainer-mode') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center justify-center gap-1.5 hover:bg-red-50 hover:border-red-300" onclick="deleteCourse('${programKey}', '${course.key}')"><i class="ph ph-trash"></i> حذف</button>` : ''}
                     ${hasPermission('addTrainee') && !document.body.classList.contains('trainer-mode') ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300" onclick="addTrainee('${programKey}', '${course.key}')"><i class="ph ph-user-plus"></i> إضافة متدرب</button>` : ''}
-                    ${(emsCurrentRole() === 'admin' || (emsCurrentRole() === 'trainer' && emsIsMainTrainerOfCourse(course))) ? `<button class="flex-1 glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:bg-primary/10 hover:border-primary/40" onclick="emsCurrentProgramKey='${programKey}'; emsCurrentCourseKey='${course.key}'; _buildSidebarExamCard('${programKey}','${course.key}')"><i class="ph ph-list-bullets"></i> الامتحانات</button>` : ''}
                 </div>
 
                 <!-- الصف العلوي: معلومات + متدربون -->
@@ -20890,22 +20828,6 @@
             }
         }
 
-        // ── مشاركة بيانات حساب المتدرب عبر واتساب ──
-        function shareTraineeAccountWhatsApp(traineeId) {
-            const trainee = registryTrainees.find(t => t.id === traineeId);
-            if (!trainee) return;
-
-            const waNumber = trainee.whatsapp
-                ? (trainee.whatsappCode || '+966').replace('+', '') + trainee.whatsapp.replace(/^0/, '')
-                : (trainee.phone || '').replace(/\D/g, '');
-
-            if (!waNumber) { showToast('لا يوجد رقم واتساب أو هاتف مسجل', 'error'); return; }
-
-            const msg = `مرحباً ${trainee.nameAr}،\n\nتم إنشاء حساب الدخول الخاص بك على منصة MedBox Education.\n\n📧 البريد الإلكتروني: ${trainee.email}\n🔑 يرجى فتح البريد الوارد لإعادة تعيين كلمة المرور والدخول للمنصة.\n\nفي حال لم يصلك البريد، تحقق من مجلد الرسائل غير المرغوب فيها (Spam).`;
-
-            window.open('https://wa.me/' + waNumber + '?text=' + encodeURIComponent(msg), '_blank');
-        }
-
         // ══════════════════════════════════════════════
         // إنشاء حساب Firebase Auth للمدرب
         // ══════════════════════════════════════════════
@@ -21063,21 +20985,6 @@
                 };
                 showToast('❌ فشل تحديث حساب الدخول: ' + (errMap[err.code] || `${err.code}: ${err.message}`), 'error');
             }
-        }
-
-        function shareTrainerAccountWhatsApp(trainerId) {
-            const trainer = registryTrainers.find(t => t.id === trainerId);
-            if (!trainer) return;
-
-            const waNumber = trainer.whatsapp
-                ? (trainer.whatsappCode || '+966').replace('+', '') + trainer.whatsapp.replace(/^0/, '')
-                : (trainer.phone || '').replace(/\D/g, '');
-
-            if (!waNumber) { showToast('لا يوجد رقم واتساب أو هاتف مسجل', 'error'); return; }
-
-            const msg = `مرحباً ${trainer.nameAr},\n\nتم إنشاء حساب الدخول الخاص بك على منصة MedBox Education.\n\n📧 البريد الإلكتروني: ${trainer.email}\n🔑 يرجى فتح البريد الوارد لإعادة تعيين كلمة المرور والدخول للمنصة.\n\nفي حال لم يصلك البريد، تحقق من مجلد الرسائل غير المرغوب فيها (Spam).`;
-
-            window.open('https://wa.me/' + waNumber + '?text=' + encodeURIComponent(msg), '_blank');
         }
 
         // حذف متدرب من السجل
@@ -26460,17 +26367,6 @@ ${JSON.stringify(payload, null, 0)}
         }
     }
 
-    // يرجع من شاشة تصفح بنك الأسئلة: إن كان الدخول عبر الشجرة الشاملة
-    // (بطاقة "بنك الأسئلة" في مركز نظام الامتحانات) نعود لتلك الشاشة،
-    // وإلا (الدخول من داخل عرض امتحان مقرر معيّن) نعود لعرض الامتحان كالسابق
-    function qbCloseBankView() {
-        if (sidebarMode === 'questionBank') {
-            showExamSystemGrid();
-        } else {
-            showView('examinationView');
-        }
-    }
-
     // ══════════════════════════════════════════════════════════════════
     // ─── بنك الأسئلة — التصفح الشامل عبر كل البرامج (شجرة القائمة الجانبية) ───
     // ══════════════════════════════════════════════════════════════════
@@ -27366,11 +27262,6 @@ ${JSON.stringify(payload, null, 0)}
         emsShowExamViewer(pk, ck, exam);
     }
 
-    // يرجع من شاشة تصفح الامتحانات المسجَّلة إلى الشبكة الرئيسية لنظام الامتحانات
-    function reCloseView() {
-        showExamSystemGrid();
-    }
-
     // ══════════════════════════════════════════════════════════════════
     // ─── الجلسات المنجزة (Completed Sessions) — المرحلة 1: البطاقة والشجرة
     //     الجانبية (دورة ← مقرر). عرض بطاقات الجلسات نفسها يُبنى في
@@ -27917,17 +27808,6 @@ ${JSON.stringify(payload, null, 0)}
         if (window.innerWidth < 768) closeSidebar();
     }
 
-    // يرجع من شاشة تصفح الجلسات المنجزة إلى الشبكة الرئيسية لنظام الامتحانات
-    function csCloseView() {
-        showExamSystemGrid();
-    }
-
-    // زر الرجوع في لوحة "القياس والتقييم" — يعود لمركز نظام الامتحانات
-    function mevCloseView() {
-        mevSetHeaderActions('');
-        showExamSystemGrid();
-    }
-
     // ══════════════════════════════════════════════════════════════════
     // ─── بنك الأسئلة — المرحلة 4: إنشاء امتحان من الأسئلة المحددة ───
     // ══════════════════════════════════════════════════════════════════
@@ -28221,14 +28101,6 @@ ${JSON.stringify(payload, null, 0)}
             return;
         }
         emsShowDesigner(pk, ck, exam);
-    }
-
-    function getExamBtnIcon(pk, ck) {
-        return getCachedExam(pk, ck) ? 'ph-eye' : 'ph-plus-circle';
-    }
-
-    function getExamBtnLabel(pk, ck) {
-        return getCachedExam(pk, ck) ? 'عرض الامتحان' : 'إنشاء امتحان';
     }
 
     async function handleExamBtnClick(pk, ck) {
@@ -30967,63 +30839,6 @@ ${questionsHtml}
         viewBody.querySelector('.space-y-5')?.appendChild(pwdSection);
     };
 
-    // ─── تحديث بادج الامتحانات عند دخول المتدرب ──────────────────
-    async function checkTraineeExamsBadge() {
-        if (!currentUser || currentUser.role !== 'trainee') return;
-        if (registryTrainees.length === 0) return;
-        const resolvedId = await _emsResolveTraineeId();
-        const trainee = registryTrainees.find(t => t.id === resolvedId) ||
-                         registryTrainees.find(t => t.id === currentUser.traineeId);
-        if (!trainee) return;
-
-        const enrolledCourses = getTraineeEnrolledCourses(trainee.nameAr);
-        const now = new Date();
-        let hasAvailable = false;
-
-        for (const c of enrolledCourses) {
-            let exam = emsExamCache[emsKey(c.programKey, c.courseKey)];
-            if (!exam && db) {
-                try {
-                    const snap = await db.collection('examinations')
-                        .where('programKey','==',c.programKey)
-                        .where('courseKey','==',c.courseKey)
-                        .limit(1).get();
-                    if (!snap.empty) exam = { id: snap.docs[0].id, ...snap.docs[0].data() };
-                } catch(e) {}
-            }
-            if (!exam || !exam.examDate || !exam.examTime) continue;
-            const examDT = new Date(`${exam.examDate}T${exam.examTime}`);
-            const endDT  = new Date(examDT.getTime() + (exam.duration || 60) * 60000 + 5 * 3600000);
-            if (now >= examDT && now <= endDT) { hasAvailable = true; break; }
-        }
-
-        // امتحانات فردية (مجموعات خاصة) دون أي دورة — لا تظهر ضمن enrolledCourses
-        if (!hasAvailable && db) {
-            try {
-                const directSnap = await db.collection('examinations')
-                    .where('assignmentScope', '==', 'students')
-                    .get();
-                for (const doc of directSnap.docs) {
-                    const exam = doc.data();
-                    const covered = (exam.courseKeys && exam.courseKeys.length) ? exam.courseKeys : (exam.courseKey ? [exam.courseKey] : []);
-                    if (covered.length) continue; // مرتبط بدورة — عولج أعلاه
-                    const isAssigned = (exam.assignedTraineeIds || []).includes(trainee.id) ||
-                                        (exam.assignedTraineeNames || []).includes(trainee.nameAr);
-                    if (!isAssigned || !exam.examDate || !exam.examTime) continue;
-                    const examDT = new Date(`${exam.examDate}T${exam.examTime}`);
-                    const endDT  = new Date(examDT.getTime() + (exam.duration || 60) * 60000 + 5 * 3600000);
-                    if (now >= examDT && now <= endDT) { hasAvailable = true; break; }
-                }
-            } catch(e) {}
-        }
-
-        const badge = document.getElementById('traineeExamsBadge');
-        if (badge) badge.classList.toggle('hidden', !hasAvailable);
-    }
-
-    // استدعاء فحص البادج بعد تحميل بيانات المتدرب
-    const _origShowTraineeProfile2 = window.showMyProfile;
-
     // ══════════════════════════════════════════════════════════════════
     // نهاية المرحلة 1
     // ══════════════════════════════════════════════════════════════════
@@ -31808,54 +31623,6 @@ ${questionsHtml}
         }
     }
 
-    /* ── شاشة "تم التسليم بنجاح" ── */
-    function _examShowSubmittedScreen(isAutomatic, submittedAnswers, saved) {
-        const overlay = document.getElementById('examSessionOverlay');
-        if (!overlay) return;
-        const answered = submittedAnswers.filter(a => {
-            if (a.answer === null || a.answer === undefined || a.answer === '') return false;
-            if (Array.isArray(a.answer)) return a.answer.some(v => v !== '');
-            return true;
-        }).length;
-        const total = submittedAnswers.length;
-
-        overlay.innerHTML = `
-        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
-            <div style="background:rgba(255,255,255,0.95);border-radius:28px;padding:40px 32px;max-width:480px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(16,185,129,0.15);border:2px solid rgba(16,185,129,0.2);">
-                <div style="width:80px;height:80px;background:linear-gradient(135deg,#10b981,#059669);border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:40px;color:#fff;">
-                    <i class="ph ph-check-circle"></i>
-                </div>
-                <h2 style="font-size:22px;font-weight:800;color:#065f46;margin:0 0 8px;">
-                    ${isAutomatic ? '⏰ تم التسليم التلقائي' : '✅ تم تسليم الامتحان'}
-                </h2>
-                <p style="font-size:14px;color:#6b7280;margin:0 0 24px;">
-                    ${isAutomatic ? 'انتهى وقت الامتحان وتم حفظ إجاباتك تلقائياً.' : 'تم تسليم إجاباتك بنجاح.'}
-                </p>
-                <div style="display:flex;gap:12px;justify-content:center;margin-bottom:24px;">
-                    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:14px 20px;flex:1;">
-                        <p style="font-size:24px;font-weight:800;color:#059669;margin:0;">${answered}</p>
-                        <p style="font-size:11px;color:#6b7280;margin:4px 0 0;">سؤال مجاب</p>
-                    </div>
-                    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:14px;padding:14px 20px;flex:1;">
-                        <p style="font-size:24px;font-weight:800;color:#dc2626;margin:0;">${total - answered}</p>
-                        <p style="font-size:11px;color:#6b7280;margin:4px 0 0;">سؤال بلا إجابة</p>
-                    </div>
-                    <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;padding:14px 20px;flex:1;">
-                        <p style="font-size:24px;font-weight:800;color:#4f46e5;margin:0;">${total}</p>
-                        <p style="font-size:11px;color:#6b7280;margin:4px 0 0;">إجمالي الأسئلة</p>
-                    </div>
-                </div>
-                <p style="font-size:12px;color:${saved?'#059669':'#d97706'};margin:0 0 24px;">
-                    <i class="ph ${saved?'ph-cloud-check':'ph-cloud-warning'}" style="margin-left:4px;"></i>
-                    ${saved ? 'تم حفظ إجاباتك في قاعدة البيانات.' : 'تعذّر الحفظ السحابي — يُرجى التواصل مع المشرف.'}
-                </p>
-                <button onclick="document.getElementById('examSessionOverlay')?.remove(); showToast?.('تم الخروج من الامتحان','success');"
-                    style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-weight:800;font-size:15px;padding:14px 40px;border-radius:14px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(99,102,241,0.3);">
-                    <i class="ph ph-house" style="margin-left:6px;"></i> العودة للرئيسية
-                </button>
-            </div>
-        </div>`;
-    }
 
     // ══════════════════════════════════════════════════════════════════
     // نهاية المرحلة 3
@@ -35804,30 +35571,6 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
                               <i class="ph ph-spinner-gap animate-spin text-lg"></i> جاري التحميل...
                            </div>`;
         await _renderLiveSessionsPickerContent();
-    }
-
-    // ════════════════════════════════════════════════════
-    //  خيار ١: إنشاء جلسة متزامنة جديدة (مستقلة)
-    // ════════════════════════════════════════════════════
-    function _liveSessionPickerShowNewForm() {
-        const body = document.getElementById('sidebarLiveBody');
-        if (!body) return;
-        _liveSessionPickerSetHeader('جلسة متزامنة جديدة', 'أدخل عنوان الجلسة ثم ابدأها', true);
-        body.innerHTML = `
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5">عنوان الجلسة <span class="text-red-500">*</span></label>
-                    <input id="newLiveSessionTitleInput" type="text" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="مثال: جلسة مراجعة عامة">
-                </div>
-                <button onclick="startNewFreeLiveSession()" class="w-full bg-primary text-white text-sm font-bold py-2.5 rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
-                    <i class="ph ph-play"></i> بدء الجلسة
-                </button>
-            </div>`;
-        const input = document.getElementById('newLiveSessionTitleInput');
-        if (input) {
-            input.focus();
-            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') startNewFreeLiveSession(); });
-        }
     }
 
     // ════════════════════════════════════════════════════
