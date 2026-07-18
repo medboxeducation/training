@@ -22082,13 +22082,22 @@
                     <p class="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
                         <i class="ph ph-hand-pointing text-primary"></i> اختيار الامتحان يدوياً
                     </p>
+                    <!-- نفس شجرة "تصفح الامتحانات المسجَّلة": البرنامج ← السنة الدراسية ← الفصل الدراسي ← اسم المقرر ← كل الامتحانات مرتّبة بالتاريخ -->
                     <select id="paperCorrectionManualProgramSelect" onchange="onPaperCorrectionManualProgramChange()"
                         class="w-full glass-panel rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary">
                         <option value="">-- اختر البرنامج --</option>
                     </select>
+                    <select id="paperCorrectionManualYearSelect" onchange="onPaperCorrectionManualYearChange()" disabled
+                        class="w-full glass-panel rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary">
+                        <option value="">-- اختر السنة الدراسية --</option>
+                    </select>
+                    <select id="paperCorrectionManualSemesterSelect" onchange="onPaperCorrectionManualSemesterChange()" disabled
+                        class="w-full glass-panel rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary">
+                        <option value="">-- اختر الفصل الدراسي --</option>
+                    </select>
                     <select id="paperCorrectionManualCourseSelect" onchange="onPaperCorrectionManualCourseChange()" disabled
                         class="w-full glass-panel rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary">
-                        <option value="">-- اختر الدورة --</option>
+                        <option value="">-- اختر المقرر --</option>
                     </select>
                     <select id="paperCorrectionManualExamSelect" onchange="selectPaperCorrectionManualExam(this.value)" disabled
                         class="w-full glass-panel rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary">
@@ -23044,6 +23053,8 @@
            ======================================================== */
 
         // ---- فتح المودال والبدء بخطوة المسح ----
+        // ملاحظة: _paperCorrectionManualTree (شجرة الاختيار اليدوي) تُصفَّر هنا لتُعاد
+        // تحميلها من جديد بأي فتح للمودال، فتعكس أي امتحان أُنشئ أو عُدِّل حديثاً
         // presetProgramKey/presetCourseKey اختياريان: يُمرَّران عند الفتح من
         // بطاقة امتحان محددة، فقط كسياق احتياطي — لا يزال المسح مطلوباً
         // لتحديد الامتحان (courseKey) بدقة (قد تحتوي الدورة أكثر من امتحان محفوظ عبر الوقت).
@@ -23052,6 +23063,7 @@
         // فوراً دون الحاجة لرمز QR. غير ذلك، يُكتشَف الامتحان بشكل مخفي من رمز QR الموجود ضمن
         // نفس صور ورقة الإجابة التي يرفعها/يصوّرها المستخدم — مع مسار احتياطي للاختيار اليدوي.
         async function openPaperCorrectionScanner(presetProgramKey, presetCourseKey) {
+            _paperCorrectionManualTree = null; // إعادة تحميل شجرة الاختيار اليدوي في كل فتح للمودال
             _paperCorrection = {
                 programKey: null,
                 courseKey: null,
@@ -23147,52 +23159,107 @@
                     if (barcodes && barcodes.length > 0) return barcodes[0].rawValue;
                 } catch (e) { /* نتابع بمحاولة jsQR */ }
             }
-            // ===== الطريقة 2: jsQR على عدة مقاسات =====
+            // ===== الطريقة 2: jsQR بعدة استراتيجيات (مقاسات، قصّ أطراف، دوران، عتبات تباين) =====
             if (typeof jsQR !== 'function') return null;
 
+            // يحاول قراءة QR من canvas بعدة نسخ (أصلية + تدرج رمادي بعتبات مختلفة)
             function tryDecodeCanvas(canvas, ctx) {
                 const w = canvas.width, h = canvas.height;
-                let pixels, result;
+                if (w < 10 || h < 10) return null;
+                let pixels;
                 try { pixels = ctx.getImageData(0, 0, w, h); }
                 catch(ex) { return null; }
 
-                result = jsQR(pixels.data, w, h, { inversionAttempts: 'attemptBoth' });
+                let result = jsQR(pixels.data, w, h, { inversionAttempts: 'attemptBoth' });
                 if (result && result.data) return result.data;
 
-                const bw = new Uint8ClampedArray(w * h * 4);
-                for (let i = 0; i < pixels.data.length; i += 4) {
-                    const lum = 0.299 * pixels.data[i] + 0.587 * pixels.data[i+1] + 0.114 * pixels.data[i+2];
-                    const v = lum < 140 ? 0 : 255;
-                    bw[i] = bw[i+1] = bw[i+2] = v;
-                    bw[i+3] = 255;
+                // عدة عتبات تباين (إضاءة الصور الملتقطة بالكاميرا تتفاوت كثيراً)
+                for (const threshold of [100, 130, 160, 190]) {
+                    const bw = new Uint8ClampedArray(w * h * 4);
+                    for (let i = 0; i < pixels.data.length; i += 4) {
+                        const lum = 0.299 * pixels.data[i] + 0.587 * pixels.data[i+1] + 0.114 * pixels.data[i+2];
+                        const v = lum < threshold ? 0 : 255;
+                        bw[i] = bw[i+1] = bw[i+2] = v;
+                        bw[i+3] = 255;
+                    }
+                    result = jsQR(bw, w, h, { inversionAttempts: 'attemptBoth' });
+                    if (result && result.data) return result.data;
                 }
-                result = jsQR(bw, w, h, { inversionAttempts: 'attemptBoth' });
-                if (result && result.data) return result.data;
-
                 return null;
+            }
+
+            // يرسم منطقة (كاملة أو مقصوصة) من الصورة الأصلية داخل canvas بمقاس مستهدف، ثم يحاول قراءتها
+            function tryRegion(sx, sy, sw, sh, targetW, targetH) {
+                const c = document.createElement('canvas');
+                c.width = Math.max(50, Math.round(targetW));
+                c.height = Math.max(50, Math.round(targetH));
+                const ctx = c.getContext('2d', { willReadFrequently: true });
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, c.width, c.height);
+                try {
+                    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+                } catch(e) { return null; }
+                return tryDecodeCanvas(c, ctx);
             }
 
             const origW = img.naturalWidth  || 400;
             const origH = img.naturalHeight || 400;
-            const sizes = [
-                { w: origW, h: origH },
-                { w: Math.round(origW * 1.5), h: Math.round(origH * 1.5) },
-                { w: Math.round(origW * 0.5), h: Math.round(origH * 0.5) }
-            ].map(s => ({
-                w: Math.max(200, Math.min(2500, s.w)),
-                h: Math.max(200, Math.min(2500, s.h))
-            }));
+            // سقف أعلى بكثير من السابق: صور الكاميرا الحديثة كبيرة، وتصغيرها المفرط
+            // يقلّص رمز QR الصغير نسبياً داخل ورقة الامتحان حتى يصبح غير قابل للقراءة
+            const cap = 4000;
 
-            for (const { w, h } of sizes) {
+            // ===== محاولة 1: الصورة كاملة، بعدة مقاسات (أصلي، مكبَّر، مصغَّر) =====
+            const fullSizes = [1, 1.5, 0.75, 0.5].map(f => ({
+                w: Math.max(200, Math.min(cap, Math.round(origW * f))),
+                h: Math.max(200, Math.min(cap, Math.round(origH * f)))
+            }));
+            for (const { w, h } of fullSizes) {
+                const found = tryRegion(0, 0, origW, origH, w, h);
+                if (found) return found;
+            }
+
+            // ===== محاولة 2: قصّ الأرباع الأربعة + المنتصف بدقّة أصلية مكبَّرة =====
+            // رمز QR على ورقة الامتحان عادة صغير نسبياً وموضوع في زاوية الصفحة؛
+            // قصّ كل ربع من الصورة الأصلية (بدقتها الكاملة) ثم تكبيره يزيد كثيراً
+            // من فرص التقاط تفاصيله مقارنة بتصغير الصفحة كاملة
+            const halfW = Math.round(origW / 2), halfH = Math.round(origH / 2);
+            const regions = [
+                { x: 0,               y: 0,               w: halfW, h: halfH }, // أعلى يمين (تسلسل RTL: يبدأ من اليمين)
+                { x: origW - halfW,   y: 0,               w: halfW, h: halfH }, // أعلى يسار
+                { x: 0,               y: origH - halfH,   w: halfW, h: halfH }, // أسفل يمين
+                { x: origW - halfW,   y: origH - halfH,   w: halfW, h: halfH }, // أسفل يسار
+                { x: Math.round(origW*0.25), y: Math.round(origH*0.25), w: halfW, h: halfH } // المنتصف
+            ];
+            for (const r of regions) {
+                const upscale = 2;
+                const found = tryRegion(r.x, r.y, r.w, r.h,
+                    Math.min(cap, r.w * upscale), Math.min(cap, r.h * upscale));
+                if (found) return found;
+            }
+
+            // ===== محاولة 3: دوران الصورة كاملة (قد تُلتقط الورقة بزاوية أو أفقياً) =====
+            for (const angle of [90, 180, 270]) {
                 const c = document.createElement('canvas');
-                c.width = w; c.height = h;
+                const rotatedW = (angle === 180) ? origW : origH;
+                const rotatedH = (angle === 180) ? origH : origW;
+                const targetW = Math.max(200, Math.min(cap, rotatedW));
+                const targetH = Math.max(200, Math.min(cap, rotatedH));
+                c.width = targetW; c.height = targetH;
                 const ctx = c.getContext('2d', { willReadFrequently: true });
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, w, h);
-                ctx.drawImage(img, 0, 0, w, h);
+                ctx.fillRect(0, 0, targetW, targetH);
+                ctx.save();
+                ctx.translate(targetW / 2, targetH / 2);
+                ctx.rotate(angle * Math.PI / 180);
+                const drawW = (angle === 180) ? targetW : targetH;
+                const drawH = (angle === 180) ? targetH : targetW;
+                try { ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH); }
+                catch(e) { ctx.restore(); continue; }
+                ctx.restore();
                 const found = tryDecodeCanvas(c, ctx);
                 if (found) return found;
             }
+
             return null;
         }
 
@@ -23314,10 +23381,61 @@
            ==== مسار احتياطي: اختيار الامتحان يدوياً عند تعذّر كشف QR ====
            ════════════════════════════════════════════════════════════════ */
 
-        function showPaperCorrectionManualExamPicker() {
+        // شجرة الاختيار اليدوي مبنيّة بنفس آلية شجرة "تصفح الامتحانات المسجَّلة":
+        // برنامج ← سنة دراسية ← فصل دراسي ← اسم مقرر ← كل الامتحانات (مرتّبة تنازلياً بالتاريخ)
+        // مُقيَّدة فقط بالامتحانات التي يملك المستخدم الحالي صلاحية تصحيحها (نفس منطق canManage
+        // المستخدَم في مسار كشف QR)، وتُبنى مرة واحدة وتُخزَّن مؤقتاً طوال فتح المودال
+        let _paperCorrectionManualTree = null;
+
+        async function paperCorrectionLoadManualExamTree() {
+            if (Object.keys(programsData).length === 0) {
+                await loadProgramsFromFirestore();
+            }
+            const tree = {}; // pk -> year -> sem -> subject -> [exam docs]
+            if (!db) return tree;
+            const snap = await db.collection('examinations').get();
+            snap.forEach(doc => {
+                const d = doc.data();
+                if (!d.programKey || !d.subjectName) return;
+                const program = programsData[d.programKey];
+                if (!program) return;
+                const courseKey = d.courseKey || (d.courseKeys && d.courseKeys[0]) || '';
+                const course = (program.courses || []).find(c => c.key === courseKey);
+                const canManage = (typeof canCreateExam === 'function') ? canCreateExam(course) : false;
+                if (!canManage) return; // نفس صلاحية تصحيح أوراق الدورة المطلوبة في مسار QR
+
+                const year = (d.academicYear || '').trim() || 'غير محدد';
+                const sem  = (d.semester || '').trim() || 'غير محدد';
+                const subj = d.subjectName;
+                tree[d.programKey] = tree[d.programKey] || {};
+                tree[d.programKey][year] = tree[d.programKey][year] || {};
+                tree[d.programKey][year][sem] = tree[d.programKey][year][sem] || {};
+                tree[d.programKey][year][sem][subj] = tree[d.programKey][year][sem][subj] || [];
+                tree[d.programKey][year][sem][subj].push({ id: doc.id, ...d, courseKey });
+            });
+            // ترتيب امتحانات كل مقرر تنازلياً حسب التاريخ (الأحدث أولاً)
+            Object.values(tree).forEach(years => Object.values(years).forEach(sems => Object.values(sems).forEach(subjects => {
+                Object.keys(subjects).forEach(subj => {
+                    subjects[subj].sort((a, b) => (b.examDate || '').localeCompare(a.examDate || ''));
+                });
+            })));
+            return tree;
+        }
+
+        async function showPaperCorrectionManualExamPicker() {
             const el = document.getElementById('paperCorrectionManualExamPicker');
             if (!el) return;
             el.classList.remove('hidden');
+            const progSel = document.getElementById('paperCorrectionManualProgramSelect');
+            if (!_paperCorrectionManualTree) {
+                if (progSel) progSel.innerHTML = '<option value="">-- جاري التحميل... --</option>';
+                try {
+                    _paperCorrectionManualTree = await paperCorrectionLoadManualExamTree();
+                } catch (e) {
+                    console.error('paperCorrectionLoadManualExamTree error:', e);
+                    _paperCorrectionManualTree = {};
+                }
+            }
             renderPaperCorrectionManualProgramOptions();
         }
 
@@ -23329,53 +23447,95 @@
         function renderPaperCorrectionManualProgramOptions() {
             const sel = document.getElementById('paperCorrectionManualProgramSelect');
             if (!sel) return;
-            const allowedPrograms = Object.keys(programsData).filter(pk =>
-                (typeof canCreateExamForProgram === 'function') ? canCreateExamForProgram(pk) : true
-            );
+            const tree = _paperCorrectionManualTree || {};
+            const pks = Object.keys(tree).sort((a, b) =>
+                (programsData[a]?.title || a).localeCompare(programsData[b]?.title || b, 'ar'));
+            if (!pks.length) {
+                sel.innerHTML = '<option value="">-- لا توجد امتحانات متاحة للتصحيح --</option>';
+                resetPaperCorrectionManualSelectsFrom('year');
+                return;
+            }
             sel.innerHTML = '<option value="">-- اختر البرنامج --</option>' +
-                allowedPrograms.map(pk => `<option value="${pk}">${programsData[pk]?.title || pk}</option>`).join('');
+                pks.map(pk => `<option value="${pk}">${escapeHtml(programsData[pk]?.title || pk)}</option>`).join('');
+            resetPaperCorrectionManualSelectsFrom('year');
+        }
+
+        // يعيد ضبط (ويُعطِّل) كل القوائم المنسدلة التالية لمستوى معيّن في الشجرة
+        function resetPaperCorrectionManualSelectsFrom(level) {
+            const defs = {
+                year:     { id: 'paperCorrectionManualYearSelect',     label: '-- اختر السنة الدراسية --' },
+                semester: { id: 'paperCorrectionManualSemesterSelect', label: '-- اختر الفصل الدراسي --' },
+                course:   { id: 'paperCorrectionManualCourseSelect',   label: '-- اختر المقرر --' },
+                exam:     { id: 'paperCorrectionManualExamSelect',     label: '-- اختر الامتحان --' }
+            };
+            const order = ['year', 'semester', 'course', 'exam'];
+            const start = order.indexOf(level);
+            for (let i = start; i < order.length; i++) {
+                const d = defs[order[i]];
+                const el = document.getElementById(d.id);
+                if (!el) continue;
+                el.innerHTML = `<option value="">${d.label}</option>`;
+                el.disabled = true;
+            }
         }
 
         function onPaperCorrectionManualProgramChange() {
             const programKey = document.getElementById('paperCorrectionManualProgramSelect')?.value;
-            const courseSel = document.getElementById('paperCorrectionManualCourseSelect');
-            const examSel   = document.getElementById('paperCorrectionManualExamSelect');
-            examSel.innerHTML = '<option value="">-- اختر الامتحان --</option>';
-            examSel.disabled = true;
-            if (!programKey) {
-                courseSel.innerHTML = '<option value="">-- اختر الدورة --</option>';
-                courseSel.disabled = true;
-                return;
-            }
-            const courses = (typeof emsAllowedCoursesForProgram === 'function')
-                ? emsAllowedCoursesForProgram(programKey)
-                : (programsData[programKey]?.courses || []);
-            courseSel.innerHTML = '<option value="">-- اختر الدورة --</option>' +
-                courses.map(c => `<option value="${c.key}">${c.code || c.key}${c.title ? ' — ' + c.title : ''}</option>`).join('');
-            courseSel.disabled = false;
+            resetPaperCorrectionManualSelectsFrom('year');
+            if (!programKey) return;
+            const years = Object.keys((_paperCorrectionManualTree || {})[programKey] || {})
+                .sort((a, b) => a.localeCompare(b, 'ar'));
+            const sel = document.getElementById('paperCorrectionManualYearSelect');
+            sel.innerHTML = '<option value="">-- اختر السنة الدراسية --</option>' +
+                years.map(y => `<option value="${escapeHtml(y)}">${escapeHtml(y)}</option>`).join('');
+            sel.disabled = false;
+        }
+
+        function onPaperCorrectionManualYearChange() {
+            const programKey = document.getElementById('paperCorrectionManualProgramSelect')?.value;
+            const year = document.getElementById('paperCorrectionManualYearSelect')?.value;
+            resetPaperCorrectionManualSelectsFrom('semester');
+            if (!programKey || !year) return;
+            const sems = Object.keys(((_paperCorrectionManualTree || {})[programKey] || {})[year] || {})
+                .sort((a, b) => a.localeCompare(b, 'ar'));
+            const sel = document.getElementById('paperCorrectionManualSemesterSelect');
+            sel.innerHTML = '<option value="">-- اختر الفصل الدراسي --</option>' +
+                sems.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+            sel.disabled = false;
+        }
+
+        function onPaperCorrectionManualSemesterChange() {
+            const programKey = document.getElementById('paperCorrectionManualProgramSelect')?.value;
+            const year = document.getElementById('paperCorrectionManualYearSelect')?.value;
+            const sem  = document.getElementById('paperCorrectionManualSemesterSelect')?.value;
+            resetPaperCorrectionManualSelectsFrom('course');
+            if (!programKey || !year || !sem) return;
+            const subjects = Object.keys((((_paperCorrectionManualTree || {})[programKey] || {})[year] || {})[sem] || {})
+                .sort((a, b) => a.localeCompare(b, 'ar'));
+            const sel = document.getElementById('paperCorrectionManualCourseSelect');
+            sel.innerHTML = '<option value="">-- اختر المقرر --</option>' +
+                subjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+            sel.disabled = false;
         }
 
         function onPaperCorrectionManualCourseChange() {
             const programKey = document.getElementById('paperCorrectionManualProgramSelect')?.value;
-            const courseKey  = document.getElementById('paperCorrectionManualCourseSelect')?.value;
-            const examSel    = document.getElementById('paperCorrectionManualExamSelect');
-            if (!programKey || !courseKey) {
-                examSel.innerHTML = '<option value="">-- اختر الامتحان --</option>';
-                examSel.disabled = true;
-                return;
-            }
-            const list = (getCachedExamList(programKey, courseKey) || []);
-            const singleExam = getCachedExam(programKey, courseKey);
-            const options = list.length ? list : (singleExam ? [singleExam] : []);
-            if (!options.length) {
-                examSel.innerHTML = '<option value="">لا يوجد امتحان مسجَّل لهذه الدورة</option>';
-                examSel.disabled = true;
+            const year = document.getElementById('paperCorrectionManualYearSelect')?.value;
+            const sem  = document.getElementById('paperCorrectionManualSemesterSelect')?.value;
+            const subj = document.getElementById('paperCorrectionManualCourseSelect')?.value;
+            const examSel = document.getElementById('paperCorrectionManualExamSelect');
+            examSel.innerHTML = '<option value="">-- اختر الامتحان --</option>';
+            examSel.disabled = true;
+            if (!programKey || !year || !sem || !subj) return;
+            const exams = ((((_paperCorrectionManualTree || {})[programKey] || {})[year] || {})[sem] || {})[subj] || [];
+            if (!exams.length) {
+                examSel.innerHTML = '<option value="">لا يوجد امتحان مسجَّل لهذا المقرر</option>';
                 return;
             }
             examSel.innerHTML = '<option value="">-- اختر الامتحان --</option>' +
-                options.map(e => {
+                exams.map(e => {
                     const typeInfo = EXAM_TYPES.find(t => t.key === e.examType) || EXAM_TYPES[0];
-                    return `<option value="${e.id}">${typeInfo.ar}${e.examDate ? ' — ' + e.examDate : ''}</option>`;
+                    return `<option value="${e.id}">${escapeHtml(typeInfo.ar)}${e.examDate ? ' — ' + escapeHtml(e.examDate) : ''}</option>`;
                 }).join('');
             examSel.disabled = false;
         }
@@ -23383,22 +23543,29 @@
         async function selectPaperCorrectionManualExam(examId) {
             if (!examId) return;
             const programKey = document.getElementById('paperCorrectionManualProgramSelect')?.value;
-            const courseKey  = document.getElementById('paperCorrectionManualCourseSelect')?.value;
-            if (!programKey || !courseKey) return;
+            const year = document.getElementById('paperCorrectionManualYearSelect')?.value;
+            const sem  = document.getElementById('paperCorrectionManualSemesterSelect')?.value;
+            const subj = document.getElementById('paperCorrectionManualCourseSelect')?.value;
+            if (!programKey || !year || !sem || !subj) return;
 
+            const exams = ((((_paperCorrectionManualTree || {})[programKey] || {})[year] || {})[sem] || {})[subj] || [];
+            const exam = exams.find(e => e.id === examId);
+            if (!exam) {
+                showToast('❌ لم يتم العثور على هذا الامتحان', 'error');
+                return;
+            }
             const program = programsData[programKey];
-            const course  = program && (program.courses || []).find(c => c.key === courseKey);
+            const course  = program && (program.courses || []).find(c => c.key === exam.courseKey);
             const canManage = (typeof canCreateExam === 'function') ? canCreateExam(course) : false;
             if (!canManage) {
                 showToast('🔒 لا تملك صلاحية تصحيح امتحانات هذه الدورة', 'error');
                 return;
             }
-            const exam = getCachedExamById(programKey, courseKey, examId);
-            if (!exam || !exam.questions || !exam.questions.length) {
+            if (!exam.questions || !exam.questions.length) {
                 showToast('❌ لم يتم العثور على أسئلة هذا الامتحان', 'error');
                 return;
             }
-            applyDetectedPaperCorrectionExam(programKey, courseKey, exam, 'manual');
+            applyDetectedPaperCorrectionExam(programKey, exam.courseKey, exam, 'manual');
         }
 
         // شارة صغيرة تُظهر إحصائية جلسة التصحيح الحالية (عدد الأوراق المصحَّحة والوقت المنقضي)
