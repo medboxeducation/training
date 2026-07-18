@@ -6784,8 +6784,8 @@
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0 ${dotColorClass} ring-1 ring-white shadow-sm" title="${statusLabels[statusState]}"></span>
                             <div class="min-w-0 flex-1">
-                                <p class="font-bold text-sm text-gray-800 leading-tight truncate">${conv.nameAr || '—'}</p>
-                                ${conv.nameEn ? `<p class="text-[11px] text-gray-500 truncate mt-0.5">${conv.nameEn}</p>` : ''}
+                                <p class="font-bold text-sm text-gray-800 leading-tight truncate">${escapeHtml(conv.nameAr || '—')}</p>
+                                ${conv.nameEn ? `<p class="text-[11px] text-gray-500 truncate mt-0.5">${escapeHtml(conv.nameEn)}</p>` : ''}
                                 ${conv.code   ? `<p class="font-mono text-[10px] text-primary/70 mt-0.5">${conv.code}</p>` : ''}
                             </div>
                         </div>
@@ -6940,8 +6940,8 @@
                         <i class="ph ${typeIcons[r._type] || 'ph-user'} text-sm"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="font-semibold text-sm text-gray-800 truncate">${r.nameAr || '—'}</p>
-                        <p class="text-[10px] text-gray-400 font-mono">${typeLabels[r._type]} ${r.code ? '· ' + r.code : ''} ${r.phone ? '· ' + r.phone : ''}</p>
+                        <p class="font-semibold text-sm text-gray-800 truncate">${escapeHtml(r.nameAr || '—')}</p>
+                        <p class="text-[10px] text-gray-400 font-mono">${typeLabels[r._type]} ${r.code ? '· ' + r.code : ''} ${escapeHtml(r.phone ? '· ' + r.phone : '')}</p>
                     </div>
                 `;
                 item.addEventListener('click', () => selectChatContact(r));
@@ -12233,7 +12233,7 @@
                         ${initials}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="font-bold text-sm text-gray-800 truncate leading-snug">${user.fullName || '—'}</p>
+                        <p class="font-bold text-sm text-gray-800 truncate leading-snug">${escapeHtml(user.fullName || '—')}</p>
                         <p class="text-xs text-gray-500 truncate font-mono">@${user.username || ''}</p>
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
@@ -12356,7 +12356,7 @@
 
                     <div class="flex-1 min-w-0">
                         <div class="flex flex-wrap items-center gap-2 mb-1">
-                            <h3 class="text-lg font-bold text-gray-800">${user.fullName || '—'}</h3>
+                            <h3 class="text-lg font-bold text-gray-800">${escapeHtml(user.fullName || '—')}</h3>
                             ${user.isProtected ? '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><i class="ph ph-shield-star"></i> محمي</span>' : ''}
                         </div>
                         <p class="text-sm font-mono text-gray-500 flex items-center gap-1">
@@ -17058,8 +17058,8 @@
                             ${(t.nameAr || '؟').charAt(0)}
                         </div>
                         <div class="min-w-0">
-                            <p class="font-semibold text-sm text-gray-700 truncate">${t.nameAr || '—'}</p>
-                            <p class="text-[10px] text-gray-400 font-mono">${t.code || ''}${t.phone ? ' • ' + t.phone : ''}</p>
+                            <p class="font-semibold text-sm text-gray-700 truncate">${escapeHtml(t.nameAr || '—')}</p>
+                            <p class="text-[10px] text-gray-400 font-mono">${t.code || ''}${escapeHtml(t.phone ? ' • ' + t.phone : '')}</p>
                         </div>
                     </div>
                     <button onclick="selectCourseTrainerFromSearch('${t.id}')" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-primary/90 transition-colors shrink-0">
@@ -17161,8 +17161,8 @@
                             ${(t.nameAr || '؟').charAt(0)}
                         </div>
                         <div class="min-w-0">
-                            <p class="font-semibold text-sm text-gray-700 truncate">${t.nameAr || '—'}</p>
-                            <p class="text-[10px] text-gray-400 font-mono">${t.code || ''}${t.phone ? ' • ' + t.phone : ''}</p>
+                            <p class="font-semibold text-sm text-gray-700 truncate">${escapeHtml(t.nameAr || '—')}</p>
+                            <p class="text-[10px] text-gray-400 font-mono">${t.code || ''}${escapeHtml(t.phone ? ' • ' + t.phone : '')}</p>
                         </div>
                     </div>
                     ${added
@@ -17976,11 +17976,11 @@
                     } else if (type === 'trainer') {
                         card.innerHTML = `
                             <div class="flex items-center justify-between mb-1">
-                                <p class="font-bold text-sm text-gray-800 truncate">${r.trainer.nameAr}</p>
+                                <p class="font-bold text-sm text-gray-800 truncate">${escapeHtml(r.trainer.nameAr)}</p>
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="font-mono text-xs text-primary/80 px-1.5 py-0.5 rounded font-bold bg-primary/10">${r.trainer.code || '—'}</span>
-                                ${r.trainer.nameEn ? `<span class="text-[10px] text-gray-400 truncate" dir="ltr">${r.trainer.nameEn}</span>` : ''}
+                                ${r.trainer.nameEn ? `<span class="text-[10px] text-gray-400 truncate" dir="ltr">${escapeHtml(r.trainer.nameEn)}</span>` : ''}
                             </div>`;
                         card.addEventListener('click', () => {
                             searchInput.value = '';
@@ -17992,11 +17992,11 @@
                     } else if (type === 'trainee') {
                         card.innerHTML = `
                             <div class="flex items-center justify-between mb-1">
-                                <p class="font-bold text-sm text-gray-800 truncate">${r.trainee.nameAr}</p>
+                                <p class="font-bold text-sm text-gray-800 truncate">${escapeHtml(r.trainee.nameAr)}</p>
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="font-mono text-xs text-primary/80 px-1.5 py-0.5 rounded font-bold bg-primary/10">${r.trainee.code || '—'}</span>
-                                ${r.trainee.nameEn ? `<span class="text-[10px] text-gray-400 truncate" dir="ltr">${r.trainee.nameEn}</span>` : ''}
+                                ${r.trainee.nameEn ? `<span class="text-[10px] text-gray-400 truncate" dir="ltr">${escapeHtml(r.trainee.nameEn)}</span>` : ''}
                             </div>`;
                         card.addEventListener('click', () => {
                             searchInput.value = '';
@@ -18241,19 +18241,19 @@
                             <i class="ph ph-chalkboard-teacher"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-gray-800">${trainer.nameAr}</h3>
-                            <p class="text-sm text-gray-500" dir="ltr">${trainer.nameEn || ''}</p>
+                            <h3 class="text-lg font-bold text-gray-800">${escapeHtml(trainer.nameAr)}</h3>
+                            <p class="text-sm text-gray-500" dir="ltr">${escapeHtml(trainer.nameEn || '')}</p>
                             <span class="inline-block font-mono text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-lg font-bold mt-0.5 border border-amber-200">${trainer.code}</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-phone text-primary text-xs"></i> رقم الهاتف</p>
-                            <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${trainer.phone || '—'}</p>
+                            <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${escapeHtml(trainer.phone || '—')}</p>
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-envelope text-orange-500 text-xs"></i> البريد الإلكتروني</p>
-                            <p class="font-semibold text-xs text-gray-700 break-all">${trainer.email || '—'}</p>
+                            <p class="font-semibold text-xs text-gray-700 break-all">${escapeHtml(trainer.email || '—')}</p>
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-calendar text-primary text-xs"></i> تاريخ التسجيل</p>
@@ -18354,19 +18354,19 @@
                             <i class="ph ph-student"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-gray-800">${trainee.nameAr}</h3>
-                            <p class="text-sm text-gray-500" dir="ltr">${trainee.nameEn || ''}</p>
+                            <h3 class="text-lg font-bold text-gray-800">${escapeHtml(trainee.nameAr)}</h3>
+                            <p class="text-sm text-gray-500" dir="ltr">${escapeHtml(trainee.nameEn || '')}</p>
                             <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold mt-0.5">${trainee.code}</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-phone text-primary text-xs"></i> رقم الهاتف</p>
-                            <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${trainee.phone || '—'}</p>
+                            <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${escapeHtml(trainee.phone || '—')}</p>
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-envelope text-orange-500 text-xs"></i> البريد الإلكتروني</p>
-                            <p class="font-semibold text-xs text-gray-700 break-all">${trainee.email || '—'}</p>
+                            <p class="font-semibold text-xs text-gray-700 break-all">${escapeHtml(trainee.email || '—')}</p>
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-calendar text-primary text-xs"></i> تاريخ التسجيل</p>
@@ -18416,7 +18416,7 @@
                             const allNames = (course.traineesList || []);
                             const namesHtml = allNames.length > 0
                                 ? `<div class="flex flex-wrap gap-1.5 mt-2">
-                                    ${allNames.map((n,i) => `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${n === trainee.nameAr ? 'bg-primary/15 text-primary border border-primary/30' : 'bg-gray-100 text-gray-500 border border-gray-200'}">${n}</span>`).join('')}
+                                    ${allNames.map((n,i) => `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${n === trainee.nameAr ? 'bg-primary/15 text-primary border border-primary/30' : 'bg-gray-100 text-gray-500 border border-gray-200'}">${escapeHtml(n)}</span>`).join('')}
                                    </div>`
                                 : '';
 
@@ -18537,7 +18537,7 @@
                             <button onclick="event.stopPropagation(); ${trainee.authUid ? `openAccountInfoModal('trainee','${trainee.id}')` : `createTraineeAuthAccount('${trainee.id}')`}" 
                                 class="w-2.5 h-2.5 rounded-full shrink-0 ${trainee.authUid ? 'bg-green-500 hover:scale-125' : 'bg-red-400 hover:scale-125 hover:bg-red-500'} cursor-pointer transition-transform ring-1 ring-white shadow-sm"
                                 title="${trainee.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'اضغط هنا لإنشاء حساب'}"></button>
-                            <p class="font-bold text-sm text-gray-800 leading-tight hover:text-primary transition-colors truncate">${trainee.nameAr}</p>
+                            <p class="font-bold text-sm text-gray-800 leading-tight hover:text-primary transition-colors truncate">${escapeHtml(trainee.nameAr)}</p>
                         </div>
                         <div class="flex items-center gap-1 shrink-0 mr-1">
                             <button onclick="event.stopPropagation(); editRegistryTrainee('${trainee.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
@@ -18555,11 +18555,11 @@
                     </div>
                     <!-- أزرار التواصل -->
                     <div class="flex items-center gap-1 mb-2">
-                        ${trainee.phone ? `<a href="tel:${trainee.phone}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-50 hover:border-green-300" title="اتصال"><i class="ph ph-phone text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-phone text-sm text-gray-400"></i></span>`}
-                        ${trainee.phone ? `<a href="sms:${trainee.phone}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-300" title="رسالة نصية"><i class="ph ph-chat-circle text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-chat-circle text-sm text-gray-400"></i></span>`}
+                        ${trainee.phone ? `<a href="tel:${escapeHtml(trainee.phone)}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-50 hover:border-green-300" title="اتصال"><i class="ph ph-phone text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-phone text-sm text-gray-400"></i></span>`}
+                        ${trainee.phone ? `<a href="sms:${escapeHtml(trainee.phone)}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-300" title="رسالة نصية"><i class="ph ph-chat-circle text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-chat-circle text-sm text-gray-400"></i></span>`}
                         <button onclick="event.stopPropagation(); openTraineeChat('${trainee.id}')" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="محادثة"><i class="ph ph-chats-circle text-sm"></i></button>
                         ${trainee.whatsapp ? `<a href="https://wa.me/${(trainee.whatsappCode||'+966').replace('+','')}${trainee.whatsapp.replace(/^0/,'')}" target="_blank" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="واتساب"><i class="ph ph-whatsapp-logo text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-whatsapp-logo text-sm text-gray-400"></i></span>`}
-                        ${trainee.email ? `<a href="mailto:${trainee.email}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-orange-600 hover:bg-orange-50 hover:border-orange-300" title="إيميل"><i class="ph ph-envelope text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-envelope text-sm text-gray-400"></i></span>`}
+                        ${trainee.email ? `<a href="mailto:${escapeHtml(trainee.email)}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-orange-600 hover:bg-orange-50 hover:border-orange-300" title="إيميل"><i class="ph ph-envelope text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-envelope text-sm text-gray-400"></i></span>`}
                     </div>
                 `;
                 card.addEventListener('click', () => {
@@ -18603,7 +18603,7 @@
                                 <button onclick="${trainee.authUid ? `openAccountInfoModal('trainee','${trainee.id}')` : `createTraineeAuthAccount('${trainee.id}')`}" 
                                     class="w-3 h-3 rounded-full shrink-0 ${trainee.authUid ? 'bg-green-500 hover:scale-125' : 'bg-red-400 hover:scale-125 hover:bg-red-500'} cursor-pointer transition-transform ring-1 ring-white shadow-sm"
                                     title="${trainee.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'اضغط هنا لإنشاء حساب'}"></button>
-                                <h3 class="text-lg font-bold text-gray-800 flex-1">${trainee.nameAr}</h3>
+                                <h3 class="text-lg font-bold text-gray-800 flex-1">${escapeHtml(trainee.nameAr)}</h3>
                                 <!-- أزرار الإجراءات — كبير: مقابل الاسم على اليسار -->
                                 <div class="items-center gap-1.5 hidden md:flex shrink-0">
                                     <button onclick="openEnrollTraineeModal('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-sky-700 flex items-center gap-1.5 hover:bg-sky-50 hover:border-sky-300 transition-colors"><i class="ph ph-graduation-cap text-sm"></i> إضافة إلى دورة تدريبية</button>
@@ -18612,7 +18612,7 @@
                                     <button onclick="deleteRegistryTrainee('${trainee.id}')" class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors"><i class="ph ph-trash text-sm"></i> حذف</button>
                                 </div>
                             </div>
-                            ${trainee.nameEn ? `<p class="text-sm text-gray-500 mb-1 mr-5 text-right">${trainee.nameEn}</p>` : ''}
+                            ${trainee.nameEn ? `<p class="text-sm text-gray-500 mb-1 mr-5 text-right">${escapeHtml(trainee.nameEn)}</p>` : ''}
                             <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold mr-5">${trainee.code}</span>
                             <!-- أزرار الإجراءات للشاشات الصغيرة — تحت الاسم -->
                             <div class="flex items-center gap-1.5 mt-2 md:hidden flex-wrap">
@@ -18623,11 +18623,11 @@
                             </div>
                             <!-- أزرار التواصل — تحت أزرار الإجراءات مباشرة -->
                             <div class="flex flex-wrap items-center gap-1.5 mt-2">
-                                ${trainee.phone ? `<a href="tel:${trainee.phone}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-green-600 flex items-center justify-center gap-1 hover:border-green-400 hover:bg-green-50 transition-colors"><i class="ph ph-phone"></i> اتصال</a>` : ''}
-                                ${trainee.phone ? `<a href="sms:${trainee.phone}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-blue-600 flex items-center justify-center gap-1 hover:border-blue-400 hover:bg-blue-50 transition-colors"><i class="ph ph-chat-circle"></i> رسالة</a>` : ''}
+                                ${trainee.phone ? `<a href="tel:${escapeHtml(trainee.phone)}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-green-600 flex items-center justify-center gap-1 hover:border-green-400 hover:bg-green-50 transition-colors"><i class="ph ph-phone"></i> اتصال</a>` : ''}
+                                ${trainee.phone ? `<a href="sms:${escapeHtml(trainee.phone)}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-blue-600 flex items-center justify-center gap-1 hover:border-blue-400 hover:bg-blue-50 transition-colors"><i class="ph ph-chat-circle"></i> رسالة</a>` : ''}
                                 <button onclick="openTraineeChat('${trainee.id}')" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1 hover:border-primary/40 hover:bg-primary/10 transition-colors"><i class="ph ph-chats-circle"></i> محادثة</button>
                                 ${trainee.whatsapp ? `<a href="https://wa.me/${(trainee.whatsappCode||'+966').replace('+','')}${trainee.whatsapp.replace(/^0/,'')}" target="_blank" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1 hover:border-emerald-400 hover:bg-emerald-50 transition-colors"><i class="ph ph-whatsapp-logo"></i> واتساب</a>` : ''}
-                                ${trainee.email ? `<a href="mailto:${trainee.email}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-orange-600 flex items-center justify-center gap-1 hover:border-orange-400 hover:bg-orange-50 transition-colors"><i class="ph ph-envelope"></i> إيميل</a>` : ''}
+                                ${trainee.email ? `<a href="mailto:${escapeHtml(trainee.email)}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-orange-600 flex items-center justify-center gap-1 hover:border-orange-400 hover:bg-orange-50 transition-colors"><i class="ph ph-envelope"></i> إيميل</a>` : ''}
                             </div>
                         </div>
                         <div class="flex gap-2 shrink-0 flex-wrap justify-end">
@@ -18638,7 +18638,7 @@
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-phone text-primary text-xs"></i> رقم الهاتف</p>
-                            <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${trainee.phone || '—'}</p>
+                            <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${escapeHtml(trainee.phone || '—')}</p>
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-whatsapp-logo text-emerald-500 text-xs"></i> واتساب</p>
@@ -18646,7 +18646,7 @@
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-envelope text-orange-500 text-xs"></i> البريد الإلكتروني</p>
-                            <p class="font-semibold text-xs text-gray-700 break-all">${trainee.email || '—'}</p>
+                            <p class="font-semibold text-xs text-gray-700 break-all">${escapeHtml(trainee.email || '—')}</p>
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-telegram-logo text-blue-500 text-xs"></i> تيليغرام</p>
@@ -18674,7 +18674,7 @@
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-map-pin text-primary text-xs"></i> العنوان</p>
-                            <p class="font-semibold text-sm text-gray-700">${trainee.address || '—'}</p>
+                            <p class="font-semibold text-sm text-gray-700">${escapeHtml(trainee.address || '—')}</p>
                         </div>
                     </div>
                     <!-- بطاقة الدورات المسجل بها (تتحدث تلقائياً) -->
@@ -19289,8 +19289,8 @@
                 results = results.slice(0, 8);
                 if (results.length === 0) { box.classList.add('hidden'); box.innerHTML = ''; return; }
                 box.innerHTML = results.map(t => `
-                    <button type="button" onclick="selectMevTrainer('${t.nameAr.replace(/'/g,"\\'")}')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-b border-white/40 last:border-0 flex items-center gap-2">
-                        <i class="ph ph-chalkboard-teacher text-primary/60"></i> ${t.nameAr}
+                    <button type="button" onclick="selectMevTrainer('${escapeHtml(t.nameAr.replace(/'/g,"\\'"))}')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-b border-white/40 last:border-0 flex items-center gap-2">
+                        <i class="ph ph-chalkboard-teacher text-primary/60"></i> ${escapeHtml(t.nameAr)}
                     </button>
                 `).join('');
                 box.classList.remove('hidden');
@@ -19531,8 +19531,8 @@
                             ${(t.nameAr || '؟').charAt(0)}
                         </div>
                         <div class="min-w-0">
-                            <p class="font-semibold text-sm text-gray-700 truncate">${t.nameAr || '—'}</p>
-                            <p class="text-[10px] text-gray-400 font-mono">${t.code || ''}${t.phone ? ' • ' + t.phone : ''}</p>
+                            <p class="font-semibold text-sm text-gray-700 truncate">${escapeHtml(t.nameAr || '—')}</p>
+                            <p class="text-[10px] text-gray-400 font-mono">${t.code || ''}${escapeHtml(t.phone ? ' • ' + t.phone : '')}</p>
                         </div>
                     </div>
                     <button onclick="mevSelectTraineeFromSearch('${t.id}')" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-primary/90 transition-colors shrink-0">
@@ -19826,8 +19826,8 @@
                 results = results.slice(0, 8);
                 if (results.length === 0) { box.classList.add('hidden'); box.innerHTML = ''; return; }
                 box.innerHTML = results.map(t => `
-                    <button type="button" onclick="selectMevTrainerInline('${t.nameAr.replace(/'/g,"\\'")}')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-b border-white/40 last:border-0 flex items-center gap-2">
-                        <i class="ph ph-chalkboard-teacher text-primary/60"></i> ${t.nameAr}
+                    <button type="button" onclick="selectMevTrainerInline('${escapeHtml(t.nameAr.replace(/'/g,"\\'"))}')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-b border-white/40 last:border-0 flex items-center gap-2">
+                        <i class="ph ph-chalkboard-teacher text-primary/60"></i> ${escapeHtml(t.nameAr)}
                     </button>
                 `).join('');
                 box.classList.remove('hidden');
@@ -20759,13 +20759,13 @@
                             <i class="ph ph-check-circle text-emerald-600 text-xl"></i>
                         </div>
                         <div>
-                            <p class="font-bold text-gray-800 text-sm">${person.nameAr}</p>
+                            <p class="font-bold text-gray-800 text-sm">${escapeHtml(person.nameAr)}</p>
                             <p class="text-[10px] text-gray-400">لديه حساب دخول مفعّل</p>
                         </div>
                     </div>
                     <div class="glass-element rounded-xl p-3 mb-4">
                         <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-envelope text-primary text-xs"></i> البريد الإلكتروني المسجّل</p>
-                        <p class="font-semibold text-sm text-gray-800 break-all" dir="ltr">${person.email || '—'}</p>
+                        <p class="font-semibold text-sm text-gray-800 break-all" dir="ltr">${escapeHtml(person.email || '—')}</p>
                     </div>
                     <div class="flex items-center gap-2">
                         ${hasWa ? `
@@ -20773,7 +20773,7 @@
                             class="flex-1 glass-panel py-2.5 rounded-xl text-sm font-semibold text-emerald-700 flex items-center justify-center gap-1.5 hover:border-emerald-400 hover:bg-emerald-50 transition-colors border-emerald-200 bg-emerald-50/40">
                             <i class="ph ph-whatsapp-logo text-lg"></i> واتساب
                         </button>` : `<span class="flex-1 text-center text-xs text-gray-400 py-2">لا يوجد رقم واتساب</span>`}
-                        <button id="resetPwdBtn_${id}" onclick="sendPasswordResetFromModal('${person.email}','${id}')"
+                        <button id="resetPwdBtn_${id}" onclick="sendPasswordResetFromModal('${escapeHtml(person.email)}','${id}')"
                             class="flex-1 glass-panel py-2.5 rounded-xl text-sm font-semibold text-sky-700 flex items-center justify-center gap-1.5 hover:border-sky-400 hover:bg-sky-50 transition-colors border-sky-200 bg-sky-50/40">
                             <i class="ph ph-key text-base"></i> إعادة تهيئة كلمة المرور
                         </button>
@@ -21081,13 +21081,13 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1.5">الاسم الثلاثي بالعربي <span class="text-red-500">*</span></label>
-                                <input id="rtNameAr" type="text" value="${isEdit ? editData.nameAr : ''}"
+                                <input id="rtNameAr" type="text" value="${escapeHtml(isEdit ? editData.nameAr : '')}"
                                     class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                                     placeholder="مثال: محمد علي أحمد">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1.5">الاسم الثلاثي بالإنجليزي <span class="text-red-500">*</span></label>
-                                <input id="rtNameEn" type="text" dir="ltr" value="${isEdit ? editData.nameEn : ''}"
+                                <input id="rtNameEn" type="text" dir="ltr" value="${escapeHtml(isEdit ? editData.nameEn : '')}"
                                     class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-left"
                                     placeholder="Mohammed Ali Ahmed" oninput="autoGenTraineeCode()">
                             </div>
@@ -21119,13 +21119,13 @@
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">العنوان</label>
-                            <input id="rtAddress" type="text" value="${isEdit ? (editData.address||'') : ''}"
+                            <input id="rtAddress" type="text" value="${escapeHtml(isEdit ? (editData.address||'') : '')}"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                                 placeholder="مثال: عمّان — الجبيهة">
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">رقم الهاتف <span class="text-red-500">*</span></label>
-                            <input id="rtPhone" type="tel" dir="ltr" value="${isEdit ? editData.phone : ''}"
+                            <input id="rtPhone" type="tel" dir="ltr" value="${escapeHtml(isEdit ? editData.phone : '')}"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-left"
                                 placeholder="05xxxxxxxx">
                         </div>
@@ -21148,7 +21148,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">البريد الإلكتروني <span class="text-red-500">*</span></label>
-                            <input id="rtEmail" type="email" dir="ltr" value="${isEdit ? editData.email : ''}"
+                            <input id="rtEmail" type="email" dir="ltr" value="${escapeHtml(isEdit ? editData.email : '')}"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-left"
                                 placeholder="example@email.com">
                         </div>
@@ -21430,7 +21430,7 @@
                             <button onclick="event.stopPropagation(); ${trainer.authUid ? `openAccountInfoModal('trainer','${trainer.id}')` : `createTrainerAuthAccount('${trainer.id}')`}" 
                                 class="w-2.5 h-2.5 rounded-full shrink-0 ${trainer.authUid ? 'bg-green-500 hover:scale-125' : 'bg-red-400 hover:scale-125 hover:bg-red-500'} cursor-pointer transition-transform ring-1 ring-white shadow-sm"
                                 title="${trainer.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'اضغط هنا لإنشاء حساب'}"></button>
-                            <p class="font-bold text-sm text-gray-800 leading-tight hover:text-primary transition-colors flex-1 min-w-0 truncate">${trainer.nameAr}</p>
+                            <p class="font-bold text-sm text-gray-800 leading-tight hover:text-primary transition-colors flex-1 min-w-0 truncate">${escapeHtml(trainer.nameAr)}</p>
                         </div>
                         <div class="flex items-center gap-1 shrink-0 mr-1">
                             <button onclick="event.stopPropagation(); editRegistryTrainer('${trainer.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
@@ -21448,11 +21448,11 @@
                     </div>
                     <!-- أزرار التواصل -->
                     <div class="flex items-center gap-1">
-                        ${trainer.phone ? `<a href="tel:${trainer.phone}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-50 hover:border-green-300" title="اتصال"><i class="ph ph-phone text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-phone text-sm text-gray-400"></i></span>`}
-                        ${trainer.phone ? `<a href="sms:${trainer.phone}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-300" title="رسالة نصية"><i class="ph ph-chat-circle text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-chat-circle text-sm text-gray-400"></i></span>`}
+                        ${trainer.phone ? `<a href="tel:${escapeHtml(trainer.phone)}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-green-600 hover:bg-green-50 hover:border-green-300" title="اتصال"><i class="ph ph-phone text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-phone text-sm text-gray-400"></i></span>`}
+                        ${trainer.phone ? `<a href="sms:${escapeHtml(trainer.phone)}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-50 hover:border-blue-300" title="رسالة نصية"><i class="ph ph-chat-circle text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-chat-circle text-sm text-gray-400"></i></span>`}
                         <button onclick="event.stopPropagation(); openTrainerChat('${trainer.id}')" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="محادثة"><i class="ph ph-chats-circle text-sm"></i></button>
                         ${trainer.whatsapp ? `<a href="https://wa.me/${(trainer.whatsappCode||'+966').replace('+','')}${trainer.whatsapp.replace(/^0/,'')}" target="_blank" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300" title="واتساب"><i class="ph ph-whatsapp-logo text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-whatsapp-logo text-sm text-gray-400"></i></span>`}
-                        ${trainer.email ? `<a href="mailto:${trainer.email}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-orange-600 hover:bg-orange-50 hover:border-orange-300" title="إيميل"><i class="ph ph-envelope text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-envelope text-sm text-gray-400"></i></span>`}
+                        ${trainer.email ? `<a href="mailto:${escapeHtml(trainer.email)}" onclick="event.stopPropagation()" class="flex-1 glass-icon-btn py-1.5 rounded-lg flex items-center justify-center text-orange-600 hover:bg-orange-50 hover:border-orange-300" title="إيميل"><i class="ph ph-envelope text-sm"></i></a>` : `<span class="flex-1 py-1.5 rounded-lg flex items-center justify-center opacity-25 glass-icon-btn cursor-not-allowed"><i class="ph ph-envelope text-sm text-gray-400"></i></span>`}
                     </div>
                 `;
                 card.addEventListener('click', () => {
@@ -21511,7 +21511,7 @@
                                 <button onclick="${trainer.authUid ? `openAccountInfoModal('trainer','${trainer.id}')` : `createTrainerAuthAccount('${trainer.id}')`}" 
                                     class="w-3 h-3 rounded-full shrink-0 ${trainer.authUid ? 'bg-green-500 hover:scale-125' : 'bg-red-400 hover:scale-125 hover:bg-red-500'} cursor-pointer transition-transform ring-1 ring-white shadow-sm"
                                     title="${trainer.authUid ? 'لديه حساب دخول — اضغط للتفاصيل' : 'اضغط هنا لإنشاء حساب'}"></button>
-                                <h3 class="text-lg font-bold text-gray-800">${trainer.nameAr}</h3>
+                                <h3 class="text-lg font-bold text-gray-800">${escapeHtml(trainer.nameAr)}</h3>
                                 <!-- أزرار الإجراءات — كبير: بجانب الاسم -->
                                 <div class="items-center gap-1 hidden md:flex">
                                     <button onclick="openTrainerQRModal('${trainer.id}')" class="glass-icon-btn px-2 py-1.5 rounded-xl text-xs font-semibold text-primary flex items-center gap-1 hover:bg-primary/10 transition-colors"><i class="ph ph-qr-code text-sm"></i> QR</button>
@@ -21520,7 +21520,7 @@
                                     <button onclick="deleteRegistryTrainer('${trainer.id}')" class="glass-icon-btn px-2 py-1.5 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1 hover:bg-red-50 hover:border-red-300 transition-colors"><i class="ph ph-trash text-sm"></i> حذف</button>
                                 </div>
                             </div>
-                            ${trainer.nameEn ? `<p class="text-sm text-gray-500 mb-1 mr-5 text-right" dir="ltr">${trainer.nameEn}</p>` : ''}
+                            ${trainer.nameEn ? `<p class="text-sm text-gray-500 mb-1 mr-5 text-right" dir="ltr">${escapeHtml(trainer.nameEn)}</p>` : ''}
                             <span class="inline-block font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-bold mr-5">${trainer.code}</span>
                             <!-- أزرار الإجراءات للشاشات الصغيرة — تحت الاسم -->
                             <div class="flex items-center gap-1.5 mt-2 md:hidden flex-wrap">
@@ -21531,11 +21531,11 @@
                             </div>
                             <!-- أزرار التواصل — تحت أزرار الإجراءات مباشرة -->
                             <div class="flex flex-wrap items-center gap-1.5 mt-2">
-                                ${trainer.phone ? `<a href="tel:${trainer.phone}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-green-600 flex items-center justify-center gap-1 hover:border-green-400 hover:bg-green-50 transition-colors"><i class="ph ph-phone"></i> اتصال</a>` : ''}
-                                ${trainer.phone ? `<a href="sms:${trainer.phone}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-blue-600 flex items-center justify-center gap-1 hover:border-blue-400 hover:bg-blue-50 transition-colors"><i class="ph ph-chat-circle"></i> رسالة</a>` : ''}
+                                ${trainer.phone ? `<a href="tel:${escapeHtml(trainer.phone)}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-green-600 flex items-center justify-center gap-1 hover:border-green-400 hover:bg-green-50 transition-colors"><i class="ph ph-phone"></i> اتصال</a>` : ''}
+                                ${trainer.phone ? `<a href="sms:${escapeHtml(trainer.phone)}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-blue-600 flex items-center justify-center gap-1 hover:border-blue-400 hover:bg-blue-50 transition-colors"><i class="ph ph-chat-circle"></i> رسالة</a>` : ''}
                                 <button onclick="openTrainerChat('${trainer.id}')" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1 hover:border-primary/40 hover:bg-primary/10 transition-colors"><i class="ph ph-chats-circle"></i> محادثة</button>
                                 ${trainer.whatsapp ? `<a href="https://wa.me/${(trainer.whatsappCode||'+966').replace('+','')}${trainer.whatsapp.replace(/^0/,'')}" target="_blank" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center justify-center gap-1 hover:border-emerald-400 hover:bg-emerald-50 transition-colors"><i class="ph ph-whatsapp-logo"></i> واتساب</a>` : ''}
-                                ${trainer.email ? `<a href="mailto:${trainer.email}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-orange-600 flex items-center justify-center gap-1 hover:border-orange-400 hover:bg-orange-50 transition-colors"><i class="ph ph-envelope"></i> إيميل</a>` : ''}
+                                ${trainer.email ? `<a href="mailto:${escapeHtml(trainer.email)}" class="flex-1 min-w-[70px] glass-icon-btn py-2 rounded-xl text-xs font-semibold text-orange-600 flex items-center justify-center gap-1 hover:border-orange-400 hover:bg-orange-50 transition-colors"><i class="ph ph-envelope"></i> إيميل</a>` : ''}
                             </div>
                         </div>
                         <div class="flex gap-2 shrink-0 flex-wrap justify-end">
@@ -21546,7 +21546,7 @@
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-phone text-primary text-xs"></i> رقم الهاتف</p>
-                            <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${trainer.phone || '—'}</p>
+                            <p class="font-semibold text-sm text-gray-800 font-mono" dir="ltr">${escapeHtml(trainer.phone || '—')}</p>
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-whatsapp-logo text-emerald-500 text-xs"></i> واتساب</p>
@@ -21554,7 +21554,7 @@
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-envelope text-orange-500 text-xs"></i> البريد الإلكتروني</p>
-                            <p class="font-semibold text-xs text-gray-700 break-all">${trainer.email || '—'}</p>
+                            <p class="font-semibold text-xs text-gray-700 break-all">${escapeHtml(trainer.email || '—')}</p>
                         </div>
                         <div class="glass-panel rounded-xl p-3">
                             <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ph-telegram-logo text-blue-500 text-xs"></i> تيليغرام</p>
@@ -21697,13 +21697,13 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1.5">الاسم الثلاثي بالعربي <span class="text-red-500">*</span></label>
-                                <input id="rtrNameAr" type="text" value="${isEdit ? editData.nameAr : ''}"
+                                <input id="rtrNameAr" type="text" value="${escapeHtml(isEdit ? editData.nameAr : '')}"
                                     class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                                     placeholder="مثال: محمد علي أحمد">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1.5">الاسم الثلاثي بالإنجليزي <span class="text-red-500">*</span></label>
-                                <input id="rtrNameEn" type="text" dir="ltr" value="${isEdit ? editData.nameEn : ''}"
+                                <input id="rtrNameEn" type="text" dir="ltr" value="${escapeHtml(isEdit ? editData.nameEn : '')}"
                                     class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-left"
                                     placeholder="Mohammed Ali Ahmed" oninput="autoGenTrainerCode()">
                             </div>
@@ -21716,7 +21716,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">رقم الهاتف <span class="text-red-500">*</span></label>
-                            <input id="rtrPhone" type="tel" dir="ltr" value="${isEdit ? editData.phone : ''}"
+                            <input id="rtrPhone" type="tel" dir="ltr" value="${escapeHtml(isEdit ? editData.phone : '')}"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-left"
                                 placeholder="05xxxxxxxx">
                         </div>
@@ -21739,7 +21739,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">البريد الإلكتروني <span class="text-red-500">*</span></label>
-                            <input id="rtrEmail" type="email" dir="ltr" value="${isEdit ? editData.email : ''}"
+                            <input id="rtrEmail" type="email" dir="ltr" value="${escapeHtml(isEdit ? editData.email : '')}"
                                 class="w-full glass-panel rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-left"
                                 placeholder="example@email.com">
                         </div>
@@ -29017,8 +29017,8 @@ ${JSON.stringify(payload, null, 0)}
         }
         return list.map(t => `
             <span class="glass-panel flex items-center gap-1.5 pl-1 pr-3 py-1.5 rounded-full text-xs bg-primary/5">
-              <span>${t.nameAr}</span>
-              <button type="button" onclick="emsRemoveFreeTrainee('${t.id||''}','${(t.nameAr||'').replace(/'/g,"\\'")}')"
+              <span>${escapeHtml(t.nameAr)}</span>
+              <button type="button" onclick="emsRemoveFreeTrainee('${t.id||''}','${escapeHtml((t.nameAr||'').replace(/'/g,"\\'"))}')"
                 class="w-5 h-5 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50" title="إزالة">
                 <i class="ph ph-x text-xs"></i>
               </button>
@@ -29175,8 +29175,8 @@ ${JSON.stringify(payload, null, 0)}
                         ${(t.nameAr || '؟').charAt(0)}
                     </div>
                     <div class="min-w-0">
-                        <p class="font-semibold text-sm text-gray-700 truncate">${t.nameAr || '—'}</p>
-                        <p class="text-[10px] text-gray-400 font-mono">${t.code || ''}${t.phone ? ' • ' + t.phone : ''}</p>
+                        <p class="font-semibold text-sm text-gray-700 truncate">${escapeHtml(t.nameAr || '—')}</p>
+                        <p class="text-[10px] text-gray-400 font-mono">${t.code || ''}${escapeHtml(t.phone ? ' • ' + t.phone : '')}</p>
                     </div>
                 </div>
                 ${added
