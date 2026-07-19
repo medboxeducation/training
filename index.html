@@ -1435,6 +1435,33 @@
                 </div>
             </div>
 
+            <!-- لوحة تصفح "نظام التصحيح الامتحاني الورقي" الجانبية — تظهر عند الضغط
+                 على بطاقة "نظام التصحيح الامتحاني الورقي" من الرئيسية: شجرة بأربعة
+                 مستويات قابلة للطي (سنة دراسية ← فصل دراسي ← مقرر ← رمز الامتحان)
+                 لتصحيحات الامتحانات الورقية المحفوظة على Google Drive -->
+            <div id="sidebarPaperCorrectionBrowseList" class="hidden flex-1 flex flex-col overflow-hidden p-3">
+                <div class="px-1 pb-2 shrink-0">
+                    <span class="text-[10px] text-gray-400 font-semibold">الامتحانات الورقية المحفوظة</span>
+                </div>
+                <div id="sidebarPaperCorrectionBrowseTree" class="flex-1 overflow-y-auto space-y-1">
+                    <!-- سيتم ملء المحتوى بواسطة pcRenderBrowseTree() -->
+                </div>
+            </div>
+
+            <!-- لوحة تصفح "تصحيح ورقي" الجانبية — تظهر بطاقات الطلاب الذين تم
+                 تحليلهم بعد "المطابقة والتصحيح"، بدلاً من القائمة الجانبية
+                 المحلية السابقة. زر "إدارة نسخ الطلاب" ثابت أعلى القائمة
+                 (فوق منطقة التمرير) للرجوع إلى وضع الإعداد (إرفاق/تحليل) -->
+            <div id="sidebarPaperCorrectionList" class="hidden flex-1 flex flex-col overflow-hidden p-3">
+                <button onclick="switchPaperCorrectionToSetupMode()"
+                    class="w-full glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:border-primary/50 mb-3 shrink-0">
+                    <i class="ph ph-users-three"></i> إدارة نسخ الطلاب
+                </button>
+                <div id="sidebarPaperCorrectionTree" class="flex-1 overflow-y-auto space-y-2">
+                    <!-- سيتم ملء المحتوى بواسطة pcRenderSidebarList() -->
+                </div>
+            </div>
+
             <!-- لوحة المحادثة الجانبية — تظهر عند فتح المحادثة -->
             <div id="sidebarChatList" class="hidden flex-1 flex flex-col overflow-hidden">
                 <!-- نتائج البحث (تظهر تحت شريط البحث الرئيسي) -->
@@ -3412,7 +3439,7 @@
                         <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-amber-600 text-3xl mb-4">
                             <i class="ph ph-scan"></i>
                         </div>
-                        <h3 class="font-bold text-lg text-gray-800 mb-1">تصحيح ورقة امتحان</h3>
+                        <h3 class="font-bold text-lg text-gray-800 mb-1">نظام التصحيح الامتحاني الورقي</h3>
                         <p class="text-xs font-mono text-primary/70 mb-3" dir="ltr">Paper Correction</p>
                         <p class="text-sm text-gray-500">مسح QR وتصحيح أوراق الامتحانات الورقية آلياً أو يدوياً</p>
                     </div>
@@ -6644,7 +6671,7 @@
         function openChatSidebar() {
             if (!currentUser) { showToast('يجب تسجيل الدخول أولاً لاستخدام المحادثات', 'error'); return; }
             sidebarMode = 'chat';
-            ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarLiveSessionsList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarLiveSessionsList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const chatList = document.getElementById('sidebarChatList');
             if (chatList) chatList.classList.remove('hidden');
@@ -8376,7 +8403,7 @@
 
         async function showAcademicCoursesSection() {
             sidebarMode = 'academicCourses';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -8734,6 +8761,8 @@
         // مجلد Drive مستقل خاص بصور نماذج إجابات الطلاب الورقية الممسوحة (تصحيح الامتحانات الورقية) —
         // منفصل عن مجلد المرفقات العام حتى تبقى ورقات الطلاب منظَّمة في مكانها الخاص على Drive
         const DRIVE_PAPER_SHEETS_FOLDER_NAME = 'MedBox Education - Paper Answer Sheets';
+        // مجلد Drive الجذر لحفظ تصحيحات الامتحانات الورقية الكاملة (شجرة: سنة ← فصل ← مقرر ← رمز الامتحان)
+        const DRIVE_PAPER_CORRECTIONS_FOLDER_NAME = 'MedBox Education - Paper Corrections';
         let acAttachManagerNodeId = null;   // العنوان المفتوح حالياً في نافذة "قائمة المرفقات" (لإدراج إحالة بموضع مؤشره — قد يكون null)
         let acAttachManagerEditable = true; // هل نافذة "قائمة المرفقات" المفتوحة حالياً بوضعية التعديل (إضافة/حذف) أم العرض فقط
         let acAttachManagerAllowInsert = true; // هل يظهر زر "إدراج إحالة" (فقط عند الفتح من داخل عنوان نص محدَّد)
@@ -9749,7 +9778,7 @@
 
         async function showStudentPediaSection() {
             sidebarMode = 'studentPedia';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -10663,7 +10692,7 @@
         // زر بطاقة "أبحاث ومراجع" — يفتح اللوحة الرئيسية + القائمة الجانبية
         async function showRefLibSection() {
             sidebarMode = 'refLib';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -11176,7 +11205,7 @@
         // زر بطاقة "الجلسات الغير متزامنة" — يفتح اللوحة الرئيسية + القائمة الجانبية
         async function showAsyncSessionsSection() {
             sidebarMode = 'asyncSessions';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -11984,7 +12013,7 @@
         // ويفتح القائمة الجانبية فارغة (سيتم لاحقاً تحديد محتواها بحسب البطاقة المختارة)
         function showExamSystemGrid() {
             sidebarMode = 'examSystem';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const addBtn = document.getElementById('sidebarAddBtn');
@@ -12033,7 +12062,7 @@
                 return;
             }
             sidebarMode = 'measureEval';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -12072,7 +12101,7 @@
                 return;
             }
             sidebarMode = 'measureEval';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -12148,6 +12177,7 @@
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarSettingsList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
             if (liveListEl) liveListEl.classList.add('hidden');
@@ -12215,6 +12245,7 @@
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             const chatListEl = document.getElementById('sidebarChatList');
             if (chatListEl) chatListEl.classList.add('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
@@ -12249,6 +12280,7 @@
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarUsersList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
             if (liveListEl) liveListEl.classList.add('hidden');
@@ -12826,6 +12858,7 @@
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
             if (liveListEl) liveListEl.classList.add('hidden');
@@ -13374,6 +13407,52 @@
                 fields: 'id',
             });
             return create.result.id;
+        }
+
+        // ── مجلد فرعي متداخل عام: يبحث عن مجلد باسم معيّن داخل مجلد أب محدد، وينشئه إن
+        //    لم يوجد — يُستخدم لبناء أشجار مجلدات متعددة المستويات على Drive (مثال:
+        //    شجرة "تصحيحات الامتحانات الورقية": سنة ← فصل ← مقرر ← رمز الامتحان) ──
+        async function getOrCreateDriveChildFolder(name, parentId) {
+            const safeName = String(name).replace(/'/g, "\\'");
+            const search = await gapi.client.drive.files.list({
+                q: `mimeType='application/vnd.google-apps.folder' and name='${safeName}' and '${parentId}' in parents and trashed=false`,
+                fields: 'files(id,name)',
+                spaces: 'drive',
+            });
+            if (search.result.files && search.result.files.length > 0) return search.result.files[0].id;
+            const create = await gapi.client.drive.files.create({
+                resource: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] },
+                fields: 'id',
+            });
+            return create.result.id;
+        }
+
+        // ── المجلد الجذر (أعلى الشجرة) لتصحيحات الامتحانات الورقية المحفوظة على Drive ──
+        async function getOrCreatePaperCorrectionsRootFolder() {
+            const search = await gapi.client.drive.files.list({
+                q: `mimeType='application/vnd.google-apps.folder' and name='${DRIVE_PAPER_CORRECTIONS_FOLDER_NAME}' and trashed=false`,
+                fields: 'files(id,name)',
+                spaces: 'drive',
+            });
+            if (search.result.files && search.result.files.length > 0) return search.result.files[0].id;
+            const create = await gapi.client.drive.files.create({
+                resource: { name: DRIVE_PAPER_CORRECTIONS_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' },
+                fields: 'id',
+            });
+            return create.result.id;
+        }
+
+        // ── تحديث محتوى ملف موجود مسبقاً على Drive (خلافاً لـ driveUploadFile التي
+        //    تُنشئ ملفاً جديداً دائماً) — تُستخدم لتحديث correction.json عند إعادة حفظ
+        //    تصحيح امتحان سبق حفظه بدل إنشاء نسخة مكررة منه ──
+        async function driveUpdateFileContent(fileId, content) {
+            await gapi.client.request({
+                path: `https://www.googleapis.com/upload/drive/v3/files/${fileId}`,
+                method: 'PATCH',
+                params: { uploadType: 'media' },
+                headers: { 'Content-Type': 'application/json' },
+                body: content,
+            });
         }
 
         async function driveUploadFile(fileName, content, folderId) {
@@ -18029,6 +18108,7 @@
                                 document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
                                 document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
                             }
                         });
                     } else if (type === 'course') {
@@ -18061,6 +18141,7 @@
                             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
                             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
                             buildSidebarCourses(r.programKey);
                             showCourseDetails(r.programKey, r.course.key);
                         });
@@ -23168,6 +23249,9 @@
         function openPaperCorrectionMainView(keepBatch) {
             if (!keepBatch) {
                 _paperCorrectionBatch = { programKey: null, courseKey: null, examId: null, exam: null, students: [], viewMode: 'setup', activeStudentId: null };
+                // فتح افتراضي من بطاقة "نظام التصحيح الامتحاني الورقي" في الرئيسية:
+                // أظهر القائمة الجانبية على شجرة الامتحانات الورقية المحفوظة على Drive
+                pcOpenSavedExamsBrowser();
             }
             showView('paperCorrectionMainView');
             renderPaperCorrectionMainViewActions();
@@ -23207,14 +23291,19 @@
                         <button onclick="runPaperCorrectionMatchAndGrade('current')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-t border-gray-100">الطالب الحالي</button>
                     </div>
                 </div>
+                <button id="paperCorrectionSaveDriveBtn" onclick="pcSaveCorrectionToDrive()"
+                    class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50">
+                    <i class="ph ph-cloud-arrow-up"></i> حفظ التصحيح
+                </button>
                 <div class="relative paper-correction-header-menu-wrap">
                     <button onclick="togglePaperCorrectionHeaderMenu('pcPrintMenu')"
                         class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50">
                         <i class="ph ph-printer"></i> طباعة التقرير <i class="ph ph-caret-down text-[10px]"></i>
                     </button>
-                    <div id="pcPrintMenu" class="paper-correction-header-menu hidden absolute left-0 mt-1 w-44 glass-panel bg-white rounded-xl shadow-lg z-20 overflow-hidden">
-                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionAllStudentsReport()" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5">جميع الطلاب</button>
-                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionStudentReport(_paperCorrectionBatch.activeStudentId)" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-t border-gray-100">الطالب الحالي</button>
+                    <div id="pcPrintMenu" class="paper-correction-header-menu hidden absolute left-0 mt-1 w-52 glass-panel bg-white rounded-xl shadow-lg z-20 overflow-hidden">
+                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionStudentReport(_paperCorrectionBatch.activeStudentId)" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5">تقرير تصحيح للطالب الحالي</button>
+                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionAllStudentsReport()" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-t border-gray-100">طباعة تقرير علامات لجميع الطلاب</button>
+                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionAllStudentsFullReport()" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-t border-gray-100">طباعة تقرير تصحيح لجميع الطلاب</button>
                     </div>
                 </div>` : ''}`;
         }
@@ -23232,6 +23321,297 @@
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.paper-correction-header-menu-wrap')) closePaperCorrectionHeaderMenus();
         });
+
+        // ══════════════════════════════════════════════════════════════════
+        // ─── حفظ تصحيح ورقي كامل إلى Google Drive + تصفح المحفوظ منها عبر شجرة
+        //     جانبية بأربعة مستويات قابلة للطي (سنة دراسية ← فصل دراسي ← مقرر ←
+        //     رمز الامتحان). الشجرة تُبنى من مجلدات Drive نفسها (تحميل كسول عند
+        //     التوسيع)، وكل "رمز امتحان" هو مجلد نهائي يحوي ملف correction.json
+        //     واحد فيه كامل بيانات الدفعة (الامتحان + نتائج جميع الطلاب) ────────
+        // ══════════════════════════════════════════════════════════════════
+
+        let pcBrowseTreeState = {
+            rootFolderId: null,
+            years: null, expandedYear: null,
+            semesters: null, expandedSemester: null,
+            courses: null, expandedCourse: null,
+            exams: null,
+        };
+
+        // ---- تفعيل القائمة الجانبية على وضع "تصفح التصحيحات الورقية المحفوظة" ----
+        function pcActivateBrowseSidebar() {
+            sidebarMode = 'paperCorrectionBrowse';
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList']
+                .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            const list = document.getElementById('sidebarPaperCorrectionBrowseList');
+            if (list) list.classList.remove('hidden');
+            openSidebar();
+        }
+
+        // ---- يُستدعى عند فتح لوحة "تصحيح ورقة امتحان" من بطاقتها في الرئيسية: يُظهر
+        // القائمة الجانبية على شجرة الامتحانات الورقية المحفوظة على Drive ----
+        async function pcOpenSavedExamsBrowser() {
+            pcActivateBrowseSidebar();
+            pcBrowseTreeState = { rootFolderId: null, years: null, expandedYear: null, semesters: null, expandedSemester: null, courses: null, expandedCourse: null, exams: null };
+            await pcLoadBrowseYears();
+        }
+
+        // ---- تحميل مستوى "السنة الدراسية" (أعلى الشجرة) ----
+        async function pcLoadBrowseYears() {
+            const wrap = document.getElementById('sidebarPaperCorrectionBrowseTree');
+            if (!wrap) return;
+            if (!driveToken) {
+                wrap.innerHTML = `
+                    <div class="text-center py-10 text-gray-400">
+                        <i class="ph ph-cloud-slash text-2xl block mb-2 text-gray-300"></i>
+                        <p class="text-xs">سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" لتصفح التصحيحات المحفوظة</p>
+                    </div>`;
+                return;
+            }
+            wrap.innerHTML = `
+                <div class="text-center py-10 text-gray-400">
+                    <i class="ph ph-circle-notch animate-spin text-2xl block mb-2"></i>
+                    <p class="text-xs">جاري تحميل الامتحانات المحفوظة...</p>
+                </div>`;
+            try {
+                if (!gapiReady) await initGapi();
+                const rootId = await getOrCreatePaperCorrectionsRootFolder();
+                pcBrowseTreeState.rootFolderId = rootId;
+                const res = await gapi.client.drive.files.list({
+                    q: `mimeType='application/vnd.google-apps.folder' and '${rootId}' in parents and trashed=false`,
+                    fields: 'files(id,name)', pageSize: 100,
+                });
+                pcBrowseTreeState.years = (res.result.files || []).sort((a, b) => b.name.localeCompare(a.name, 'ar'));
+                pcRenderBrowseTree();
+            } catch (err) {
+                console.error('pcLoadBrowseYears error:', err);
+                wrap.innerHTML = `<div class="text-center py-10 text-red-400 text-xs">تعذّر تحميل الامتحانات الورقية المحفوظة</div>`;
+            }
+        }
+
+        // ---- رسم الشجرة كاملة (المستوى الأول: السنة الدراسية) ----
+        function pcRenderBrowseTree() {
+            const wrap = document.getElementById('sidebarPaperCorrectionBrowseTree');
+            if (!wrap) return;
+            const st = pcBrowseTreeState;
+            if (!st.years || !st.years.length) {
+                wrap.innerHTML = `
+                    <div class="text-center py-10 text-gray-400">
+                        <i class="ph ph-archive text-2xl block mb-2 text-gray-300"></i>
+                        <p class="text-xs">لا توجد تصحيحات محفوظة بعد</p>
+                    </div>`;
+                return;
+            }
+            wrap.innerHTML = st.years.map(y => {
+                const isOpen = st.expandedYear && st.expandedYear.id === y.id;
+                return `
+                <div class="glass-panel rounded-xl mb-2 overflow-hidden">
+                    <button onclick="pcToggleBrowseYear('${y.id}', '${escapeHtml(y.name).replace(/'/g, "\\'")}')"
+                        class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/5 transition-colors">
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-calendar-blank text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(y.name)}</span></span>
+                        <i class="ph ph-caret-down text-xs text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
+                    </button>
+                    ${isOpen ? `<div class="px-2 pb-2 space-y-1.5">${pcRenderBrowseSemesters()}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        function pcRenderBrowseSemesters() {
+            const st = pcBrowseTreeState;
+            if (st.semesters === null) return `<div class="px-2 py-2 text-xs text-gray-400 flex items-center gap-2"><i class="ph ph-circle-notch animate-spin"></i> جاري التحميل...</div>`;
+            if (!st.semesters.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد فصول محفوظة</div>`;
+            return st.semesters.map(s => {
+                const isOpen = st.expandedSemester && st.expandedSemester.id === s.id;
+                return `
+                <div class="glass-element rounded-lg overflow-hidden">
+                    <button onclick="pcToggleBrowseSemester('${s.id}', '${escapeHtml(s.name).replace(/'/g, "\\'")}')"
+                        class="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-clock text-gray-400 flex-shrink-0"></i><span class="truncate">${escapeHtml(s.name)}</span></span>
+                        <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
+                    </button>
+                    ${isOpen ? `<div class="px-2 pb-2 space-y-1">${pcRenderBrowseCourses()}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        function pcRenderBrowseCourses() {
+            const st = pcBrowseTreeState;
+            if (st.courses === null) return `<div class="px-2 py-2 text-xs text-gray-400 flex items-center gap-2"><i class="ph ph-circle-notch animate-spin"></i> جاري التحميل...</div>`;
+            if (!st.courses.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد مقررات محفوظة</div>`;
+            return st.courses.map(c => {
+                const isOpen = st.expandedCourse && st.expandedCourse.id === c.id;
+                return `
+                <div class="rounded-lg overflow-hidden bg-white/40">
+                    <button onclick="pcToggleBrowseCourse('${c.id}', '${escapeHtml(c.name).replace(/'/g, "\\'")}')"
+                        class="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-book-open text-gray-400 flex-shrink-0"></i><span class="truncate">${escapeHtml(c.name)}</span></span>
+                        <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
+                    </button>
+                    ${isOpen ? `<div class="pr-3 pb-1.5 space-y-1">${pcRenderBrowseExams()}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        // ---- المستوى الأخير: "رمز الامتحان" (كل عنصر هو مجلد نهائي على Drive يحوي correction.json) ----
+        function pcRenderBrowseExams() {
+            const st = pcBrowseTreeState;
+            if (st.exams === null) return `<div class="px-2 py-2 text-xs text-gray-400 flex items-center gap-2"><i class="ph ph-circle-notch animate-spin"></i> جاري التحميل...</div>`;
+            if (!st.exams.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد امتحانات محفوظة</div>`;
+            return st.exams.map(e => `
+                <button onclick="pcOpenSavedExamFromDrive('${e.id}')"
+                    class="w-full text-right flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-gray-600 hover:bg-primary/10 hover:text-primary transition-colors">
+                    <i class="ph ph-file-text text-amber-500 flex-shrink-0"></i><span class="truncate">${escapeHtml(e.name)}</span>
+                </button>`).join('');
+        }
+
+        async function pcToggleBrowseYear(id, name) {
+            const st = pcBrowseTreeState;
+            if (st.expandedYear && st.expandedYear.id === id) {
+                st.expandedYear = null; st.semesters = null; st.expandedSemester = null; st.courses = null; st.expandedCourse = null; st.exams = null;
+                pcRenderBrowseTree(); return;
+            }
+            st.expandedYear = { id, name };
+            st.semesters = null; st.expandedSemester = null; st.courses = null; st.expandedCourse = null; st.exams = null;
+            pcRenderBrowseTree();
+            try {
+                const res = await gapi.client.drive.files.list({
+                    q: `mimeType='application/vnd.google-apps.folder' and '${id}' in parents and trashed=false`,
+                    fields: 'files(id,name)', pageSize: 100,
+                });
+                st.semesters = (res.result.files || []).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+            } catch (err) { console.error('pcToggleBrowseYear error:', err); st.semesters = []; }
+            pcRenderBrowseTree();
+        }
+
+        async function pcToggleBrowseSemester(id, name) {
+            const st = pcBrowseTreeState;
+            if (st.expandedSemester && st.expandedSemester.id === id) {
+                st.expandedSemester = null; st.courses = null; st.expandedCourse = null; st.exams = null;
+                pcRenderBrowseTree(); return;
+            }
+            st.expandedSemester = { id, name };
+            st.courses = null; st.expandedCourse = null; st.exams = null;
+            pcRenderBrowseTree();
+            try {
+                const res = await gapi.client.drive.files.list({
+                    q: `mimeType='application/vnd.google-apps.folder' and '${id}' in parents and trashed=false`,
+                    fields: 'files(id,name)', pageSize: 100,
+                });
+                st.courses = (res.result.files || []).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+            } catch (err) { console.error('pcToggleBrowseSemester error:', err); st.courses = []; }
+            pcRenderBrowseTree();
+        }
+
+        async function pcToggleBrowseCourse(id, name) {
+            const st = pcBrowseTreeState;
+            if (st.expandedCourse && st.expandedCourse.id === id) {
+                st.expandedCourse = null; st.exams = null;
+                pcRenderBrowseTree(); return;
+            }
+            st.expandedCourse = { id, name };
+            st.exams = null;
+            pcRenderBrowseTree();
+            try {
+                const res = await gapi.client.drive.files.list({
+                    q: `mimeType='application/vnd.google-apps.folder' and '${id}' in parents and trashed=false`,
+                    fields: 'files(id,name)', pageSize: 100,
+                });
+                st.exams = (res.result.files || []).sort((a, b) => b.name.localeCompare(a.name, 'ar'));
+            } catch (err) { console.error('pcToggleBrowseCourse error:', err); st.exams = []; }
+            pcRenderBrowseTree();
+        }
+
+        // ---- الضغط على "رمز امتحان" محفوظ: يحمّل correction.json من مجلده على Drive
+        // ويستعيد كامل دفعة التصحيح (الامتحان + نتائج جميع الطلاب) داخل اللوحة الرئيسية ----
+        async function pcOpenSavedExamFromDrive(folderId) {
+            try {
+                showToast('⏳ جاري تحميل التصحيح المحفوظ...', 'info');
+                const search = await gapi.client.drive.files.list({
+                    q: `name='correction.json' and '${folderId}' in parents and trashed=false`,
+                    fields: 'files(id,name)', pageSize: 1,
+                });
+                const file = (search.result.files || [])[0];
+                if (!file) { showToast('⚠️ لم يُعثر على بيانات محفوظة لهذا الامتحان', 'warning'); return; }
+                const content = await driveDownloadFile(file.id);
+                const data = JSON.parse(content);
+                _paperCorrectionBatch = {
+                    programKey: data.programKey || null,
+                    courseKey:  data.courseKey  || null,
+                    examId:     data.examId     || null,
+                    exam:       data.exam       || null,
+                    students:   data.students   || [],
+                    viewMode:   'detail',
+                    activeStudentId: null,
+                };
+                closeSidebarOnMobile();
+                openPaperCorrectionMainView(/* keepBatch */ true);
+                showToast('✅ تم تحميل التصحيح المحفوظ', 'success');
+            } catch (err) {
+                console.error('pcOpenSavedExamFromDrive error:', err);
+                showToast('❌ تعذّر تحميل التصحيح المحفوظ', 'error');
+            }
+        }
+
+        // ---- حفظ دفعة التصحيح الحالية (الامتحان المحدَّد + نتائج جميع الطلاب) بالكامل
+        // إلى Google Drive، ضمن شجرة مجلدات: سنة دراسية ← فصل دراسي ← مقرر ← رمز
+        // الامتحان — يُنشئ correction.json عند أول حفظ، ويُحدِّثه عند إعادة الحفظ ----
+        async function pcSaveCorrectionToDrive() {
+            const batch = _paperCorrectionBatch;
+            if (!batch.exam) { showToast('⚠️ حدِّد الامتحان أولاً', 'warning'); return; }
+            if (!driveToken) {
+                showToast('⚠️ سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" لحفظ التصحيح', 'warning');
+                return;
+            }
+            const btn = document.getElementById('paperCorrectionSaveDriveBtn');
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ph ph-circle-notch animate-spin"></i> جاري الحفظ...`; }
+            try {
+                if (!gapiReady) await initGapi();
+                const exam = batch.exam;
+                const yearName   = (exam.academicYear || '').trim() || 'غير محدد';
+                const semName    = (exam.semester || '').trim() || 'غير محدد';
+                const courseName = (exam.courseCode || exam.subjectName || '').trim() || 'غير محدد';
+                const typeInfo   = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
+                const examLeafName = `${typeInfo.ar}${exam.examDate ? ' - ' + exam.examDate : ''} (${batch.examId || 'بلا رمز'})`;
+
+                const rootId    = await getOrCreatePaperCorrectionsRootFolder();
+                const yearId    = await getOrCreateDriveChildFolder(yearName, rootId);
+                const semId     = await getOrCreateDriveChildFolder(semName, yearId);
+                const courseId  = await getOrCreateDriveChildFolder(courseName, semId);
+                const examFolderId = await getOrCreateDriveChildFolder(examLeafName, courseId);
+
+                const payload = {
+                    programKey: batch.programKey,
+                    courseKey:  batch.courseKey,
+                    examId:     batch.examId,
+                    exam:       batch.exam,
+                    students:   batch.students,
+                    savedAt:    new Date().toISOString(),
+                    savedBy:    currentUser?.uid || '',
+                };
+                const content = JSON.stringify(payload);
+
+                const search = await gapi.client.drive.files.list({
+                    q: `name='correction.json' and '${examFolderId}' in parents and trashed=false`,
+                    fields: 'files(id,name)', pageSize: 1,
+                });
+                const existing = (search.result.files || [])[0];
+                if (existing) {
+                    await driveUpdateFileContent(existing.id, content);
+                } else {
+                    await driveUploadFile('correction.json', content, examFolderId);
+                }
+
+                showToast('✅ تم حفظ التصحيح على Google Drive', 'success');
+                // إبطال ذاكرة الشجرة المؤقتة كي تُحمَّل مجدداً محدَّثة عند تصفحها لاحقاً
+                pcBrowseTreeState = { rootFolderId: null, years: null, expandedYear: null, semesters: null, expandedSemester: null, courses: null, expandedCourse: null, exams: null };
+            } catch (err) {
+                console.error('pcSaveCorrectionToDrive error:', err);
+                showToast('❌ فشل حفظ التصحيح: ' + (err.message || ''), 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = originalHtml || `<i class="ph ph-cloud-arrow-up"></i> حفظ التصحيح`; }
+            }
+        }
 
         // ---- عرض جسم لوحة العرض الرئيسية: يوزّع بين وضع "الإعداد" (إرفاق نسخ الطلاب) ووضع
         // "التفصيل" (القائمة الجانبية + عرض طالب واحد) حسب _paperCorrectionBatch.viewMode ----
@@ -23305,6 +23685,8 @@
 
         function switchPaperCorrectionToSetupMode() {
             _paperCorrectionBatch.viewMode = 'setup';
+            document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
+            closeSidebar();
             renderPaperCorrectionBatchPanel();
         }
 
@@ -23320,18 +23702,9 @@
         function renderPaperCorrectionDetailLayout() {
             const body = document.getElementById('paperCorrectionMainViewBody');
             if (!body) return;
-            body.innerHTML = `
-                <div class="flex gap-4 items-start">
-                    <div class="w-64 shrink-0">
-                        <button onclick="switchPaperCorrectionToSetupMode()"
-                            class="w-full glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:border-primary/50 mb-3">
-                            <i class="ph ph-users-three"></i> إدارة نسخ الطلاب
-                        </button>
-                        <div id="paperCorrectionSidebarList" class="space-y-2 max-h-[70vh] overflow-y-auto pl-1"></div>
-                    </div>
-                    <div id="paperCorrectionStudentDetailPanel" class="flex-1 min-w-0"></div>
-                </div>`;
+            body.innerHTML = `<div id="paperCorrectionStudentDetailPanel" class="min-w-0"></div>`;
 
+            pcActivateGlobalSidebar();
             renderPaperCorrectionSidebarList();
 
             const batch = _paperCorrectionBatch;
@@ -23342,9 +23715,21 @@
             openPaperCorrectionStudentDetail(batch.activeStudentId);
         }
 
+        // ---- تفعيل القائمة الجانبية الموحَّدة للتطبيق (القابلة للإظهار/الإخفاء من
+        // الزر العائم) على وضع "تصحيح ورقي": إخفاء كل لوحات القوائم الجانبية الأخرى،
+        // إظهار لوحة بطاقات الطلاب، وفتح القائمة الجانبية تلقائياً ----
+        function pcActivateGlobalSidebar() {
+            sidebarMode = 'paperCorrection';
+            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionBrowseList']
+                .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            const list = document.getElementById('sidebarPaperCorrectionList');
+            if (list) list.classList.remove('hidden');
+            openSidebar();
+        }
+
         // ---- بطاقات القائمة الجانبية بأسماء الطلاب الذين تم تحليلهم (أو حاولنا تحليلهم) ----
         function renderPaperCorrectionSidebarList() {
-            const wrap = document.getElementById('paperCorrectionSidebarList');
+            const wrap = document.getElementById('sidebarPaperCorrectionTree');
             if (!wrap) return;
             const items = _paperCorrectionBatch.students.filter(s => s.analyzed || s.analysisError);
             if (!items.length) {
@@ -23376,6 +23761,7 @@
             _paperCorrectionBatch.activeStudentId = id;
             renderPaperCorrectionSidebarList();
             openPaperCorrectionStudentDetail(id);
+            closeSidebarOnMobile();
         }
 
         // ---- فتح عرض طالب واحد: هيدر (الامتحان/السنة والفصل/المقرر/اسم الطالب) + العرض الثلاثي ----
@@ -23674,6 +24060,94 @@
     </div>
 </div>
 <table><thead><tr><th>#</th><th>اسم الطالب</th><th>العلامة المستحقة</th></tr></thead><tbody>${rows}</tbody></table>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`);
+            win.document.close();
+        }
+
+        // ---- طباعة تقرير تصحيح تفصيلي (نفس شكل تقرير الطالب الفردي) لكل طالب تم تحليله، في مستند واحد متعدد الصفحات ----
+        function printPaperCorrectionAllStudentsFullReport() {
+            const batch = _paperCorrectionBatch;
+            if (!batch.exam) { showToast('⚠️ حدِّد الامتحان أولاً', 'warning'); return; }
+            const graded = batch.students.filter(s => s.grading);
+            if (!graded.length) { showToast('⚠️ لا يوجد طلاب تمت مطابقتهم وتصحيحهم بعد', 'warning'); return; }
+
+            const program = programsData[batch.programKey];
+            const course  = (program?.courses || []).find(c => c.key === batch.courseKey);
+            const examTypeInfo = (typeof EXAM_TYPES !== 'undefined') ? (EXAM_TYPES.find(t => t.key === batch.exam.examType) || null) : null;
+
+            const sortedStudents = graded.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+
+            const blocksHtml = sortedStudents.map((s, i) => {
+                const finalEarned = paperCorrectionStudentFinalEarnedTotal(s);
+                const totalMark = s.grading.totalMark;
+                const pct = totalMark > 0 ? Math.round((finalEarned / totalMark) * 1000) / 10 : 0;
+                const gradeInfo = (typeof getGradeLabel === 'function') ? getGradeLabel(pct) : null;
+
+                const rowsHtml = (s.grading.results || []).map(r => {
+                    const typeInfo = (typeof QUESTION_TYPES !== 'undefined') ? (QUESTION_TYPES.find(t => t.key === r.type) || { ar: r.type }) : { ar: r.type };
+                    const earned = r.manual ? ((s.manualMarks && s.manualMarks[r.index]) || 0) : r.earned;
+                    const statusLabel = r.manual ? 'تصحيح يدوي' : (r.correct === true ? 'إجابة صحيحة' : (r.correct === false ? 'إجابة خاطئة' : '—'));
+                    return `<tr><td>${r.index + 1}</td><td>${typeInfo.ar}</td><td>${statusLabel}</td><td>${earned} / ${r.mark}</td></tr>`;
+                }).join('');
+
+                return `
+<div class="report-block" style="${i < sortedStudents.length - 1 ? 'page-break-after:always;' : ''}">
+<div class="header">
+    <div class="logo-area">MedBox.Education <span>تقرير نتيجة امتحان (تصحيح ورقي)</span></div>
+    <div class="header-grid">
+        <div class="info-cell"><div class="label">اسم البرنامج</div><div class="value">${program?.title || '—'}</div></div>
+        <div class="info-cell"><div class="label">رمز الدورة/الدفعة</div><div class="value">${course?.code || batch.courseKey || '—'}</div></div>
+        <div class="info-cell"><div class="label">تاريخ الامتحان</div><div class="value">${batch.exam.examDate || '—'}</div></div>
+        <div class="info-cell"><div class="label">نوع الامتحان</div><div class="value">${examTypeInfo?.ar || '—'}</div></div>
+        <div class="info-cell"><div class="label">اسم الطالب</div><div class="value">${escapeHtml(s.name || '—')}</div></div>
+        <div class="info-cell"><div class="label">تاريخ الطباعة</div><div class="value">${new Date().toLocaleDateString('ar-EG')}</div></div>
+    </div>
+</div>
+<div class="score-box">
+    <span class="earned">${finalEarned}</span><span class="total"> / ${totalMark}</span>
+    <div class="pct">${pct}%${gradeInfo?.label ? ' — ' + gradeInfo.label : ''}</div>
+</div>
+${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب السؤال</h3>
+<table><thead><tr><th>#</th><th>نوع السؤال</th><th>الحالة</th><th>العلامة</th></tr></thead><tbody>${rowsHtml}</tbody></table>` : ''}
+<div class="sign-row">
+    <div class="sign"><div class="line">توقيع المصحّح</div></div>
+    <div class="sign"><div class="line">توقيع المسؤول</div></div>
+</div>
+</div>`;
+            }).join('');
+
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head>
+<meta charset="UTF-8"><title>تقارير تصحيح — جميع الطلاب</title>
+<style>
+    * { box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
+    body { font-family:'Segoe UI', Tahoma, Arial, sans-serif; padding:24px; color:#1f2937; font-size:13px; background:#fff; }
+    .report-block { padding-bottom:8px; }
+    .header { border:2px solid #0790AC; border-radius:8px; padding:16px; margin-bottom:22px; }
+    .logo-area { font-size:18px; font-weight:800; color:#0790AC; }
+    .logo-area span { display:block; font-size:11px; font-weight:400; color:#6b7280; margin-top:2px; }
+    .header-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px 20px; margin-top:12px; border-top:1px solid #e5e7eb; padding-top:12px; }
+    .info-cell .label { font-size:10px; color:#9ca3af; margin-bottom:2px; }
+    .info-cell .value { font-weight:600; font-size:13px; }
+    .score-box { text-align:center; margin:22px 0; padding:18px; border-radius:12px; background:#e0f4f7; }
+    .score-box .earned { font-size:40px; font-weight:900; color:#0790AC; }
+    .score-box .total { font-size:16px; color:#6b7280; }
+    .score-box .pct { display:inline-block; margin-top:8px; font-size:13px; font-weight:700; background:#0790AC; color:#fff; padding:3px 14px; border-radius:20px; }
+    h3.section { font-size:13px; font-weight:700; color:#0790AC; margin-bottom:10px; border-bottom:2px solid #e0f4f7; padding-bottom:6px; }
+    table { width:100%; border-collapse:collapse; margin-top:4px; }
+    th { background:#0790AC; color:#fff; padding:6px 8px; font-size:11px; text-align:center; }
+    td { padding:5px 8px; text-align:center; border-bottom:1px solid #eee; font-size:11px; }
+    tr:nth-child(even) { background:#f8fbfd; }
+    .sign-row { display:flex; justify-content:space-between; gap:24px; margin-top:44px; }
+    .sign-row .sign { flex:1; text-align:center; }
+    .sign-row .sign .line { border-top:1px solid #9ca3af; margin-top:36px; padding-top:4px; font-size:11px; color:#6b7280; }
+    @media print {
+        body { padding:12px; }
+        * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+    }
+</style></head><body>
+${blocksHtml}
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`);
             win.document.close();
@@ -26746,6 +27220,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
             updateRegistryAddButton();
@@ -26801,6 +27276,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
             updateRegistryAddButton();
@@ -27743,7 +28219,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'questionBank';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
+        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const addBtn = document.getElementById('sidebarAddBtn');
@@ -28317,7 +28793,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'registeredExams';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
+        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const addBtn = document.getElementById('sidebarAddBtn');
@@ -28633,7 +29109,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'completedSessions';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
+        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const qrBtn  = document.getElementById('chatQRBtn');
@@ -36317,7 +36793,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         const panel = document.getElementById('sidebarLiveSessionsList');
         if (!panel) return false;
         sidebarMode = 'liveSessions';
-        ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList']
+        ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
         panel.classList.remove('hidden');
 
