@@ -8870,9 +8870,13 @@
         //  في كل مرفقات التطبيق الأخرى).
         // ══════════════════════════════════════════════════════════════════
 
-        // يحوّل نص base64 (بلا بادئة data:...) إلى كائن File قابل للرفع عبر driveUploadBinaryFile
+        // يحوّل نص base64 إلى كائن File قابل للرفع عبر driveUploadBinaryFile — يقبل
+        // نصاً خاماً بلا بادئة أو Data URL كاملة (data:...;base64,...) فيُزيل البادئة
+        // تلقائياً إن وُجدت (نُسخ دفعة الطلاب/صفحات PDF تُخزَّن كـ Data URL كاملة)
         function _base64ToFile(base64Data, filename, mimeType) {
-            const byteChars = atob(base64Data);
+            const commaIdx = base64Data.indexOf(',');
+            const raw = base64Data.startsWith('data:') && commaIdx !== -1 ? base64Data.slice(commaIdx + 1) : base64Data;
+            const byteChars = atob(raw);
             const byteNumbers = new Array(byteChars.length);
             for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
             const byteArray = new Uint8Array(byteNumbers);
@@ -8920,10 +8924,18 @@
 
         // مصدر عرض موحَّد لصورة صفحة من نموذج الطالب الورقي — يقبل الصيغتين:
         // مرجع Drive الجديد ({ driveFileId, ... }) أو نص base64 قديم (توافق خلفي
-        // مع سجلات محفوظة سابقاً قبل اعتماد التخزين على Drive)
+        // مع سجلات محفوظة سابقاً قبل اعتماد التخزين على Drive). النص قد يصل بصيغتين:
+        // base64 خام بلا بادئة (تدفق QR الفردي القديم عبر dataUrl.split(',')[1])، أو
+        // Data URL كاملة بالفعل (data:image/...;base64,...) كما تُخزَّن نُسخ دفعة
+        // الطلاب الجديدة (canvas.toDataURL — تشمل الصور والصفحات المستخرجة من PDF).
+        // إضافة بادئة "data:" لنص يحملها أصلاً كانت تُنتج بادئة مزدوجة فاسدة
+        // (data:image/jpeg;base64,data:image/jpeg;base64,...) تظهر كصورة سوداء
+        // بعلامة استفهام — لذا نتحقق أولاً قبل إضافة أي بادئة.
         function paperCorrectionSheetImageSrc(entry) {
             if (!entry) return '';
-            if (typeof entry === 'string') return `data:image/jpeg;base64,${entry}`;
+            if (typeof entry === 'string') {
+                return entry.startsWith('data:') ? entry : `data:image/jpeg;base64,${entry}`;
+            }
             if (entry.driveFileId) return driveFileViewUrl(entry.driveFileId);
             return entry.previewUrl || entry.viewUrl || '';
         }
@@ -23667,11 +23679,17 @@
                     class="w-full py-2.5 rounded-xl border border-dashed border-primary/40 text-primary text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary/5 mb-4">
                     <i class="ph ph-plus"></i> ادراج نسخة طالب جديدة
                 </button>
-                <button id="paperCorrectionBatchStartBtn" onclick="startPaperCorrectionBatchAnalysis()"
-                    class="w-full py-3 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2"
-                    style="background:linear-gradient(135deg,#0790AC,#056276)">
-                    <i class="ph ph-magic-wand"></i> بدء التحليل
-                </button>`;
+                <div class="flex items-stretch gap-2">
+                    <button id="paperCorrectionBatchStartBtn" onclick="startPaperCorrectionBatchAnalysis()"
+                        class="flex-1 py-3 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2"
+                        style="background:linear-gradient(135deg,#0790AC,#056276)">
+                        <i class="ph ph-magic-wand"></i> بدء التحليل
+                    </button>
+                    <button onclick="startPaperCorrectionManualEntry()"
+                        class="flex-1 py-3 rounded-xl font-bold text-primary text-sm flex items-center justify-center gap-2 glass-icon-btn border border-primary/30 hover:bg-primary/5">
+                        <i class="ph ph-pencil-simple-line"></i> إدخال الإجابات يدوياً
+                    </button>
+                </div>`;
         }
 
         function switchPaperCorrectionToDetailMode() {
@@ -24486,6 +24504,43 @@ ${blocksHtml}
                 }
                 renderPaperCorrectionBatchPanel();
             }
+        }
+
+        // ---- زر "إدخال الإجابات يدوياً": يتجاوز التحليل الآلي عبر Gemini بالكامل — يهيّئ كل
+        // نسخ الطلاب المضافة (المحلَّلة سابقاً تُترك كما هي) للانتقال المباشر لوضع "التفاصيل"،
+        // حيث يمكن كتابة إجابات كل طالب يدوياً من تبويب "النسخة المفرَّغة (تعديل)" مباشرة ----
+        function startPaperCorrectionManualEntry() {
+            if (_paperCorrectionBatchRunning) return;
+            if (!_paperCorrectionBatch.exam) {
+                showToast('⚠️ حدِّد الامتحان أولاً', 'warning');
+                return;
+            }
+            const students = _paperCorrectionBatch.students;
+            if (!students.length) {
+                showToast('⚠️ أضف نسخة طالب واحدة على الأقل قبل إدخال الإجابات يدوياً', 'warning');
+                return;
+            }
+
+            let namelessCount = 0;
+            students.forEach(s => {
+                if (!s.analyzed && !s.analysisError) {
+                    s.answers = s.answers || {};
+                    s.usedOcr = false;
+                    s.analyzed = true;
+                    s.analysisError = null;
+                }
+                if (!s.name || !s.name.trim()) namelessCount++;
+            });
+
+            showToast(namelessCount
+                ? `✏️ تم تجهيز ${students.length} نسخة للإدخال اليدوي — ${namelessCount} منها بلا اسم، يرجى إدخاله يدوياً`
+                : `✏️ تم تجهيز ${students.length} نسخة لإدخال إجاباتها يدوياً`, 'info');
+
+            _paperCorrectionBatch.viewMode = 'detail';
+            if (!_paperCorrectionBatch.activeStudentId || !findPaperCorrectionBatchStudent(_paperCorrectionBatch.activeStudentId)) {
+                _paperCorrectionBatch.activeStudentId = students[0].id;
+            }
+            renderPaperCorrectionBatchPanel();
         }
 
         // ---- فتح المودال والبدء بخطوة المسح ----
