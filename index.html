@@ -3408,7 +3408,7 @@
                     </div>
 
                     <!-- بطاقة: تصحيح ورقة امتحان (منقولة من زر التول بار) -->
-                    <div class="staff-only glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="openPaperCorrectionScanner()">
+                    <div class="staff-only glass-element rounded-2xl p-6 cursor-pointer hover:border-primary/50 hover:-translate-y-1 transition-all" onclick="openPaperCorrectionMainView()">
                         <div class="w-16 h-16 rounded-2xl glass-icon-tile flex items-center justify-center text-amber-600 text-3xl mb-4">
                             <i class="ph ph-scan"></i>
                         </div>
@@ -3502,6 +3502,23 @@
                         <p class="text-sm">اضغط على زر "+" أعلى القائمة الجانبية لإنشاء تقييم جديد</p>
                     </div>
                 </div>
+            </div>
+
+            <!-- ح-٠. لوحة العرض الرئيسية لتصحيح الامتحانات الورقية (Paper Correction Main View) - مخفي افتراضياً
+                 تحلّ هذه اللوحة محل مسار "تصحيح ورقة امتحان" أحادي الطالب القديم (المودال paperCorrectionModal
+                 لا يزال يُستخدم فقط لخطوة "تحديد الامتحان" عبر QR/يدوياً، ثم يُغلَق تلقائياً وتُبنى هذه اللوحة). -->
+            <div id="paperCorrectionMainView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40 flex-wrap">
+                    <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-amber-600 text-xl flex-shrink-0">
+                        <i class="ph ph-scan"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-xl font-bold text-gray-800">تصحيح ورقة امتحان</h2>
+                        <p id="paperCorrectionMainViewSubtitle" class="text-xs text-gray-400">حدِّد الامتحان أولاً لبدء إرفاق نسخ الطلاب الورقية</p>
+                    </div>
+                    <div id="paperCorrectionMainViewActions" class="flex items-center gap-1.5 flex-shrink-0"></div>
+                </div>
+                <div id="paperCorrectionMainViewBody" class="flex-1"></div>
             </div>
 
             <!-- ح. عرض سجل المدربين (Trainers Registry View) - مخفي افتراضياً -->
@@ -6372,7 +6389,7 @@
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'refLibView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView', 'asyncSessionsView'];
+        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'refLibView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView', 'asyncSessionsView', 'paperCorrectionMainView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -23126,6 +23143,877 @@
            ===== نظام تصحيح الامتحانات الورقية — منطق JavaScript =====
            ======================================================== */
 
+        /* ════════════════════════════════════════════════════════════════
+           ==== لوحة العرض الرئيسية لتصحيح الامتحانات الورقية — المرحلة 1 ====
+           تستبدل هذه اللوحة تدفّق "طالب واحد بالمودال" القديم بلوحة كاملة تسمح
+           بإرفاق نسخ عدة طلاب دفعة واحدة على نفس نموذج الامتحان المحدَّد، تمهيداً
+           لتحليلها دفعة واحدة (المرحلة 2) ثم مطابقتها وتصحيحها (المرحلة 4).
+           ════════════════════════════════════════════════════════════════ */
+
+        // حالة اللوحة: الامتحان المحدَّد + قائمة "نسخ الطلاب الورقية" المرفقة قبل التحليل
+        let _paperCorrectionBatch = {
+            programKey: null,
+            courseKey: null,
+            examId: null,
+            exam: null,
+            students: [], // { id, name, nameSource:'manual'|'ocr', images:[dataURL...], analyzed:false }
+            viewMode: 'setup',      // 'setup' (إرفاق نسخ الطلاب) | 'detail' (القائمة الجانبية + عرض طالب)
+            activeStudentId: null   // الطالب المفتوح حالياً في وضع 'detail'
+        };
+        let _paperCorrectionStudentSeq = 0;
+
+        // ---- فتح لوحة العرض الرئيسية (من بطاقة "تصحيح ورقة امتحان" في الرئيسية) ----
+        // keepBatch=true تُستخدَم داخلياً عند الفتح من openPaperCorrectionScanner حتى لا تُصفَّر
+        // دفعة الطلاب الحالية إن كانت اللوحة مفتوحة بالفعل (مثلاً عند "تغيير الامتحان المحدَّد")
+        function openPaperCorrectionMainView(keepBatch) {
+            if (!keepBatch) {
+                _paperCorrectionBatch = { programKey: null, courseKey: null, examId: null, exam: null, students: [], viewMode: 'setup', activeStudentId: null };
+            }
+            showView('paperCorrectionMainView');
+            renderPaperCorrectionMainViewActions();
+            renderPaperCorrectionBatchPanel();
+        }
+
+        // ---- أزرار الهيدر: "تحديد الامتحان" (أو "تغيير الامتحان" إن سبق تحديده) ----
+        function renderPaperCorrectionMainViewActions() {
+            const wrap = document.getElementById('paperCorrectionMainViewActions');
+            const subtitle = document.getElementById('paperCorrectionMainViewSubtitle');
+            if (!wrap) return;
+            const hasExam = !!_paperCorrectionBatch.exam;
+            if (hasExam) {
+                const exam = _paperCorrectionBatch.exam;
+                const program = programsData[_paperCorrectionBatch.programKey];
+                const course  = (program?.courses || []).find(c => c.key === _paperCorrectionBatch.courseKey);
+                const typeInfo = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
+                if (subtitle) subtitle.innerHTML = `${program?.title || ''} · ${course?.code || course?.key || ''} · ${typeInfo.ar} · ${exam.questions.length} سؤال`;
+            } else if (subtitle) {
+                subtitle.textContent = 'حدِّد الامتحان أولاً لبدء إرفاق نسخ الطلاب الورقية';
+            }
+
+            const hasAnalyzedStudents = _paperCorrectionBatch.students.some(s => s.analyzed);
+            wrap.innerHTML = `
+                <button onclick="openPaperCorrectionScanner()"
+                    class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50">
+                    <i class="ph ph-qr-code"></i> ${hasExam ? 'تغيير الامتحان' : 'تحديد الامتحان'}
+                </button>
+                ${hasAnalyzedStudents ? `
+                <div class="relative paper-correction-header-menu-wrap">
+                    <button onclick="togglePaperCorrectionHeaderMenu('pcMatchMenu')"
+                        class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50">
+                        <i class="ph ph-check-square-offset"></i> المطابقة والتصحيح <i class="ph ph-caret-down text-[10px]"></i>
+                    </button>
+                    <div id="pcMatchMenu" class="paper-correction-header-menu hidden absolute left-0 mt-1 w-44 glass-panel bg-white rounded-xl shadow-lg z-20 overflow-hidden">
+                        <button onclick="runPaperCorrectionMatchAndGrade('all')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5">جميع الطلاب</button>
+                        <button onclick="runPaperCorrectionMatchAndGrade('current')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-t border-gray-100">الطالب الحالي</button>
+                    </div>
+                </div>
+                <div class="relative paper-correction-header-menu-wrap">
+                    <button onclick="togglePaperCorrectionHeaderMenu('pcPrintMenu')"
+                        class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50">
+                        <i class="ph ph-printer"></i> طباعة التقرير <i class="ph ph-caret-down text-[10px]"></i>
+                    </button>
+                    <div id="pcPrintMenu" class="paper-correction-header-menu hidden absolute left-0 mt-1 w-44 glass-panel bg-white rounded-xl shadow-lg z-20 overflow-hidden">
+                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionAllStudentsReport()" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5">جميع الطلاب</button>
+                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionStudentReport(_paperCorrectionBatch.activeStudentId)" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-t border-gray-100">الطالب الحالي</button>
+                    </div>
+                </div>` : ''}`;
+        }
+
+        // ---- قوائم الهيدر المنسدلة (المطابقة والتصحيح / طباعة التقرير): فتح/إغلاق بسيط + إغلاق عند الضغط خارجها ----
+        function togglePaperCorrectionHeaderMenu(menuId) {
+            document.querySelectorAll('.paper-correction-header-menu').forEach(el => {
+                if (el.id !== menuId) el.classList.add('hidden');
+            });
+            document.getElementById(menuId)?.classList.toggle('hidden');
+        }
+        function closePaperCorrectionHeaderMenus() {
+            document.querySelectorAll('.paper-correction-header-menu').forEach(el => el.classList.add('hidden'));
+        }
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.paper-correction-header-menu-wrap')) closePaperCorrectionHeaderMenus();
+        });
+
+        // ---- عرض جسم لوحة العرض الرئيسية: يوزّع بين وضع "الإعداد" (إرفاق نسخ الطلاب) ووضع
+        // "التفصيل" (القائمة الجانبية + عرض طالب واحد) حسب _paperCorrectionBatch.viewMode ----
+        function renderPaperCorrectionBatchPanel() {
+            const body = document.getElementById('paperCorrectionMainViewBody');
+            if (!body) return;
+            const batch = _paperCorrectionBatch;
+            renderPaperCorrectionMainViewActions();
+
+            if (!batch.exam) {
+                body.innerHTML = `
+                    <div class="text-center py-16 text-gray-400">
+                        <i class="ph ph-qr-code text-3xl block mb-2 text-gray-300"></i>
+                        <p class="text-sm">اضغط على زر "تحديد الامتحان" أعلى اللوحة للبدء</p>
+                    </div>`;
+                return;
+            }
+
+            const hasAnalyzed = batch.students.some(s => s.analyzed || s.analysisError);
+            if (batch.viewMode === 'detail' && hasAnalyzed) {
+                renderPaperCorrectionDetailLayout();
+            } else {
+                renderPaperCorrectionSetupLayout();
+            }
+        }
+
+        // ---- وضع "الإعداد": قسم "تحديد نسخة الطالب الورقية" (إرفاق/تحليل) ----
+        function renderPaperCorrectionSetupLayout() {
+            const body = document.getElementById('paperCorrectionMainViewBody');
+            if (!body) return;
+            const batch = _paperCorrectionBatch;
+
+            if (!batch.students.length) addPaperCorrectionBatchStudent(false);
+
+            const hasAnalyzed = batch.students.some(s => s.analyzed || s.analysisError);
+            const studentsHtml = batch.students.map(s => paperCorrectionBatchStudentRowHTML(s)).join('');
+            body.innerHTML = `
+                <div class="glass-element rounded-xl p-3 mb-4 text-xs text-gray-600">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <p class="font-bold text-gray-700 mb-1 flex items-center gap-1.5"><i class="ph ph-users-three text-primary"></i> تحديد نسخة الطالب الورقية</p>
+                            <p class="text-gray-500">أرفق اسم ونسخة كل طالب من ورقة الامتحان (عدة صور — أو تصوير أكثر من صورة — أو ملف PDF لكامل الامتحان)، ثم اضغط "بدء التحليل" أسفل القائمة.</p>
+                        </div>
+                        ${hasAnalyzed ? `
+                        <button onclick="switchPaperCorrectionToDetailMode()"
+                            class="shrink-0 glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50 whitespace-nowrap">
+                            <i class="ph ph-list-bullets"></i> عرض نتائج الطلاب
+                        </button>` : ''}
+                    </div>
+                </div>
+                <div id="paperCorrectionBatchStudentsList" class="space-y-3 mb-3">${studentsHtml}</div>
+                <button onclick="addPaperCorrectionBatchStudent(true)"
+                    class="w-full py-2.5 rounded-xl border border-dashed border-primary/40 text-primary text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary/5 mb-4">
+                    <i class="ph ph-plus"></i> ادراج نسخة طالب جديدة
+                </button>
+                <button id="paperCorrectionBatchStartBtn" onclick="startPaperCorrectionBatchAnalysis()"
+                    class="w-full py-3 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2"
+                    style="background:linear-gradient(135deg,#0790AC,#056276)">
+                    <i class="ph ph-magic-wand"></i> بدء التحليل
+                </button>`;
+        }
+
+        function switchPaperCorrectionToDetailMode() {
+            _paperCorrectionBatch.viewMode = 'detail';
+            if (!_paperCorrectionBatch.activeStudentId || !findPaperCorrectionBatchStudent(_paperCorrectionBatch.activeStudentId)) {
+                const first = _paperCorrectionBatch.students.find(s => s.analyzed || s.analysisError);
+                _paperCorrectionBatch.activeStudentId = first ? first.id : null;
+            }
+            renderPaperCorrectionBatchPanel();
+        }
+
+        function switchPaperCorrectionToSetupMode() {
+            _paperCorrectionBatch.viewMode = 'setup';
+            renderPaperCorrectionBatchPanel();
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           ==== وضع "التفصيل": القائمة الجانبية بأسماء الطلاب + عرض طالب واحد ====
+           عند فتح طالب، تُزامَن الحالة العامة _paperCorrection مع بياناته (بنفس المرجع
+           لِـ answers/ocrConfidence/ocrEvidence/ocrImages) حتى تُعاد استخدام كل دوال
+           العرض الثلاثي وتحرير الإجابات الحالية دون أي تعديل عليها — وأي تعديل يدوي
+           يُجريه المستخدم على إجابات الطالب ضمن هذا العرض ينعكس تلقائياً على بيانات
+           هذا الطالب نفسه داخل الدفعة (لأن الكائنات المرجعية مشتركة، لا نسخة منها).
+           ════════════════════════════════════════════════════════════════ */
+
+        function renderPaperCorrectionDetailLayout() {
+            const body = document.getElementById('paperCorrectionMainViewBody');
+            if (!body) return;
+            body.innerHTML = `
+                <div class="flex gap-4 items-start">
+                    <div class="w-64 shrink-0">
+                        <button onclick="switchPaperCorrectionToSetupMode()"
+                            class="w-full glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center justify-center gap-1.5 hover:border-primary/50 mb-3">
+                            <i class="ph ph-users-three"></i> إدارة نسخ الطلاب
+                        </button>
+                        <div id="paperCorrectionSidebarList" class="space-y-2 max-h-[70vh] overflow-y-auto pl-1"></div>
+                    </div>
+                    <div id="paperCorrectionStudentDetailPanel" class="flex-1 min-w-0"></div>
+                </div>`;
+
+            renderPaperCorrectionSidebarList();
+
+            const batch = _paperCorrectionBatch;
+            if (!batch.activeStudentId || !findPaperCorrectionBatchStudent(batch.activeStudentId)) {
+                const first = batch.students.find(s => s.analyzed || s.analysisError);
+                batch.activeStudentId = first ? first.id : null;
+            }
+            openPaperCorrectionStudentDetail(batch.activeStudentId);
+        }
+
+        // ---- بطاقات القائمة الجانبية بأسماء الطلاب الذين تم تحليلهم (أو حاولنا تحليلهم) ----
+        function renderPaperCorrectionSidebarList() {
+            const wrap = document.getElementById('paperCorrectionSidebarList');
+            if (!wrap) return;
+            const items = _paperCorrectionBatch.students.filter(s => s.analyzed || s.analysisError);
+            if (!items.length) {
+                wrap.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">لا يوجد طلاب محلَّلون بعد</p>`;
+                return;
+            }
+            wrap.innerHTML = items.map(s => {
+                const active = s.id === _paperCorrectionBatch.activeStudentId;
+                const statusIcon = s.analysisError
+                    ? '<i class="ph ph-warning-circle text-red-500 text-lg shrink-0"></i>'
+                    : '<i class="ph ph-check-circle text-green-500 text-lg shrink-0"></i>';
+                const markBadge = s.grading
+                    ? `<span class="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full shrink-0">${paperCorrectionStudentFinalEarnedTotal(s)}/${s.grading.totalMark}</span>`
+                    : '';
+                return `
+                <button onclick="selectPaperCorrectionBatchStudentDetail('${s.id}')"
+                    class="w-full text-right glass-panel rounded-xl px-3 py-2.5 flex items-center gap-2 transition-colors ${active ? 'border-primary bg-primary/5' : 'hover:border-primary/40'}">
+                    <div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0"><i class="ph ph-user"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold truncate ${active ? 'text-primary' : 'text-gray-700'}">${escapeHtml(s.name || 'بلا اسم')}</p>
+                        <p class="text-[10px] text-gray-400">${s.analysisError ? 'فشل التحليل' : (s.grading ? 'تم التصحيح' : 'تم التحليل')}</p>
+                    </div>
+                    ${markBadge || statusIcon}
+                </button>`;
+            }).join('');
+        }
+
+        function selectPaperCorrectionBatchStudentDetail(id) {
+            _paperCorrectionBatch.activeStudentId = id;
+            renderPaperCorrectionSidebarList();
+            openPaperCorrectionStudentDetail(id);
+        }
+
+        // ---- فتح عرض طالب واحد: هيدر (الامتحان/السنة والفصل/المقرر/اسم الطالب) + العرض الثلاثي ----
+        function openPaperCorrectionStudentDetail(id) {
+            const panel = document.getElementById('paperCorrectionStudentDetailPanel');
+            if (!panel) return;
+            const s = id ? findPaperCorrectionBatchStudent(id) : null;
+            if (!s) {
+                panel.innerHTML = `<div class="text-center text-gray-400 py-16 text-sm">اختر طالباً من القائمة الجانبية</div>`;
+                return;
+            }
+
+            // مزامنة _paperCorrection مع بيانات هذا الطالب (بنفس المرجع لا بنسخة) لإعادة استخدام
+            // دوال العرض الثلاثي وتحرير الإجابات الحالية كما هي دون أي تكرار للمنطق
+            _paperCorrection.programKey = _paperCorrectionBatch.programKey;
+            _paperCorrection.courseKey  = _paperCorrectionBatch.courseKey;
+            _paperCorrection.examId     = _paperCorrectionBatch.examId;
+            _paperCorrection.exam       = _paperCorrectionBatch.exam;
+            _paperCorrection.traineeName   = s.name || null;
+            _paperCorrection.answers       = s.answers;
+            _paperCorrection.ocrConfidence = s.ocrConfidence;
+            _paperCorrection.ocrEvidence   = s.ocrEvidence;
+            _paperCorrection.ocrImages     = s.images;
+            _paperCorrection.usedOcr       = s.usedOcr;
+            _paperCorrection.activeBatchStudentId = id;
+
+            panel.innerHTML = `
+                <div id="paperCorrectionStudentHeader" class="glass-element rounded-xl p-4 mb-4"></div>
+                <p class="text-xs font-semibold text-gray-600 flex items-center gap-1.5 mb-2">
+                    <i class="ph ph-columns text-primary"></i> عرض التأكيد الثلاثي
+                </p>
+                <div class="grid grid-cols-3 gap-1.5 mb-3">
+                    <button type="button" data-triple-tab="scan" onclick="switchPaperCorrectionTripleTab('scan')"
+                        class="paper-triple-tab-btn text-[11px] font-semibold py-2 rounded-lg border transition-colors">
+                        <i class="ph ph-image block text-sm mb-0.5"></i> نسخة الطالب الورقية
+                    </button>
+                    <button type="button" data-triple-tab="transcript" onclick="switchPaperCorrectionTripleTab('transcript')"
+                        class="paper-triple-tab-btn text-[11px] font-semibold py-2 rounded-lg border transition-colors">
+                        <i class="ph ph-text-align-right block text-sm mb-0.5"></i> النسخة المفرَّغة (تعديل)
+                    </button>
+                    <button type="button" data-triple-tab="key" onclick="switchPaperCorrectionTripleTab('key')"
+                        class="paper-triple-tab-btn text-[11px] font-semibold py-2 rounded-lg border transition-colors">
+                        <i class="ph ph-key block text-sm mb-0.5"></i> نسخة النظام
+                    </button>
+                </div>
+                <div id="paperCorrectionStudentTripleViewContent" class="mb-4 max-h-[28rem] overflow-y-auto space-y-2 glass-element rounded-xl p-2.5"></div>
+                <div id="paperCorrectionStudentResultsWrap" class="hidden"></div>`;
+
+            renderPaperCorrectionStudentDetailHeader(s);
+
+            _paperCorrectionTripleContainerId = 'paperCorrectionStudentTripleViewContent';
+            _paperCorrectionActiveTripleTab = (s.images && s.images.length) ? 'scan' : 'transcript';
+            renderPaperCorrectionTripleView();
+
+            renderPaperCorrectionStudentResults(s);
+        }
+
+        // ---- هيدر عرض الطالب: اسم الامتحان أعلاه، ثم السنة/الفصل، ثم المقرر، ثم اسم الطالب أسفله بارزاً
+        //      (مع علامته المستحقة بجانبه إن كان قد خضع لـ"المطابقة والتصحيح") ----
+        function renderPaperCorrectionStudentDetailHeader(s) {
+            const el = document.getElementById('paperCorrectionStudentHeader');
+            if (!el) return;
+            const exam = _paperCorrectionBatch.exam;
+            const program = programsData[_paperCorrectionBatch.programKey];
+            const course = (program?.courses || []).find(c => c.key === _paperCorrectionBatch.courseKey);
+            const typeInfo = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
+            const markBadge = s.grading
+                ? `<span class="text-sm font-bold bg-primary text-white px-2.5 py-1 rounded-full mr-auto">${paperCorrectionStudentFinalEarnedTotal(s)} / ${s.grading.totalMark}</span>`
+                : '';
+            el.innerHTML = `
+                <p class="text-xs text-gray-400">${typeInfo.ar}${exam.examDate ? ' · ' + exam.examDate : ''}</p>
+                <p class="text-xs text-gray-400 mt-0.5">${exam.academicYear || '—'} / ${exam.semester || '—'}</p>
+                <p class="text-sm font-semibold text-gray-600 mt-0.5">${course?.title || '—'}</p>
+                <div class="flex items-center gap-2 mt-1.5">
+                    <p class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <i class="ph ph-user-circle text-primary"></i> ${escapeHtml(s.name || 'بلا اسم')}
+                    </p>
+                    ${markBadge}
+                </div>
+                ${s.analysisError ? `<p class="text-[11px] text-red-500 mt-1.5 flex items-center gap-1"><i class="ph ph-warning-circle"></i> ${escapeHtml(s.analysisError)}</p>` : ''}`;
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           ==== المرحلة 4 — المطابقة والتصحيح + طباعة التقرير ====
+           تُعيد استخدام محرك التصحيح الموضوعي paperCorrectionGradeAnswers نفسه (بلا أي
+           تكرار للمنطق)، لكن بمعزل تام لكل طالب: كل طالب يحمل grading/manualMarks خاصّين
+           به داخل بيانات الدفعة، ويُعاد حسابهما عند إعادة "المطابقة والتصحيح" في أي وقت.
+           ════════════════════════════════════════════════════════════════ */
+
+        // ---- تشغيل المطابقة والتصحيح لطالب واحد: يحسب grading من إجاباته المفرَّغة الحالية ----
+        function paperCorrectionGradeStudent(s) {
+            if (!s.name || !s.name.trim()) return { ok: false, reason: `أدخل اسم الطالب أولاً` };
+            if (!s.answers || !Object.keys(s.answers).length) return { ok: false, reason: `لا توجد إجابات مفرَّغة لهذا الطالب بعد` };
+            s.grading = paperCorrectionGradeAnswers(_paperCorrectionBatch.exam, s.answers);
+            if (!s.manualMarks) s.manualMarks = {};
+            return { ok: true };
+        }
+
+        // ---- زر "المطابقة والتصحيح" في الهيدر: يطبَّق على "جميع الطلاب" أو "الطالب الحالي" فقط ----
+        function runPaperCorrectionMatchAndGrade(scope) {
+            closePaperCorrectionHeaderMenus();
+            if (!_paperCorrectionBatch.exam) { showToast('⚠️ حدِّد الامتحان أولاً', 'warning'); return; }
+
+            const candidates = scope === 'current'
+                ? [findPaperCorrectionBatchStudent(_paperCorrectionBatch.activeStudentId)].filter(Boolean)
+                : _paperCorrectionBatch.students.filter(s => s.analyzed);
+
+            if (!candidates.length) {
+                showToast(scope === 'current' ? '⚠️ افتح طالباً من القائمة الجانبية أولاً' : '⚠️ لا يوجد طلاب تم تحليلهم بعد', 'warning');
+                return;
+            }
+
+            let done = 0, failed = 0, failReasons = [];
+            candidates.forEach(s => {
+                const r = paperCorrectionGradeStudent(s);
+                if (r.ok) done++; else { failed++; failReasons.push(r.reason); }
+            });
+
+            renderPaperCorrectionSidebarList();
+            const activeStudent = findPaperCorrectionBatchStudent(_paperCorrectionBatch.activeStudentId);
+            if (activeStudent && candidates.includes(activeStudent)) {
+                renderPaperCorrectionStudentDetailHeader(activeStudent);
+                renderPaperCorrectionStudentResults(activeStudent);
+            }
+
+            if (!failed) showToast(`✅ تمت المطابقة والتصحيح لـ ${done} طالب`, 'success');
+            else showToast(`⚠️ تمت مطابقة ${done} — تعذّر تصحيح ${failed} (${failReasons[0] || ''})`, 'warning');
+        }
+
+        // ---- إجمالي علامة الطالب النهائي: التلقائي + كل الدرجات اليدوية (الأسئلة المقالية) ----
+        function paperCorrectionStudentFinalEarnedTotal(s) {
+            if (!s.grading) return 0;
+            const manualTotal = Object.values(s.manualMarks || {}).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+            return Math.round((s.grading.autoEarned + manualTotal) * 100) / 100;
+        }
+
+        // ---- عرض نتيجة المطابقة والتصحيح أسفل العرض الثلاثي لهذا الطالب تحديداً ----
+        function renderPaperCorrectionStudentResults(s) {
+            const wrap = document.getElementById('paperCorrectionStudentResultsWrap');
+            if (!wrap) return;
+            if (!s.grading) { wrap.classList.add('hidden'); wrap.innerHTML = ''; return; }
+            wrap.classList.remove('hidden');
+
+            const exam = _paperCorrectionBatch.exam;
+            const numberMap = {};
+            groupQuestionsByType(exam.questions).forEach(g => g.indexes.forEach((idx, gi) => { numberMap[idx] = g.numbers[gi]; }));
+            const orderedResults = s.grading.results.slice().sort((a, b) => (numberMap[a.index] || 0) - (numberMap[b.index] || 0));
+
+            const rowsHtml = orderedResults.map(r => {
+                const typeInfo = QUESTION_TYPES.find(t => t.key === r.type) || { ar: r.type };
+                let statusHtml = '';
+                if (r.manual) {
+                    const mv = (s.manualMarks && s.manualMarks[r.index] != null) ? s.manualMarks[r.index] : '';
+                    statusHtml = `
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">تصحيح يدوي</span>
+                        <input type="number" min="0" max="${r.mark}" step="0.5" value="${mv}" placeholder="0"
+                            oninput="setPaperCorrectionStudentManualMark('${s.id}', ${r.index}, this.value, ${r.mark})"
+                            class="w-16 glass-panel rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-primary">
+                        <span class="text-[10px] text-gray-400">/ ${r.mark}</span>
+                    </div>`;
+                } else if (r.empty) {
+                    statusHtml = `<span class="text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full shrink-0">بدون إجابة · 0/${r.mark}</span>`;
+                } else if (r.correct) {
+                    statusHtml = `<span class="text-[10px] bg-green-50 text-green-600 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0"><i class="ph ph-check-circle"></i> ${r.earned}/${r.mark}</span>`;
+                } else if (r.partial) {
+                    statusHtml = `<span class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0"><i class="ph ph-minus-circle"></i> ${r.earned}/${r.mark} (جزئي)</span>`;
+                } else {
+                    statusHtml = `<span class="text-[10px] bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0"><i class="ph ph-x-circle"></i> 0/${r.mark}</span>`;
+                }
+                const q = exam.questions?.[r.index] || {};
+                const compareHtml = (r.manual || r.type === 'essay') ? '' : `
+                    <div class="mt-1.5 pt-1.5 border-t border-gray-100 grid grid-cols-2 gap-2 text-[10px]">
+                        <div class="min-w-0"><span class="text-gray-400">المفرَّغ: </span><span class="text-gray-700">${paperCorrectionAnswerText(q, s.answers?.[r.index])}</span></div>
+                        <div class="min-w-0"><span class="text-gray-400">الصحيح: </span><span class="text-green-700 font-semibold">${paperCorrectionCorrectAnswerText(q)}</span></div>
+                    </div>`;
+                return `
+                <div class="glass-element rounded-lg p-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">${numberMap[r.index] ?? (r.index + 1)}</span>
+                            <span class="text-xs text-gray-500 truncate">${typeInfo.ar}</span>
+                        </div>
+                        ${statusHtml}
+                    </div>
+                    ${compareHtml}
+                </div>`;
+            }).join('');
+
+            const finalEarned = paperCorrectionStudentFinalEarnedTotal(s);
+            const pct = s.grading.totalMark > 0 ? Math.round((finalEarned / s.grading.totalMark) * 1000) / 10 : 0;
+
+            wrap.innerHTML = `
+                <div class="border-t border-white/40 pt-3 mt-1">
+                    <div class="glass-element rounded-xl p-3 mb-3 flex items-center gap-2">
+                        <i class="ph ph-check-square-offset text-primary text-lg"></i>
+                        <div class="flex-1">
+                            <p class="text-xs font-semibold text-gray-600">نتيجة المطابقة والتصحيح</p>
+                            <div class="mt-1 flex items-center gap-2">
+                                <span id="paperCorrectionStudentFinalEarned" class="text-2xl font-black text-primary">${finalEarned}</span>
+                                <span class="text-sm text-gray-400">/ ${s.grading.totalMark}</span>
+                                <span id="paperCorrectionStudentFinalPct" class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold mr-auto">${pct}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-2 mb-3">${rowsHtml}</div>
+                    <button onclick="printPaperCorrectionStudentReport('${s.id}')"
+                        class="w-full py-2 rounded-xl glass-icon-btn text-xs text-gray-600 font-semibold hover:bg-gray-50 flex items-center justify-center gap-1.5">
+                        <i class="ph ph-printer"></i> طباعة تقرير هذا الطالب
+                    </button>
+                </div>`;
+        }
+
+        // ---- تعديل علامة سؤال مقالي يدوياً + تحديث الإجمالي فوراً (رأس اللوحة + بطاقة القائمة الجانبية) ----
+        function setPaperCorrectionStudentManualMark(studentId, qIndex, val, maxMark) {
+            const s = findPaperCorrectionBatchStudent(studentId);
+            if (!s || !s.grading) return;
+            let num = parseFloat(val);
+            if (isNaN(num)) num = 0;
+            if (num < 0) num = 0;
+            if (num > maxMark) num = maxMark;
+            if (!s.manualMarks) s.manualMarks = {};
+            s.manualMarks[qIndex] = num;
+
+            const finalEarned = paperCorrectionStudentFinalEarnedTotal(s);
+            const pct = s.grading.totalMark > 0 ? Math.round((finalEarned / s.grading.totalMark) * 1000) / 10 : 0;
+            const earnedEl = document.getElementById('paperCorrectionStudentFinalEarned');
+            const pctEl = document.getElementById('paperCorrectionStudentFinalPct');
+            if (earnedEl) earnedEl.textContent = finalEarned;
+            if (pctEl) pctEl.textContent = pct + '%';
+            renderPaperCorrectionStudentDetailHeader(s);
+            renderPaperCorrectionSidebarList();
+        }
+
+        // ---- طباعة تقرير طالب واحد: نفس محرك الطباعة الحالي (buildAndPrintPaperResultReport) بلا أي تعديل ----
+        function printPaperCorrectionStudentReport(studentId) {
+            const s = findPaperCorrectionBatchStudent(studentId);
+            if (!s || !s.grading) { showToast('⚠️ نفّذ "المطابقة والتصحيح" لهذا الطالب أولاً', 'warning'); return; }
+            const exam = _paperCorrectionBatch.exam;
+            const finalEarned = paperCorrectionStudentFinalEarnedTotal(s);
+            const totalMark = s.grading.totalMark;
+            const percentage = totalMark > 0 ? Math.round((finalEarned / totalMark) * 1000) / 10 : 0;
+            const answersArr = s.grading.results.map(r => ({
+                index: r.index, type: r.type, mark: r.mark,
+                earned: r.manual ? ((s.manualMarks && s.manualMarks[r.index]) || 0) : r.earned,
+                correct: r.manual ? null : r.correct,
+                manual: r.manual
+            }));
+            buildAndPrintPaperResultReport({
+                traineeName: s.name, examDate: exam.examDate, examType: exam.examType,
+                totalMark, earnedMark: finalEarned, percentage, answers: answersArr
+            }, _paperCorrectionBatch.programKey, _paperCorrectionBatch.courseKey);
+        }
+
+        // ---- طباعة كشف بأسماء وعلامات جميع الطلاب الذين تمت مطابقتهم وتصحيحهم ----
+        function printPaperCorrectionAllStudentsReport() {
+            const batch = _paperCorrectionBatch;
+            if (!batch.exam) { showToast('⚠️ حدِّد الامتحان أولاً', 'warning'); return; }
+            const graded = batch.students.filter(s => s.grading);
+            if (!graded.length) { showToast('⚠️ لا يوجد طلاب تمت مطابقتهم وتصحيحهم بعد', 'warning'); return; }
+
+            const program = programsData[batch.programKey];
+            const course  = (program?.courses || []).find(c => c.key === batch.courseKey);
+            const typeInfo = EXAM_TYPES.find(t => t.key === batch.exam.examType) || EXAM_TYPES[0];
+
+            const rows = graded.slice()
+                .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'))
+                .map((s, i) => `<tr><td>${i + 1}</td><td style="text-align:right">${escapeHtml(s.name || '—')}</td><td>${paperCorrectionStudentFinalEarnedTotal(s)} / ${s.grading.totalMark}</td></tr>`)
+                .join('');
+
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head>
+<meta charset="UTF-8"><title>كشف علامات — ${typeInfo.ar}</title>
+<style>
+    * { box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
+    body { font-family:'Segoe UI', Tahoma, Arial, sans-serif; padding:24px; color:#1f2937; font-size:13px; background:#fff; }
+    .header { border:2px solid #0790AC; border-radius:8px; padding:16px; margin-bottom:22px; }
+    .logo-area { font-size:18px; font-weight:800; color:#0790AC; }
+    .logo-area span { display:block; font-size:11px; font-weight:400; color:#6b7280; margin-top:2px; }
+    .header-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px 20px; margin-top:12px; border-top:1px solid #e5e7eb; padding-top:12px; }
+    .info-cell .label { font-size:10px; color:#9ca3af; margin-bottom:2px; }
+    .info-cell .value { font-weight:600; font-size:13px; }
+    table { width:100%; border-collapse:collapse; margin-top:4px; }
+    th { background:#0790AC; color:#fff; padding:6px 8px; font-size:11px; text-align:center; }
+    td { padding:6px 8px; text-align:center; border-bottom:1px solid #eee; font-size:12px; }
+    tr:nth-child(even) { background:#f8fbfd; }
+    @media print { body{padding:12px;} * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; } }
+</style></head><body>
+<div class="header">
+    <div class="logo-area">MedBox.Education <span>كشف علامات الطلاب (تصحيح ورقي)</span></div>
+    <div class="header-grid">
+        <div class="info-cell"><div class="label">اسم البرنامج</div><div class="value">${program?.title || '—'}</div></div>
+        <div class="info-cell"><div class="label">رمز الدورة/الدفعة</div><div class="value">${course?.code || batch.courseKey || '—'}</div></div>
+        <div class="info-cell"><div class="label">نوع الامتحان</div><div class="value">${typeInfo.ar}</div></div>
+        <div class="info-cell"><div class="label">تاريخ الطباعة</div><div class="value">${new Date().toLocaleDateString('ar-EG')}</div></div>
+    </div>
+</div>
+<table><thead><tr><th>#</th><th>اسم الطالب</th><th>العلامة المستحقة</th></tr></thead><tbody>${rows}</tbody></table>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`);
+            win.document.close();
+        }
+
+        // ---- بطاقة طالب واحد ضمن قائمة "تحديد نسخة الطالب الورقية" ----
+        // حالة تحليل كل طالب أثناء التنفيذ (مؤقتة، لا تُحفَظ) — busy/success/error لعرض شريط حالة حي
+        // أسفل بطاقة الطالب دون الحاجة لإعادة رسم اللوحة بالكامل في كل خطوة
+        let _paperCorrectionBatchStatus = {};
+
+        function paperCorrectionBatchStudentRowHTML(s) {
+            const thumbs = (s.images || []).map((img, i) => `
+                <div class="relative shrink-0 rounded-lg overflow-hidden bg-black" style="width:56px;height:70px">
+                    <img src="${img}" class="w-full h-full object-cover">
+                    <button type="button" onclick="event.stopPropagation(); removePaperCorrectionBatchStudentImage('${s.id}', ${i})"
+                        class="absolute top-0.5 left-0.5 bg-red-500/90 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px]">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>`).join('');
+
+            const statusStyles = {
+                busy:    'bg-gray-50 text-gray-500 border border-gray-200',
+                success: 'bg-green-50 text-green-700 border border-green-200',
+                error:   'bg-red-50 text-red-600 border border-red-200'
+            };
+            const statusIcons = { busy: 'ph-circle-notch animate-spin', success: 'ph-check-circle', error: 'ph-warning-circle' };
+            const liveStatus = _paperCorrectionBatchStatus[s.id];
+            let statusHtml = '';
+            if (liveStatus) {
+                statusHtml = `<div class="mt-2 text-[11px] rounded-lg px-2 py-1.5 flex items-center gap-1.5 ${statusStyles[liveStatus.kind]}">
+                    <i class="ph ${statusIcons[liveStatus.kind]} shrink-0"></i><span class="flex-1">${escapeHtml(liveStatus.message)}</span></div>`;
+            } else if (s.analyzed) {
+                const nameNote = s.nameSource === 'ocr' ? ' + اسم الطالب' : '';
+                statusHtml = `<div class="mt-2 text-[11px] rounded-lg px-2 py-1.5 flex items-center gap-1.5 ${statusStyles.success}">
+                    <i class="ph ${statusIcons.success} shrink-0"></i><span class="flex-1">تم تفريغ هذه النسخة${nameNote}</span></div>`;
+            }
+
+            return `
+            <div class="glass-panel rounded-xl p-3" data-student-id="${s.id}">
+                <div class="flex items-center gap-2 mb-2">
+                    <input type="text" value="${s.name ? escapeHtml(s.name) : ''}" placeholder="اسم الطالب"
+                        oninput="updatePaperCorrectionBatchStudentName('${s.id}', this.value)"
+                        class="flex-1 glass-panel rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-primary">
+                    <button onclick="analyzePaperCorrectionBatchStudentName('${s.id}')" title="تحليل اسم الطالب وإجاباته من الصور المرفقة"
+                        class="glass-icon-btn w-8 h-8 rounded-lg flex items-center justify-center text-primary shrink-0 hover:border-primary/50">
+                        <i class="ph ph-magic-wand text-sm"></i>
+                    </button>
+                    ${_paperCorrectionBatch.students.length > 1 ? `
+                    <button onclick="removePaperCorrectionBatchStudent('${s.id}')" title="حذف هذا الطالب"
+                        class="glass-icon-btn w-8 h-8 rounded-lg flex items-center justify-center text-red-500 shrink-0 hover:bg-red-50 hover:border-red-200">
+                        <i class="ph ph-trash text-sm"></i>
+                    </button>` : ''}
+                </div>
+                ${thumbs ? `<div class="flex gap-1.5 overflow-x-auto pb-1 mb-2">${thumbs}</div>` : ''}
+                <div class="flex gap-1.5 flex-wrap">
+                    <label class="cursor-pointer glass-icon-btn px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-primary flex items-center gap-1 hover:border-primary/50">
+                        <i class="ph ph-image text-sm"></i> رفع صورة
+                        <input type="file" accept="image/*" multiple class="hidden" onchange="capturePaperCorrectionBatchStudentImages('${s.id}', event)">
+                    </label>
+                    <label class="cursor-pointer glass-icon-btn px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-primary flex items-center gap-1 hover:border-primary/50">
+                        <i class="ph ph-camera text-sm"></i> تصوير فوري
+                        <input type="file" accept="image/*" capture="environment" multiple class="hidden" onchange="capturePaperCorrectionBatchStudentImages('${s.id}', event)">
+                    </label>
+                    <label class="cursor-pointer glass-icon-btn px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-primary flex items-center gap-1 hover:border-primary/50">
+                        <i class="ph ph-file-pdf text-sm"></i> PDF كامل الامتحان
+                        <input type="file" accept="application/pdf,.pdf" class="hidden" onchange="capturePaperCorrectionBatchStudentPdf('${s.id}', event)">
+                    </label>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1.5">${(s.images || []).length ? ((s.images.length) + ' صفحة مرفقة') : 'لم تُرفق أي صفحة بعد'}</p>
+                ${statusHtml}
+            </div>`;
+        }
+
+        // ---- إعادة رسم بطاقة طالب واحدة فقط (بدل اللوحة كاملة) — تُستخدَم أثناء التحليل
+        // الدفعي حتى لا تفقد بقية الحقول تركيزها/موضعها مع كل تحديث حالة ----
+        function rerenderPaperCorrectionBatchStudentRow(id) {
+            const container = document.querySelector(`#paperCorrectionBatchStudentsList [data-student-id="${id}"]`);
+            const s = findPaperCorrectionBatchStudent(id);
+            if (!container || !s) return;
+            container.outerHTML = paperCorrectionBatchStudentRowHTML(s);
+        }
+
+        function setPaperCorrectionBatchStudentStatus(id, kind, message) {
+            if (!kind) { delete _paperCorrectionBatchStatus[id]; }
+            else { _paperCorrectionBatchStatus[id] = { kind, message }; }
+            rerenderPaperCorrectionBatchStudentRow(id);
+        }
+
+        function findPaperCorrectionBatchStudent(id) {
+            return _paperCorrectionBatch.students.find(s => s.id === id);
+        }
+
+        // ---- إضافة طالب جديد (نسخة ورقية جديدة على نفس نموذج الامتحان المحدَّد مسبقاً) ----
+        function addPaperCorrectionBatchStudent(rerender) {
+            _paperCorrectionBatch.students.push({
+                id: 'pcs_' + (++_paperCorrectionStudentSeq) + '_' + Date.now(),
+                name: '',
+                nameSource: null, // 'manual' | 'ocr'
+                nameConfidence: null,
+                images: [],
+                answers: {},        // {questionIndex: value} — تُملأ بعد التحليل الآلي
+                ocrConfidence: {},  // {questionIndex: 0..1}
+                ocrEvidence: {},    // {questionIndex: 'وصف بصري موجز'}
+                usedOcr: false,
+                analyzed: false,
+                analysisError: null,
+                grading: null,       // نتيجة paperCorrectionGradeAnswers بعد "المطابقة والتصحيح"
+                manualMarks: {}      // علامات الأسئلة المقالية المُدخلة يدوياً {questionIndex: mark}
+            });
+            if (rerender) renderPaperCorrectionBatchPanel();
+        }
+
+        function removePaperCorrectionBatchStudent(id) {
+            _paperCorrectionBatch.students = _paperCorrectionBatch.students.filter(s => s.id !== id);
+            delete _paperCorrectionBatchStatus[id];
+            if (!_paperCorrectionBatch.students.length) addPaperCorrectionBatchStudent(false);
+            renderPaperCorrectionBatchPanel();
+        }
+
+        // لا يُعاد رسم اللوحة بالكامل عند كل حرف يُكتب حتى لا يفقد حقل الإدخال التركيز (focus)
+        function updatePaperCorrectionBatchStudentName(id, value) {
+            const s = findPaperCorrectionBatchStudent(id);
+            if (!s) return;
+            s.name = value;
+            s.nameSource = 'manual';
+        }
+
+        // ---- زر "تحليل": يشغّل التحليل الآلي الكامل (اسم الطالب + إجاباته) لهذه النسخة تحديداً
+        // عبر Gemini Vision، أو يتيح إدخال الاسم يدوياً إن لم تتوفر صور بعد ----
+        async function analyzePaperCorrectionBatchStudentName(id) {
+            const s = findPaperCorrectionBatchStudent(id);
+            if (!s) return;
+            if (!s.images.length) {
+                showToast('✏️ أرفق صورة/PDF لورقة الطالب أولاً، أو اكتب اسمه يدوياً في الحقل مباشرة', 'info');
+                return;
+            }
+            if (!_paperCorrectionBatch.exam) {
+                showToast('⚠️ حدِّد الامتحان أولاً', 'warning');
+                return;
+            }
+            const cfg = await fetchGeminiConfig();
+            if (!cfg.apiKey) {
+                showToast('⚠️ أدخل مفتاح Gemini API أولاً من: الإعدادات ← إعدادات القراءة الآلية (OCR)', 'warning');
+                return;
+            }
+            setPaperCorrectionBatchStudentStatus(id, 'busy', 'جاري تحليل هذه النسخة...');
+            try {
+                const result = await paperCorrectionRunOcrOnStudentImages(cfg, _paperCorrectionBatch.exam, s.images);
+                s.answers = result.answers;
+                s.ocrConfidence = result.confidence;
+                s.ocrEvidence = result.evidence;
+                if (result.studentName) {
+                    s.name = result.studentName.value;
+                    s.nameSource = 'ocr';
+                    s.nameConfidence = result.studentName.confidence;
+                }
+                s.usedOcr = true;
+                s.analyzed = true;
+                s.analysisError = null;
+                setPaperCorrectionBatchStudentStatus(id, 'success', 'تم تفريغ هذه النسخة بنجاح' + (result.studentName ? '' : ' — لم يُتعرَّف على اسم واضح، أدخله يدوياً'));
+            } catch (e) {
+                s.analysisError = e?.message || 'تعذّر تحليل هذه النسخة';
+                s.analyzed = false;
+                setPaperCorrectionBatchStudentStatus(id, 'error', s.analysisError);
+            }
+        }
+
+        // ---- ضغط صورة (نفس أسلوب صور تصحيح الورقة الحالي: أقصى عرض 1600px، JPEG 0.85) ----
+        async function paperCorrectionCompressImageFile(file) {
+            const img = await loadImageFromFile(file);
+            const maxDim = 1600;
+            const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width  = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', 0.85);
+        }
+
+        // ---- رفع/تصوير صورة (أو أكثر) لنسخة طالب ورقية ----
+        async function capturePaperCorrectionBatchStudentImages(id, event) {
+            const files = Array.from(event.target.files || []);
+            if (!files.length) return;
+            setTimeout(() => { event.target.value = ''; }, 300);
+            const s = findPaperCorrectionBatchStudent(id);
+            if (!s) return;
+            for (const file of files) {
+                if (s.images.length >= 8) { showToast('⚠️ الحد الأقصى 8 صفحات لكل طالب', 'warning'); break; }
+                try {
+                    s.images.push(await paperCorrectionCompressImageFile(file));
+                } catch (e) {
+                    showToast('⚠️ تعذّر قراءة إحدى الصور', 'error');
+                }
+            }
+            renderPaperCorrectionBatchPanel();
+        }
+
+        // ---- رفع ملف PDF لكامل نسخة الطالب الورقية (كل صفحاته تُضاف كصور) ----
+        async function capturePaperCorrectionBatchStudentPdf(id, event) {
+            const files = Array.from(event.target.files || []);
+            if (!files.length) return;
+            setTimeout(() => { event.target.value = ''; }, 300);
+            const s = findPaperCorrectionBatchStudent(id);
+            if (!s) return;
+            if (!window.pdfjsLib) {
+                showToast('⚠️ تعذّر تحميل مكوّن قراءة PDF — تحقق من الاتصال بالإنترنت', 'error');
+                return;
+            }
+            for (const file of files) {
+                let pdfDoc;
+                try {
+                    const buf = await file.arrayBuffer();
+                    pdfDoc = await window.pdfjsLib.getDocument({ data: buf }).promise;
+                } catch (e) {
+                    showToast('⚠️ تعذّر قراءة ملف PDF — تأكد أنه غير محمي بكلمة سر وغير تالف', 'error');
+                    continue;
+                }
+                for (let p = 1; p <= pdfDoc.numPages; p++) {
+                    if (s.images.length >= 8) { showToast('⚠️ الحد الأقصى 8 صفحات لكل طالب', 'warning'); break; }
+                    try {
+                        const page = await pdfDoc.getPage(p);
+                        const baseViewport = page.getViewport({ scale: 1 });
+                        const maxDim = 1600;
+                        const scale = Math.max(1, Math.min(2.5, maxDim / Math.max(baseViewport.width, baseViewport.height)));
+                        const viewport = page.getViewport({ scale });
+                        const canvas = document.createElement('canvas');
+                        canvas.width  = Math.round(viewport.width);
+                        canvas.height = Math.round(viewport.height);
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        await page.render({ canvasContext: ctx, viewport }).promise;
+                        s.images.push(canvas.toDataURL('image/jpeg', 0.85));
+                    } catch (e) {
+                        showToast('⚠️ تعذّر تحويل إحدى صفحات ملف PDF', 'error');
+                    }
+                }
+            }
+            renderPaperCorrectionBatchPanel();
+        }
+
+        function removePaperCorrectionBatchStudentImage(id, index) {
+            const s = findPaperCorrectionBatchStudent(id);
+            if (!s) return;
+            s.images.splice(index, 1);
+            renderPaperCorrectionBatchPanel();
+        }
+
+        // حارس تشغيل التحليل الدفعي (يمنع تشغيل أكثر من عملية دفعية بالتوازي)
+        let _paperCorrectionBatchRunning = false;
+
+        function updatePaperCorrectionBatchStartButton() {
+            const btn = document.getElementById('paperCorrectionBatchStartBtn');
+            if (!btn) return;
+            btn.disabled = _paperCorrectionBatchRunning;
+            btn.classList.toggle('opacity-60', _paperCorrectionBatchRunning);
+            btn.classList.toggle('cursor-not-allowed', _paperCorrectionBatchRunning);
+            btn.innerHTML = _paperCorrectionBatchRunning
+                ? '<i class="ph ph-circle-notch animate-spin"></i> جاري تحليل نسخ الطلاب...'
+                : '<i class="ph ph-magic-wand"></i> بدء التحليل';
+        }
+
+        // ---- زر "بدء التحليل": يشغّل التحليل الآلي الدفعي (تفريغ إجابات + استخراج اسم كل طالب)
+        // لكل نسخة طالب مرفقة على التوالي، ثم يخزّن النتائج تمهيداً لعرضها في القائمة الجانبية ----
+        async function startPaperCorrectionBatchAnalysis() {
+            if (_paperCorrectionBatchRunning) return;
+            if (!_paperCorrectionBatch.exam) {
+                showToast('⚠️ حدِّد الامتحان أولاً', 'warning');
+                return;
+            }
+            const withImages = _paperCorrectionBatch.students.filter(s => s.images.length > 0);
+            if (!withImages.length) {
+                showToast('⚠️ أرفق نسخة ورقية واحدة على الأقل لأحد الطلاب قبل بدء التحليل', 'warning');
+                return;
+            }
+            const cfg = await fetchGeminiConfig();
+            if (!cfg.apiKey) {
+                showToast('⚠️ أدخل مفتاح Gemini API أولاً من: الإعدادات ← إعدادات القراءة الآلية (OCR)', 'warning');
+                return;
+            }
+
+            _paperCorrectionBatchRunning = true;
+            updatePaperCorrectionBatchStartButton();
+
+            const exam = _paperCorrectionBatch.exam;
+            let successCount = 0, errorCount = 0, namelessCount = 0;
+
+            for (let i = 0; i < withImages.length; i++) {
+                const s = withImages[i];
+                setPaperCorrectionBatchStudentStatus(s.id, 'busy', `جاري تحليل نسخة ${i + 1} من ${withImages.length}...`);
+                try {
+                    const result = await paperCorrectionRunOcrOnStudentImages(cfg, exam, s.images);
+                    s.answers = result.answers;
+                    s.ocrConfidence = result.confidence;
+                    s.ocrEvidence = result.evidence;
+                    // اعتماد الاسم المستخرَج آلياً فقط إن لم يكتب المستخدم اسماً يدوياً مسبقاً لهذا الطالب
+                    if (result.studentName && (!s.name || !s.name.trim())) {
+                        s.name = result.studentName.value;
+                        s.nameSource = 'ocr';
+                        s.nameConfidence = result.studentName.confidence;
+                    }
+                    if (!s.name || !s.name.trim()) namelessCount++;
+                    s.usedOcr = true;
+                    s.analyzed = true;
+                    s.analysisError = null;
+                    successCount++;
+                    setPaperCorrectionBatchStudentStatus(s.id, 'success',
+                        'تم تفريغ هذه النسخة' + (result.studentName ? ' + اسم الطالب' : (s.name ? '' : ' — لم يُتعرَّف على اسم واضح، أدخله يدوياً')));
+                } catch (e) {
+                    s.analysisError = e?.message || 'تعذّر تحليل هذه النسخة';
+                    s.analyzed = false;
+                    errorCount++;
+                    setPaperCorrectionBatchStudentStatus(s.id, 'error', s.analysisError);
+                }
+            }
+
+            _paperCorrectionBatchRunning = false;
+            updatePaperCorrectionBatchStartButton();
+
+            if (errorCount === 0 && !namelessCount) {
+                showToast(`✅ تم تحليل ${successCount} نسخة طالب بنجاح`, 'success');
+            } else if (errorCount === 0) {
+                showToast(`✅ تم تحليل ${successCount} نسخة — ${namelessCount} منها بلا اسم واضح، يرجى إدخاله يدوياً`, 'warning');
+            } else {
+                showToast(`⚠️ تم تحليل ${successCount} من ${withImages.length} — فشل تحليل ${errorCount}، يمكن إعادة المحاولة لكل طالب عبر زر "تحليل" بجانب اسمه`, 'warning');
+            }
+
+            // بعد اكتمال التحليل الدفعي: الانتقال تلقائياً لوضع "القائمة الجانبية" لعرض نتائج
+            // كل طالب — طالما توجد نسخة واحدة على الأقل تم تحليلها (بنجاح أو بفشل)
+            if (_paperCorrectionBatch.students.some(s => s.analyzed || s.analysisError)) {
+                _paperCorrectionBatch.viewMode = 'detail';
+                if (!_paperCorrectionBatch.activeStudentId) {
+                    const firstOk = _paperCorrectionBatch.students.find(s => s.analyzed) || _paperCorrectionBatch.students.find(s => s.analysisError);
+                    _paperCorrectionBatch.activeStudentId = firstOk ? firstOk.id : null;
+                }
+                renderPaperCorrectionBatchPanel();
+            }
+        }
+
         // ---- فتح المودال والبدء بخطوة المسح ----
         // ملاحظة: _paperCorrectionManualTree (شجرة الاختيار اليدوي) تُصفَّر هنا لتُعاد
         // تحميلها من جديد بأي فتح للمودال، فتعكس أي امتحان أُنشئ أو عُدِّل حديثاً
@@ -23137,6 +24025,9 @@
         // فوراً دون الحاجة لرمز QR. غير ذلك، يُكتشَف الامتحان بشكل مخفي من رمز QR الموجود ضمن
         // نفس صور ورقة الإجابة التي يرفعها/يصوّرها المستخدم — مع مسار احتياطي للاختيار اليدوي.
         async function openPaperCorrectionScanner(presetProgramKey, presetCourseKey) {
+            // لوحة العرض الرئيسية (paperCorrectionMainView) هي الخلفية الدائمة لكل مسار تصحيح الأوراق
+            // الآن — المودال هنا لا يُستخدم إلا لخطوة "تحديد الامتحان" ثم يُغلَق تلقائياً بعدها
+            openPaperCorrectionMainView(/* keepBatch */ true);
             _paperCorrectionManualTree = null; // إعادة تحميل شجرة الاختيار اليدوي في كل فتح للمودال
             _paperCorrection = {
                 programKey: null,
@@ -23430,6 +24321,26 @@
 
             renderPaperCorrectionCaptureInfo();
             updatePaperCorrectionRunOcrAvailability();
+
+            // ---- مزامنة الامتحان المحدَّد مع لوحة العرض الرئيسية (الدفعة)، ثم الانتقال إليها تلقائياً ----
+            // إن كان امتحاناً مختلفاً عمّا كان محدَّداً سابقاً في الدفعة، تُصفَّر قائمة الطلاب المرفقين
+            const isNewExam = _paperCorrectionBatch.examId !== (exam.id || null);
+            _paperCorrectionBatch.programKey = programKey;
+            _paperCorrectionBatch.courseKey  = courseKey;
+            _paperCorrectionBatch.examId     = exam.id || null;
+            _paperCorrectionBatch.exam       = exam;
+            if (isNewExam) {
+                _paperCorrectionBatch.students = [];
+                _paperCorrectionBatch.viewMode = 'setup';
+                _paperCorrectionBatch.activeStudentId = null;
+            }
+
+            if (labels[source]) showToast('✅ ' + labels[source] + ' — يمكنك الآن إرفاق نسخ الطلاب الورقية', 'success');
+            setTimeout(() => {
+                closePaperCorrectionModal();
+                renderPaperCorrectionMainViewActions();
+                renderPaperCorrectionBatchPanel();
+            }, source === 'preset' ? 0 : 500);
         }
 
         // ---- عرض/تحديث شريط حالة كشف الامتحان أعلى خطوة الرفع ----
@@ -24073,6 +24984,164 @@
                     }
                     return item;
                 });
+        }
+
+
+        // ---- استدعاء Gemini Vision لتفريغ إجابات نسخة طالب واحدة (يُستخدم ضمن التحليل الدفعي وزر
+        // "تحليل" الفردي) — لا يكتب على أي حالة عامة مشتركة، بل يُعيد نتيجة معزولة لهذا الطالب فقط:
+        // { studentName:{value,confidence}|null, answers:{index:value}, confidence:{index:num}, evidence:{index:str} }
+        // يرمي (throw) عند فشل الاتصال أو تعذّر فهم الاستجابة — المستدعي مسؤول عن معالجة الخطأ لكل طالب على حدة ----
+        async function paperCorrectionRunOcrOnStudentImages(cfg, exam, images) {
+            const ocrQuestions = buildOcrQuestionsPayload(exam);
+            const prompt = `أنت نظام تصحيح آلي لأوراق امتحانات ورقية باللغة العربية.
+الصور المرفقة (صورة واحدة أو أكثر) هي صفحات مصوّرة (بالموبايل) أو ممسوحة ضوئياً لنفس ورقة إجابات طالب واحد، مرتبة بترتيب الصفحات. إن كانت هناك أكثر من صورة، اعتبرها صفحات متتالية لنفس الورقة واقرأها معاً ككل واحد (قد يمتد سؤال واحد أو مجموعة أسئلة عبر أكثر من صفحة).
+
+⚠️⚠️ أهم قاعدة في هذه المهمة — اقرأها جيداً قبل البدء: أخطاؤك الأكثر شيوعاً حتى الآن كانت اختلاق إجابة لسؤال لم يُجب عنه الطالب إطلاقاً، حتى في أوراق فارغة بالكامل. هذا خطأ جسيم لأنه يُحوِّل "بدون إجابة" (علامة صفر متوقَّعة وصحيحة) إلى إجابة قد تُحسَب خطأً بطريقة تضر الطالب أو تصحح له بغير وجه حق. لذلك:
+- افتراضك الأساسي لكل سؤال اختيار (صح/خطأ أو اختيار من متعدد) هو أنه **بلا إجابة** ما لم ترَ بوضوح علامة حبر/رصاص حقيقية رسمها الطالب فوق أحد الخيارات (تظليل، X، ✓، دائرة، مربع، خربشة).
+- مجرد وجود المربع أو الدائرة المطبوعة أصلاً (شكلها الفارغ كما طُبع على الورقة) ليس علامة اختيار — الكثير من طلاب سيتركون هذه الأشكل فارغة تماماً كما طُبعت، وهذا أمر طبيعي جداً ومتوقَّع، وقد تكون نسبة كبيرة من أسئلة الورقة (وربما كل الورقة) بلا إجابة.
+- إن لم تكن متأكداً 100% من وجود علامة حبر/رصاص حقيقية زائدة عمّا هو مطبوع أصلاً — فالإجابة الصحيحة الافتراضية هي "بلا إجابة" (attempted: false)، وليس تخمين أقرب خيار.
+- لا يوجد أي ضغط لملء كل الأسئلة بقيم؛ إرجاع عدد كبير من الأسئلة كـ"بلا إجابة" في ورقة فارغة أو شبه فارغة هو النتيجة **الصحيحة** المتوقَّعة منك، وليس فشلاً في المهمة.
+
+أولاً وقبل الأسئلة: ابحث في أعلى الصفحة الأولى عن اسم الطالب المكتوب بخط اليد (عادة بجانب حقل مطبوع مثل "اسم الطالب:" أو "الاسم:"). اقرأ هذا الاسم كما هو مكتوب تماماً، وقدّر مدى ثقتك بصحة قراءته.
+
+تحتوي الورقة على خمسة أنواع من الأسئلة، ومطلوب منك قراءة كل نوع منها بالطريقة التالية:
+
+1) أسئلة صح/خطأ: تظهر كمربعين "☐ صح" و"☐ خطأ". يدل أي من الأشكال التالية على اختيار الطالب لأحدهما: تظليل/تسويد كامل للمربع، إشارة X داخله أو فوقه، إشارة صح (✓) داخله أو فوقه، دائرة مرسومة حول المربع أو حول كلمة "صح"/"خطأ"، مربع إضافي مرسوم حول الخيار، أو مجموعة خطوط/خربشة فوق الخيار. اعتبر أي شكل من هذه الأشكال إشارة اختيار بغض النظر عن طريقة رسمه — لكن راجع القاعدة الأهم أعلاه: إن لم يوجد أي من هذه الأشكال فعلاً، فالسؤال بلا إجابة.
+
+2) أسئلة اختيار من متعدد: تظهر كدوائر صغيرة بجانب كل خيار تحمل حرفاً (A B C ...). يدل أي من الأشكال التالية على اختيار الطالب لخيار معين: تظليل/تسويد كامل للدائرة أو للخيار، إشارة X على الحرف أو الدائرة، إشارة صح (✓) بجانبه، دائرة إضافية مرسومة حول الحرف أو حول نص الخيار كاملاً، مربع مرسوم حول الخيار، أو خربشة/خطوط متعددة فوقه. اعتبر أي شكل من هذه الأشكال إشارة اختيار بغض النظر عن طريقة رسمه — لكن راجع القاعدة الأهم أعلاه: إن لم يوجد أي من هذه الأشكال فعلاً، فالسؤال بلا إجابة. بعض هذه الأسئلة قد تسمح باختيار أكثر من إجابة واحدة (multipleCorrect).
+
+مثال توضيحي: افترض سؤال اختيار من متعدد بأربع دوائر فارغة بجانب A وB وC وD، وكلها تظهر في الصورة كدوائر فارغة تماماً بنفس الشكل المطبوع دون أي فرق بينها (لا تظليل ولا خط ولا إشارة على أي منها). القرار الصحيح هنا هو: attempted:false, value:null — وليس اختيار إحداها لمجرد أنها "الأقرب" أو لأن سؤالاً بلا قيمة يبدو ناقصاً.
+
+⚠️ تذكير إضافي (نفس القاعدة أعلاه تنطبق هنا): من الطبيعي والمتوقَّع جداً أن يترك الطالب بعض الأسئلة دون إجابة — هذا ليس خطأً ولا نقصاً في القراءة، بل نتيجة صحيحة ومتوقَّعة يجب إرجاعها كما هي. إن كان المربع/الدائرة فارغاً تماماً بلا أي علامة حبر أو رصاص من الطالب — فهذا يعني أن السؤال بلا إجابة، أرجع value: null و attempted: false بثقة عالية (0.9 فأعلى)، فالتأكد من "لا توجد علامة إطلاقاً" أمر واضح بصرياً ولا يستدعي ثقة منخفضة. لا تخلط بين ذلك وبين وجود علامة فعلية لكنها غامضة (وعندها فقط اجعل الثقة منخفضة). كذلك احذر الخلط بين علامة حقيقية بخط يد الطالب وبين عيوب الطباعة أو ظلال الصورة أو تشويش الكاميرا/الماسح الضوئي أو حدود المربع/الدائرة المطبوعة أصلاً — هذه ليست علامة اختيار مهما بدت.
+
+3) أسئلة التعداد (enum) — تعرف على الخط اليدوي: يكتب الطالب بخط يده على أسطر مرقمة إجابة قصيرة (كلمة أو مصطلح) لكل رقم. عدد الأسطر المتوقع مذكور في الحقل itemsCount. الحقل expectedHints (إن وُجد) هو قائمة بالإجابات المتوقعة لهذا السؤال، استخدمها فقط كمساعدة لفك خط اليد الغامض (مثلاً تمييز حرف عن آخر) وليس لتخمين إجابة الطالب الفعلية إن كانت مختلفة عما كتبه فعلاً على الورقة. إن كان أحد الأسطر فارغاً تماماً بلا أي كتابة، أرجع "" أو null لهذا السطر تحديداً — لا تملأه بإحدى expectedHints تخميناً.
+
+4) أسئلة المطابقة (match) — تعرف على الخط اليدوي: تُطبع عناصر leftItems كل عنصر بجانبه مربع فارغ صغير، وعناصر rightItems مرقمة بجانبها (١، ٢، ٣ ...). يكتب الطالب بخط يده داخل المربع رقم عنصر rightItems الذي يظن أنه يطابق عنصر leftItems المقابل. اقرأ الرقم المكتوب في كل مربع بنفس ترتيب عناصر leftItems. إن كان أحد المربعات فارغاً تماماً بلا أي رقم مكتوب، أرجع null لهذا العنصر تحديداً — لا تخمّن رقماً له.
+
+5) أسئلة مقالية (essay) — استخراج نص فقط بلا تصحيح: يكتب الطالب إجابة حرة بخط يده على أسطر فارغة (قد تكون مقسّمة إلى عدة "طلبات" مذكورة في requirements إن وُجدت). المطلوب فقط نسخ ما كتبه الطالب حرفياً بالكامل كنص رقمي، دون تصحيحه أو الحكم على صحته أو تلخيصه — التصحيح يبقى قرار المصحح البشري لاحقاً. الحقل modelAnswerHint (إن وُجد) إجابة نموذجية تساعدك فقط على فهم السياق العام لفك غموض الخط، وليست معياراً لتغيير ما كتبه الطالب فعلاً، ولا تستخدمها لتأليف إجابة إن ترك الطالب المساحة فارغة تماماً — في هذه الحالة أرجع null.
+
+فيما يلي قائمة الأسئلة المطلوب قراءتها، بصيغة JSON (index هو رقم السؤال كما ورد في هذه القائمة ويجب إرجاعه كما هو):
+${JSON.stringify(ocrQuestions, null, 0)}
+${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أي لا توجد أسئلة مطلوب قراءتها آلياً في هذا الامتحان — اكتفِ فقط باستخراج اسم الطالب وأرجع answers كمصفوفة فارغة [].' : ''}
+
+أرجع النتيجة بصيغة JSON فقط (كائن واحد)، بدون أي نص إضافي، بالشكل التالي بالضبط:
+{
+  "studentName": {"value": <الاسم كما قرأته أو null إن لم تجد اسماً واضحاً>, "confidence": <رقم عشري بين 0 و1>},
+  "answers": [{"index": <رقم السؤال>, "marksSeen": <لأسئلة صح/خطأ واختيار من متعدد فقط — وصف بصري موجز جداً (أقل من 12 كلمة) لما تراه فعلياً في مكان إجابة هذا السؤال قبل أن تقرر شيئاً، مثال: "لا يوجد أي تظليل أو علامة — كل الدوائر فارغة كما طُبعت" أو "تظليل كامل داخل دائرة B" أو "علامة X فوق مربع صح">, "attempted": <true/false — فقط لأسئلة صح/خطأ واختيار من متعدد، انظر التعريف أدناه>, "value": <القيمة المقروءة>, "confidence": <رقم عشري بين 0 و1 يمثل ثقتك بالقراءة>}]
+}
+
+مهم بخصوص الترتيب: بالنسبة لأسئلة صح/خطأ واختيار من متعدد، اكتب marksSeen أولاً (صف فعلياً ما تراه بعينك في الصورة بدون أي استنتاج)، ثم قرِّر attempted وvalue بناءً على ما وصفته فقط — لا تصف شيئاً ثم تقرر خلافه. هذا الوصف جزء إلزامي من إجابتك لهذين النوعين فقط، واتركه غائباً تماماً لباقي الأنواع (enum/match/essay).
+
+حيث value في كل عنصر من answers حسب نوع السؤال:
+- صح/خطأ: النص "true" أو "false" فقط، أو null إن لم تتمكن من تحديد إجابة واضحة.
+- اختيار من متعدد بإجابة واحدة: رقم صحيح يمثل ترتيب الخيار المختار بدءاً من صفر (0 = A، 1 = B، ...)، أو null إن لم يكن واضحاً.
+- اختيار من متعدد متعددة الإجابات (multipleCorrect=true): مصفوفة أرقام (قد تكون فارغة []).
+- تعداد (enum): مصفوفة نصوص طولها بالضبط itemsCount، كل عنصر هو ما كتبه الطالب في السطر المقابل بنفس الترتيب (استخدم "" أو null للسطر الفارغ أو غير المقروء).
+- مطابقة (match): مصفوفة أرقام صحيحة طولها بالضبط عدد leftItems، كل رقم هو فهرس عنصر rightItems المطابق بدءاً من صفر (أي إن كتب الطالب الرقم "2" في المربع فالقيمة المرجعة هي 1)، أو null للمربعات الفارغة أو غير المقروءة.
+- مقالي (essay) بدون requirements: نص واحد (string) هو ما كتبه الطالب حرفياً بالكامل، أو null إن كانت الإجابة فارغة تماماً.
+- مقالي (essay) مع requirements: مصفوفة نصوص بنفس عدد عناصر requirements، كل نص هو ما كتبه الطالب لهذا الطلب تحديداً.
+
+حقل attempted (لأسئلة صح/خطأ واختيار من متعدد فقط، اتركه غائباً لباقي الأنواع): false إن كان المربع/الدائرة الخاصة بهذا السؤال فارغة تماماً بلا أي علامة من الطالب إطلاقاً (أي أن الطالب لم يحاول الإجابة إطلاقاً)، و true إن وُجدت أي علامة اختيار مهما كانت غامضة. عندما يكون attempted = false يجب أن تكون value أيضاً null. تحقَّق أن قيمة attempted متّسقة فعلاً مع ما وصفته في marksSeen قبل إرجاعها.
+
+كن دقيقاً وواقعياً في تقدير الثقة: إن كانت العلامة أو الكتابة على الورقة غير واضحة أو مزدوجة أو ممحوّة جزئياً أو يصعب فك خط اليد فيها، اجعل الثقة منخفضة (أقل من 0.5) بدل تخمين إجابة عشوائية. أما عدم وجود أي علامة إطلاقاً (سؤال بلا إجابة) فهو أمر واضح بصرياً وليس غموضاً، فأرجعه بثقة عالية كما هو موضَّح أعلاه. أرجع confidence واحداً يمثل ثقتك الإجمالية بقراءة السؤال كاملاً (بكل أجزائه إن كان متعدد الأجزاء). تذكَّر: الهدف هو نقل الواقع كما هو على الورقة بدقة — بما في ذلك حقيقة أن سؤالاً ما بلا إجابة — وليس تقديم إجابة لكل سؤال بأي ثمن.`;
+
+            const imageParts = images.map(dataUrl => ({
+                inlineData: { mimeType: 'image/jpeg', data: (dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl) }
+            }));
+
+            let resp, data;
+            try {
+                resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.model || 'gemini-2.5-flash')}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: prompt }, ...imageParts] }],
+                        generationConfig: { responseMimeType: 'application/json', temperature: 0.1 }
+                    })
+                });
+                data = await resp.json();
+            } catch (networkErr) {
+                throw new Error('تعذّر الاتصال بخدمة القراءة الآلية — تحقق من الإنترنت');
+            }
+            if (!resp.ok) throw new Error(data?.error?.message || 'فشل الاتصال بخدمة القراءة الآلية');
+
+            const rawText = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+            let parsed;
+            try {
+                parsed = JSON.parse(rawText);
+            } catch (e) {
+                const match = rawText.match(/\{[\s\S]*\}/);
+                if (!match) throw new Error('لم يُرجع النموذج بيانات صالحة');
+                parsed = JSON.parse(match[0]);
+            }
+
+            const results = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.answers) ? parsed.answers : []);
+            const nameResult = Array.isArray(parsed) ? null : parsed?.studentName;
+
+            const out = { studentName: null, answers: {}, confidence: {}, evidence: {} };
+            if (nameResult && typeof nameResult.value === 'string' && nameResult.value.trim()) {
+                out.studentName = {
+                    value: nameResult.value.trim(),
+                    confidence: typeof nameResult.confidence === 'number' ? Math.max(0, Math.min(1, nameResult.confidence)) : null
+                };
+            }
+
+            results.forEach(item => {
+                const q = exam.questions?.[item.index];
+                if (!q) return;
+
+                if (typeof item.marksSeen === 'string' && item.marksSeen.trim()) {
+                    out.evidence[item.index] = item.marksSeen.trim();
+                }
+
+                if ((q.type === 'tf' || q.type === 'mcq') && item.attempted === false) {
+                    out.confidence[item.index] = typeof item.confidence === 'number'
+                        ? Math.max(0, Math.min(1, item.confidence)) : 0.95;
+                    return;
+                }
+
+                if (item.value === null || item.value === undefined) return;
+                if (q.type === 'tf' && (item.value === 'true' || item.value === 'false')) {
+                    out.answers[item.index] = item.value;
+                } else if (q.type === 'mcq' && q.multipleCorrect && Array.isArray(item.value)) {
+                    out.answers[item.index] = item.value.map(v => parseInt(v)).filter(v => !isNaN(v));
+                } else if (q.type === 'mcq' && !q.multipleCorrect && Number.isInteger(item.value)) {
+                    out.answers[item.index] = item.value;
+                } else if (q.type === 'enum' && Array.isArray(item.value)) {
+                    const n = (q.items || []).length;
+                    const arr = [];
+                    for (let k = 0; k < n; k++) {
+                        const v = item.value[k];
+                        arr[k] = (v === null || v === undefined) ? '' : String(v).trim();
+                    }
+                    out.answers[item.index] = arr;
+                } else if (q.type === 'match' && Array.isArray(item.value)) {
+                    const n = (q.leftItems || []).length;
+                    const maxIdx = (q.rightItems || []).length - 1;
+                    const arr = [];
+                    for (let k = 0; k < n; k++) {
+                        const v = parseInt(item.value[k]);
+                        arr[k] = (!isNaN(v) && v >= 0 && v <= maxIdx) ? v : '';
+                    }
+                    out.answers[item.index] = arr;
+                } else if (q.type === 'essay') {
+                    if (q.requirements && q.requirements.length) {
+                        if (Array.isArray(item.value)) {
+                            out.answers[item.index] = q.requirements.map((_, k) => {
+                                const v = item.value[k];
+                                return (v === null || v === undefined) ? '' : String(v);
+                            });
+                        }
+                    } else if (typeof item.value === 'string' && item.value.trim()) {
+                        out.answers[item.index] = item.value;
+                    }
+                }
+                if (typeof item.confidence === 'number') {
+                    out.confidence[item.index] = Math.max(0, Math.min(1, item.confidence));
+                }
+            });
+
+            return out;
         }
 
         // ---- استدعاء Gemini Vision API لقراءة كل أنواع الإجابات (موضوعية + خط يد) من صفحة/صفحات الورقة ----
