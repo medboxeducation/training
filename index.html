@@ -3535,15 +3535,17 @@
                  تحلّ هذه اللوحة محل مسار "تصحيح ورقة امتحان" أحادي الطالب القديم (المودال paperCorrectionModal
                  لا يزال يُستخدم فقط لخطوة "تحديد الامتحان" عبر QR/يدوياً، ثم يُغلَق تلقائياً وتُبنى هذه اللوحة). -->
             <div id="paperCorrectionMainView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
-                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40 flex-wrap">
-                    <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-amber-600 text-xl flex-shrink-0">
-                        <i class="ph ph-scan"></i>
+                <div class="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40 sm:flex-nowrap">
+                    <div class="flex items-center gap-3 w-full min-w-0 sm:w-auto sm:flex-1">
+                        <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-amber-600 text-xl flex-shrink-0">
+                            <i class="ph ph-scan"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h2 class="text-xl font-bold text-gray-800">تصحيح ورقة امتحان</h2>
+                            <p id="paperCorrectionMainViewSubtitle" class="text-xs text-gray-400">حدِّد الامتحان أولاً لبدء إرفاق نسخ الطلاب الورقية</p>
+                        </div>
                     </div>
-                    <div class="min-w-0 flex-1">
-                        <h2 class="text-xl font-bold text-gray-800">تصحيح ورقة امتحان</h2>
-                        <p id="paperCorrectionMainViewSubtitle" class="text-xs text-gray-400">حدِّد الامتحان أولاً لبدء إرفاق نسخ الطلاب الورقية</p>
-                    </div>
-                    <div id="paperCorrectionMainViewActions" class="flex items-center gap-1.5 flex-shrink-0"></div>
+                    <div id="paperCorrectionMainViewActions" class="flex items-center gap-1.5 flex-shrink-0 w-full justify-end sm:w-auto sm:justify-start"></div>
                 </div>
                 <div id="paperCorrectionMainViewBody" class="flex-1"></div>
             </div>
@@ -14287,6 +14289,14 @@
                 btn.classList.remove('hidden');
                 return;
             }
+            if (sidebarMode === 'paperCorrectionBrowse') {
+                // زر تحديد الامتحان أعلى لوحة "تصفح التصحيحات الورقية
+                // المحفوظة" — نفس وظيفة زر "تحديد الامتحان" في هيدر لوحة
+                // التصحيح نفسها (openPaperCorrectionScanner)
+                btn.title = 'تحديد الامتحان';
+                btn.classList.remove('admin-only', 'hidden');
+                return;
+            }
             if (sidebarLevel === 'exam') {
                 btn.title = 'إنشاء امتحان جديد';
                 let canCreate = false;
@@ -14329,6 +14339,8 @@
                 rlOpenNewEntryDesigner();
             } else if (sidebarMode === 'asyncSessions') {
                 nsOpenNewSessionDesigner();
+            } else if (sidebarMode === 'paperCorrectionBrowse') {
+                openPaperCorrectionScanner();
             } else if (sidebarMode === 'users') {
                 openUserModal('add', null);
             } else if (sidebarLevel === 'exam' && activeProgramKey) {
@@ -23360,6 +23372,11 @@
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const list = document.getElementById('sidebarPaperCorrectionBrowseList');
             if (list) list.classList.remove('hidden');
+            // زر "تحديد الامتحان" أصبح زر الإضافة الموحَّد في هيدر القائمة
+            // الجانبية (قبل زر الترتيب والفرز)، بنفس تصميم زر الإضافة في
+            // باقي القوائم — يُظهره/يُخفيه ويُنفّذ عمله
+            // updateSidebarAddButton/handleSidebarAddClick
+            updateSidebarAddButton();
             openSidebar();
         }
 
