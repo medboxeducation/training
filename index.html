@@ -23286,36 +23286,39 @@
                 subtitle.textContent = 'حدِّد الامتحان أولاً لبدء إرفاق نسخ الطلاب الورقية';
             }
 
+            // تصميم/ألوان أزرار الهيدر هنا مُوحَّد الآن مع بقية قوائم التطبيق (هيدر تفاصيل
+            // الدورة/البرنامج): glass-icon-btn + hover:bg-{لون}-50 + حدود ملوَّنة + انتقال ناعم،
+            // مع أيقونة فقط في الشاشات الصغيرة ونص + أيقونة من حجم sm فأكبر (مثل هيدر مركز الامتحانات)
             const hasAnalyzedStudents = _paperCorrectionBatch.students.some(s => s.analyzed);
             wrap.innerHTML = `
-                <button onclick="openPaperCorrectionScanner()"
-                    class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50">
-                    <i class="ph ph-qr-code"></i> ${hasExam ? 'تغيير الامتحان' : 'تحديد الامتحان'}
+                <button onclick="openPaperCorrectionScanner()" title="${hasExam ? 'تغيير الامتحان' : 'تحديد الامتحان'}"
+                    class="glass-icon-btn px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
+                    <i class="ph ph-qr-code text-sm"></i> <span class="hidden sm:inline">${hasExam ? 'تغيير الامتحان' : 'تحديد الامتحان'}</span>
                 </button>
                 ${hasAnalyzedStudents ? `
                 <div class="relative paper-correction-header-menu-wrap">
-                    <button onclick="togglePaperCorrectionHeaderMenu('pcMatchMenu')"
-                        class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50">
-                        <i class="ph ph-check-square-offset"></i> المطابقة والتصحيح <i class="ph ph-caret-down text-[10px]"></i>
+                    <button onclick="togglePaperCorrectionHeaderMenu('pcMatchMenu')" title="المطابقة والتصحيح"
+                        class="glass-icon-btn px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-teal-700 flex items-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors">
+                        <i class="ph ph-check-square-offset text-sm"></i> <span class="hidden sm:inline">المطابقة والتصحيح</span> <i class="ph ph-caret-down text-[10px]"></i>
                     </button>
                     <div id="pcMatchMenu" class="paper-correction-header-menu hidden absolute left-0 mt-1 w-44 glass-panel bg-white rounded-xl shadow-lg z-20 overflow-hidden">
-                        <button onclick="runPaperCorrectionMatchAndGrade('all')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5">جميع الطلاب</button>
-                        <button onclick="runPaperCorrectionMatchAndGrade('current')" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-t border-gray-100">الطالب الحالي</button>
+                        <button onclick="runPaperCorrectionMatchAndGrade('all')" class="w-full text-right px-3 py-2 text-xs hover:bg-teal-50">جميع الطلاب</button>
+                        <button onclick="runPaperCorrectionMatchAndGrade('current')" class="w-full text-right px-3 py-2 text-xs hover:bg-teal-50 border-t border-gray-100">الطالب الحالي</button>
                     </div>
                 </div>
-                <button id="paperCorrectionSaveDriveBtn" onclick="pcSaveCorrectionToDrive()"
-                    class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50">
-                    <i class="ph ph-cloud-arrow-up"></i> حفظ التصحيح
+                <button id="paperCorrectionSaveDriveBtn" onclick="pcSaveCorrectionToDrive()" title="حفظ التصحيح"
+                    class="glass-icon-btn px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300 transition-colors">
+                    <i class="ph ph-cloud-arrow-up text-sm"></i> <span class="hidden sm:inline">حفظ التصحيح</span>
                 </button>
                 <div class="relative paper-correction-header-menu-wrap">
-                    <button onclick="togglePaperCorrectionHeaderMenu('pcPrintMenu')"
-                        class="glass-icon-btn px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:border-primary/50">
-                        <i class="ph ph-printer"></i> طباعة التقرير <i class="ph ph-caret-down text-[10px]"></i>
+                    <button onclick="togglePaperCorrectionHeaderMenu('pcPrintMenu')" title="طباعة التقرير"
+                        class="glass-icon-btn px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 flex items-center gap-1.5 hover:bg-gray-100 hover:border-gray-300 transition-colors">
+                        <i class="ph ph-printer text-sm"></i> <span class="hidden sm:inline">طباعة التقرير</span> <i class="ph ph-caret-down text-[10px]"></i>
                     </button>
                     <div id="pcPrintMenu" class="paper-correction-header-menu hidden absolute left-0 mt-1 w-52 glass-panel bg-white rounded-xl shadow-lg z-20 overflow-hidden">
-                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionStudentReport(_paperCorrectionBatch.activeStudentId)" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5">تقرير تصحيح للطالب الحالي</button>
-                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionAllStudentsReport()" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-t border-gray-100">طباعة تقرير علامات لجميع الطلاب</button>
-                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionAllStudentsFullReport()" class="w-full text-right px-3 py-2 text-xs hover:bg-primary/5 border-t border-gray-100">طباعة تقرير تصحيح لجميع الطلاب</button>
+                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionStudentReport(_paperCorrectionBatch.activeStudentId)" class="w-full text-right px-3 py-2 text-xs hover:bg-gray-50">تقرير تصحيح للطالب الحالي</button>
+                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionAllStudentsReport()" class="w-full text-right px-3 py-2 text-xs hover:bg-gray-50 border-t border-gray-100">طباعة تقرير علامات لجميع الطلاب</button>
+                        <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionAllStudentsFullReport()" class="w-full text-right px-3 py-2 text-xs hover:bg-gray-50 border-t border-gray-100">طباعة تقرير تصحيح لجميع الطلاب</button>
                     </div>
                 </div>` : ''}`;
         }
@@ -23621,7 +23624,7 @@
                 console.error('pcSaveCorrectionToDrive error:', err);
                 showToast('❌ فشل حفظ التصحيح: ' + (err.message || ''), 'error');
             } finally {
-                if (btn) { btn.disabled = false; btn.innerHTML = originalHtml || `<i class="ph ph-cloud-arrow-up"></i> حفظ التصحيح`; }
+                if (btn) { btn.disabled = false; btn.innerHTML = originalHtml || `<i class="ph ph-cloud-arrow-up text-sm"></i> <span class="hidden sm:inline">حفظ التصحيح</span>`; }
             }
         }
 
