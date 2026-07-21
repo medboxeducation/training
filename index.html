@@ -13171,6 +13171,10 @@
         const DRIVE_FOLDER_NAME = 'MedBox Education Backups';
         const DRIVE_SCOPES      = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
         const SYNC_FILES = ['programs.json','trainers.json','trainees.json','settings.json'];
+        // مفتاح تخزين نسخة محلية (مشفَّرة) من توكن Google Drive + وقت انتهائه،
+        // تُستخدم لاسترجاع تسجيل الدخول تلقائياً دون إظهار نافذة اختيار
+        // الحساب في كل مرة (راجع driveTryAutoSignIn أدناه)
+        const DRIVE_TOKEN_CACHE_KEY = 'medbox_driveTokenCache';
 
         let gapiReady   = false;   // هل gapi.client جاهز؟
         let tokenClient = null;    // GSI token client
@@ -13189,6 +13193,9 @@
             await loadSyncSettingsToForm();
             // تحميل GAPI إذا لم يكن جاهزاً (لا حاجة للانتظار هنا — سيُنتظر عند الضغط على تسجيل الدخول)
             if (!gapiReady) initGapi().catch(() => {});
+            // محاولة استرجاع تسجيل الدخول المحفوظ تلقائياً (توكن محلي صالح، أو تجديد صامت
+            // بلا نافذة إن كان المستخدم قد سجّل دخوله سابقاً) — راجع driveTryAutoSignIn
+            if (!driveToken) driveTryAutoSignIn().catch(() => {});
             await initAutoSyncUI();
         }
 
@@ -13257,6 +13264,44 @@
         }
 
         // ── تسجيل الدخول ─────────────────────────────────────────────────
+        // ينشئ (أو يعيد استخدام) عميل GSI مرة واحدة، بمعالج استجابة موحَّد
+        // يُستخدم في كل من تسجيل الدخول اليدوي ومحاولة الاسترجاع الصامتة
+        function ensureDriveTokenClient() {
+            if (tokenClient) return tokenClient;
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: getSyncClientId(),
+                scope: DRIVE_SCOPES,
+                callback: driveHandleTokenResponse,
+            });
+            return tokenClient;
+        }
+
+        // معالج موحَّد لاستجابة GSI — يُستدعى سواء عند الضغط على "تسجيل
+        // الدخول" أو عند محاولة الاسترجاع الصامتة عبر driveTryAutoSignIn
+        function driveHandleTokenResponse(response) {
+            if (response.error) {
+                // أخطاء متوقعة عند فشل المحاولة الصامتة (لا جلسة Google نشطة
+                // في المتصفح، أو تم سحب الصلاحية) — لا نُزعج المستخدم برسالة
+                // خطأ إن كانت هذه محاولة صامتة تلقائية
+                if (!['immediate_failed', 'user_logged_out', 'access_denied'].includes(response.error)) {
+                    appendSyncLog('❌ فشل تسجيل الدخول: ' + response.error, 'error');
+                }
+                return;
+            }
+            driveToken = response.access_token;
+            gapi.client.setToken({ access_token: driveToken });
+            driveSaveTokenCache(driveToken, response.expires_in);
+            setDriveSignedIn(true);
+            appendSyncLog('✅ تم تسجيل الدخول بـ Google بنجاح', 'success');
+            // جلب معلومات المستخدم (اسم/بريد) وتحديث النسخة المحفوظة محلياً بهما
+            fetchGoogleUserInfo(driveToken).then(profile => {
+                if (profile) driveSaveTokenCache(driveToken, response.expires_in, profile);
+            });
+            // إعادة تشغيل المزامنة التلقائية إن كانت مفعّلة
+            const autoSyncCfg = getAutoSyncSettings();
+            if (autoSyncCfg.enabled) { startAutoSyncTimer(); appendSyncLog('🔄 استُؤنفت المزامنة التلقائية', 'success'); }
+        }
+
         async function driveSignIn() {
             const clientId = getSyncClientId();
             const apiKey   = getSyncApiKey();
@@ -13281,37 +13326,80 @@
                 return;
             }
 
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: clientId,
-                scope: DRIVE_SCOPES,
-                callback: (response) => {
-                    if (response.error) {
-                        appendSyncLog('❌ فشل تسجيل الدخول: ' + response.error, 'error');
-                        return;
-                    }
-                    driveToken = response.access_token;
-                    gapi.client.setToken({ access_token: driveToken });
-                    // جلب معلومات المستخدم
-                    fetchGoogleUserInfo(driveToken);
-                    setDriveSignedIn(true);
-                    appendSyncLog('✅ تم تسجيل الدخول بـ Google بنجاح', 'success');
-                    // إعادة تشغيل المزامنة التلقائية إن كانت مفعّلة
-                    const autoSyncCfg = getAutoSyncSettings();
-                    if (autoSyncCfg.enabled) { startAutoSyncTimer(); appendSyncLog('🔄 استُؤنفت المزامنة التلقائية', 'success'); }
-                },
-            });
-            tokenClient.requestAccessToken();
+            ensureDriveTokenClient().requestAccessToken();
+        }
+
+        // ── استرجاع تسجيل الدخول تلقائياً (بلا أي ضغطة من المستخدم) ────────
+        // تُستدعى عند فتح صفحة المزامنة. أولاً تُجرَّب نسخة التوكن المحفوظة
+        // محلياً إن كانت لم تنتهِ صلاحيتها بعد (فورية، بلا اتصال بجوجل).
+        // إن كانت منتهية لكن كان المستخدم قد سجّل دخوله من قبل على هذا
+        // الجهاز، تُجرَّب محاولة تجديد صامتة (prompt: 'none') لا تُظهر أي
+        // نافذة للمستخدم طالما جلسته في Google ما زالت نشطة ولم يسحب الصلاحية.
+        async function driveTryAutoSignIn() {
+            const cached = await driveLoadTokenCache();
+
+            if (cached && cached.access_token && cached.expires_at > Date.now() + 60000) {
+                driveToken = cached.access_token;
+                if (!gapiReady) {
+                    try { await initGapi(); } catch(e) { return false; }
+                }
+                gapi.client.setToken({ access_token: driveToken });
+                setDriveSignedIn(true);
+                document.getElementById('driveUserName').textContent  = cached.name  || '—';
+                document.getElementById('driveUserEmail').textContent = cached.email || '—';
+                appendSyncLog('✅ تم استرجاع تسجيل الدخول المحفوظ بـ Google', 'success');
+                const autoSyncCfg = getAutoSyncSettings();
+                if (autoSyncCfg.enabled) startAutoSyncTimer();
+                return true;
+            }
+
+            // لا يوجد توكن صالح محفوظ — نحاول تجديداً صامتاً فقط إن كان هناك
+            // أثر لتسجيل دخول سابق (بريد محفوظ) وإعدادات OAuth متوفرة
+            if (!cached || !cached.email) return false;
+            if (!getSyncClientId() || !getSyncApiKey()) return false;
+            if (!gapiReady) {
+                try { await initGapi(); } catch(e) { return false; }
+            }
+            if (typeof google === 'undefined' || !google.accounts) return false;
+
+            ensureDriveTokenClient().requestAccessToken({ prompt: 'none' });
+            return true; // النتيجة الفعلية (نجاح/فشل صامت) تصل لاحقاً عبر driveHandleTokenResponse
+        }
+
+        // ── تخزين محلي مشفَّر لتوكن Drive + وقت انتهائه + بريد/اسم الحساب ──
+        async function driveSaveTokenCache(accessToken, expiresInSeconds, profile) {
+            try {
+                const existing = (await driveLoadTokenCache()) || {};
+                const data = {
+                    access_token: accessToken,
+                    expires_at: Date.now() + (Number(expiresInSeconds) || 3600) * 1000,
+                    email: (profile && profile.email) || existing.email || '',
+                    name:  (profile && profile.name)  || existing.name  || '',
+                };
+                localStorage.setItem(DRIVE_TOKEN_CACHE_KEY, await secEncryptJSON(data));
+            } catch(_) {}
+        }
+        async function driveLoadTokenCache() {
+            try {
+                const raw = localStorage.getItem(DRIVE_TOKEN_CACHE_KEY);
+                if (!raw) return null;
+                return (await secDecryptJSON(raw)) || null;
+            } catch(_) { return null; }
+        }
+        function driveClearTokenCache() {
+            try { localStorage.removeItem(DRIVE_TOKEN_CACHE_KEY); } catch(_) {}
         }
 
         async function fetchGoogleUserInfo(token) {
             try {
                 const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo',
                     { headers: { Authorization: 'Bearer ' + token } });
-                if (!r.ok) { appendSyncLog('⚠️ تعذّر جلب اسم حساب Google (صلاحية ناقصة) — الاسم: ' + r.status, 'warn'); return; }
+                if (!r.ok) { appendSyncLog('⚠️ تعذّر جلب اسم حساب Google (صلاحية ناقصة) — الاسم: ' + r.status, 'warn'); return null; }
                 const u = await r.json();
                 document.getElementById('driveUserName').textContent  = u.name  || '—';
                 document.getElementById('driveUserEmail').textContent = u.email || '—';
-            } catch(e) { appendSyncLog('⚠️ تعذّر جلب بيانات حساب Google: ' + e.message, 'warn'); }
+                return { name: u.name || '', email: u.email || '' };
+            } catch(e) { appendSyncLog('⚠️ تعذّر جلب بيانات حساب Google: ' + e.message, 'warn'); return null; }
         }
 
         // ── تسجيل الخروج ─────────────────────────────────────────────────
@@ -13320,6 +13408,7 @@
             driveToken = null;
             gapi.client.setToken(null);
             setDriveSignedIn(false);
+            driveClearTokenCache();
             appendSyncLog('🔓 تم تسجيل الخروج من Google', 'info');
             // إيقاف المزامنة التلقائية عند تسجيل الخروج
             stopAutoSyncTimer();
