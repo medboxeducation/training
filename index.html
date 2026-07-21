@@ -1154,6 +1154,25 @@
                             <div id="forgotPasswordMsg" class="hidden mt-3 text-xs rounded-xl px-3 py-2 flex items-start gap-2 text-right"></div>
                         </div>
 
+                        <!-- تسجيل الدخول بواسطة Google — لحفظ أوراق التصحيح ونسخ Drive الاحتياطية -->
+                        <div class="mt-4 pt-3 border-t border-gray-100">
+                            <p class="text-[11px] text-gray-400 text-center mb-2">لحفظ أوراق التصحيح ونسخ Google Drive الاحتياطية</p>
+                            <div class="nav-drive-connected-box hidden items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs text-emerald-700 font-semibold mb-2">
+                                <i class="ph ph-check-circle text-sm flex-shrink-0"></i>
+                                <span class="nav-drive-connected-email truncate flex-1" dir="ltr">—</span>
+                            </div>
+                            <button type="button" onclick="driveSignIn()"
+                                class="nav-drive-signin-btn w-full glass-element py-2.5 rounded-xl font-bold text-sm text-gray-700 hover:bg-white/60 transition-colors flex items-center justify-center gap-2 border border-gray-200">
+                                <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+                                    <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                                </svg>
+                                تسجيل الدخول بواسطة Google
+                            </button>
+                        </div>
+
                     </div><!-- dd-inner -->
                 </div><!-- loginDropdown -->
             </div><!-- loginDropdownWrapper -->
@@ -1195,6 +1214,25 @@
                                 class="w-full bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl font-bold text-sm hover:bg-red-100 transition-colors flex items-center justify-center gap-2">
                                 <i class="ph ph-sign-out"></i> تسجيل الخروج
                             </button>
+
+                            <!-- تسجيل الدخول بواسطة Google — لحفظ أوراق التصحيح ونسخ Drive الاحتياطية -->
+                            <div class="mt-4 pt-3 border-t border-gray-100">
+                                <p class="text-[11px] text-gray-400 text-center mb-2">لحفظ أوراق التصحيح ونسخ Google Drive الاحتياطية</p>
+                                <div class="nav-drive-connected-box hidden items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs text-emerald-700 font-semibold mb-2">
+                                    <i class="ph ph-check-circle text-sm flex-shrink-0"></i>
+                                    <span class="nav-drive-connected-email truncate flex-1" dir="ltr">—</span>
+                                </div>
+                                <button type="button" onclick="driveSignIn()"
+                                    class="nav-drive-signin-btn w-full glass-element py-2.5 rounded-xl font-bold text-sm text-gray-700 hover:bg-white/60 transition-colors flex items-center justify-center gap-2 border border-gray-200">
+                                    <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                                        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                                        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+                                        <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                                        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                                    </svg>
+                                    تسجيل الدخول بواسطة Google
+                                </button>
+                            </div>
                         </div>
                     </div><!-- accountInfoDropdown -->
                 </div><!-- accountInfoWrapper -->
@@ -13179,6 +13217,7 @@
         let gapiReady   = false;   // هل gapi.client جاهز؟
         let tokenClient = null;    // GSI token client
         let driveToken  = null;    // access token الحالي
+        let _driveConnectedEmail = ''; // بريد حساب Google المتصل حالياً (لعرضه في أزرار التولبار)
         let selectedRestoreSet = null; // مجموعة الملفات المختارة للاستعادة
 
         // ── عرض صفحة المزامنة ────────────────────────────────────────────
@@ -13265,7 +13304,8 @@
 
         // ── تسجيل الدخول ─────────────────────────────────────────────────
         // ينشئ (أو يعيد استخدام) عميل GSI مرة واحدة، بمعالج استجابة موحَّد
-        // يُستخدم في كل من تسجيل الدخول اليدوي ومحاولة الاسترجاع الصامتة
+        // يُستخدم في تسجيل الدخول اليدوي (المحاولة الصامتة تنشئ عميلها الخاص
+        // بمعالج مخصَّص كي تنتظر النتيجة عبر Promise — راجع driveTryAutoSignIn)
         function ensureDriveTokenClient() {
             if (tokenClient) return tokenClient;
             tokenClient = google.accounts.oauth2.initTokenClient({
@@ -13295,7 +13335,11 @@
             appendSyncLog('✅ تم تسجيل الدخول بـ Google بنجاح', 'success');
             // جلب معلومات المستخدم (اسم/بريد) وتحديث النسخة المحفوظة محلياً بهما
             fetchGoogleUserInfo(driveToken).then(profile => {
-                if (profile) driveSaveTokenCache(driveToken, response.expires_in, profile);
+                if (profile) {
+                    driveSaveTokenCache(driveToken, response.expires_in, profile);
+                    _driveConnectedEmail = profile.email || '';
+                    updateNavDriveButtons();
+                }
             });
             // إعادة تشغيل المزامنة التلقائية إن كانت مفعّلة
             const autoSyncCfg = getAutoSyncSettings();
@@ -13303,13 +13347,21 @@
         }
 
         async function driveSignIn() {
+            // تحميل إعدادات OAuth (clientId/apiKey) إن لم تُحمَّل بعد — يسمح باستدعاء
+            // هذه الدالة من أي مكان بالتطبيق (مثل أزرار Google في التولبار) دون الحاجة
+            // لزيارة صفحة "المزامنة وتصدير البيانات" أولاً
+            if (_syncConfigCache === null) { try { await fetchSyncConfig(); } catch(_) {} }
+
             const clientId = getSyncClientId();
             const apiKey   = getSyncApiKey();
             if (!clientId || !apiKey) {
-                document.getElementById('driveClientIdWarning').classList.remove('hidden');
+                const warn = document.getElementById('driveClientIdWarning');
+                if (warn) warn.classList.remove('hidden');
+                showToast('⚠️ يلزم أولاً إعداد Client ID و API Key الخاصَّين بـ Google من "المزامنة وتصدير البيانات"', 'warning');
                 return;
             }
-            document.getElementById('driveClientIdWarning').classList.add('hidden');
+            const warn = document.getElementById('driveClientIdWarning');
+            if (warn) warn.classList.add('hidden');
 
             if (!gapiReady) {
                 appendSyncLog('⏳ جارٍ تهيئة Google API...', 'warn');
@@ -13317,6 +13369,7 @@
                     await initGapi();
                 } catch(e) {
                     appendSyncLog('❌ تعذّرت تهيئة Google API — تحقق من الإعدادات أو الاتصال بالإنترنت', 'error');
+                    showToast('❌ تعذّرت تهيئة Google API — تحقق من الإعدادات أو الاتصال بالإنترنت', 'error');
                     return;
                 }
             }
@@ -13330,11 +13383,12 @@
         }
 
         // ── استرجاع تسجيل الدخول تلقائياً (بلا أي ضغطة من المستخدم) ────────
-        // تُستدعى عند فتح صفحة المزامنة. أولاً تُجرَّب نسخة التوكن المحفوظة
-        // محلياً إن كانت لم تنتهِ صلاحيتها بعد (فورية، بلا اتصال بجوجل).
-        // إن كانت منتهية لكن كان المستخدم قد سجّل دخوله من قبل على هذا
-        // الجهاز، تُجرَّب محاولة تجديد صامتة (prompt: 'none') لا تُظهر أي
-        // نافذة للمستخدم طالما جلسته في Google ما زالت نشطة ولم يسحب الصلاحية.
+        // أولاً تُجرَّب نسخة التوكن المحفوظة محلياً إن كانت لم تنتهِ صلاحيتها
+        // بعد (فورية، بلا اتصال بجوجل). إن كانت منتهية لكن كان المستخدم قد
+        // سجّل دخوله من قبل على هذا الجهاز، تُجرَّب محاولة تجديد صامتة
+        // (prompt: 'none') لا تُظهر أي نافذة للمستخدم طالما جلسته في Google
+        // ما زالت نشطة ولم يسحب الصلاحية. تُعيد Promise<boolean> يعكس
+        // النتيجة الفعلية (متصل أم لا) بعد اكتمال المحاولة بالكامل.
         async function driveTryAutoSignIn() {
             const cached = await driveLoadTokenCache();
 
@@ -13344,9 +13398,12 @@
                     try { await initGapi(); } catch(e) { return false; }
                 }
                 gapi.client.setToken({ access_token: driveToken });
+                _driveConnectedEmail = cached.email || '';
                 setDriveSignedIn(true);
-                document.getElementById('driveUserName').textContent  = cached.name  || '—';
-                document.getElementById('driveUserEmail').textContent = cached.email || '—';
+                const nameEl  = document.getElementById('driveUserName');
+                const emailEl = document.getElementById('driveUserEmail');
+                if (nameEl)  nameEl.textContent  = cached.name  || '—';
+                if (emailEl) emailEl.textContent = cached.email || '—';
                 appendSyncLog('✅ تم استرجاع تسجيل الدخول المحفوظ بـ Google', 'success');
                 const autoSyncCfg = getAutoSyncSettings();
                 if (autoSyncCfg.enabled) startAutoSyncTimer();
@@ -13356,14 +13413,30 @@
             // لا يوجد توكن صالح محفوظ — نحاول تجديداً صامتاً فقط إن كان هناك
             // أثر لتسجيل دخول سابق (بريد محفوظ) وإعدادات OAuth متوفرة
             if (!cached || !cached.email) return false;
+            if (_syncConfigCache === null) { try { await fetchSyncConfig(); } catch(_) {} }
             if (!getSyncClientId() || !getSyncApiKey()) return false;
             if (!gapiReady) {
                 try { await initGapi(); } catch(e) { return false; }
             }
             if (typeof google === 'undefined' || !google.accounts) return false;
 
-            ensureDriveTokenClient().requestAccessToken({ prompt: 'none' });
-            return true; // النتيجة الفعلية (نجاح/فشل صامت) تصل لاحقاً عبر driveHandleTokenResponse
+            // محاولة صامتة فعلية — تُعيد Promise ينتظر استجابة GSI (نجاح أو فشل
+            // صامت)، مع مهلة أمان قصيرة كي لا تعلق الواجهة المستدعية بلا داعٍ
+            return new Promise(resolve => {
+                let settled = false;
+                const finish = (ok) => { if (settled) return; settled = true; resolve(ok); };
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: getSyncClientId(),
+                    scope: DRIVE_SCOPES,
+                    callback: (response) => {
+                        if (response.error) { finish(false); return; }
+                        driveHandleTokenResponse(response);
+                        finish(true);
+                    },
+                });
+                tokenClient.requestAccessToken({ prompt: 'none' });
+                setTimeout(() => finish(false), 4000);
+            });
         }
 
         // ── تخزين محلي مشفَّر لتوكن Drive + وقت انتهائه + بريد/اسم الحساب ──
@@ -13396,8 +13469,10 @@
                     { headers: { Authorization: 'Bearer ' + token } });
                 if (!r.ok) { appendSyncLog('⚠️ تعذّر جلب اسم حساب Google (صلاحية ناقصة) — الاسم: ' + r.status, 'warn'); return null; }
                 const u = await r.json();
-                document.getElementById('driveUserName').textContent  = u.name  || '—';
-                document.getElementById('driveUserEmail').textContent = u.email || '—';
+                const nameEl  = document.getElementById('driveUserName');
+                const emailEl = document.getElementById('driveUserEmail');
+                if (nameEl)  nameEl.textContent  = u.name  || '—';
+                if (emailEl) emailEl.textContent = u.email || '—';
                 return { name: u.name || '', email: u.email || '' };
             } catch(e) { appendSyncLog('⚠️ تعذّر جلب بيانات حساب Google: ' + e.message, 'warn'); return null; }
         }
@@ -13406,6 +13481,7 @@
         function driveSignOut() {
             if (driveToken) google.accounts.oauth2.revoke(driveToken, () => {});
             driveToken = null;
+            _driveConnectedEmail = '';
             gapi.client.setToken(null);
             setDriveSignedIn(false);
             driveClearTokenCache();
@@ -13420,6 +13496,45 @@
             ['driveUploadBtn','driveListBtn'].forEach(id => {
                 document.getElementById(id).disabled = !yes;
             });
+            updateNavDriveButtons();
+        }
+
+        // ── تحديث أزرار "تسجيل الدخول بواسطة Google" في التولبار (قائمتا
+        // تسجيل الدخول الأساسية وبيانات الحساب) حسب حالة الاتصال بـ Drive ──
+        function updateNavDriveButtons() {
+            const connected = !!driveToken;
+            document.querySelectorAll('.nav-drive-signin-btn').forEach(el => el.classList.toggle('hidden', connected));
+            document.querySelectorAll('.nav-drive-connected-box').forEach(el => {
+                el.classList.toggle('hidden', !connected);
+                el.classList.toggle('flex', connected);
+            });
+            document.querySelectorAll('.nav-drive-connected-email').forEach(el => {
+                el.textContent = _driveConnectedEmail || 'متصل بحساب Google';
+            });
+        }
+
+        // ── يفتح قائمة تسجيل الدخول الرئيسية الظاهرة حالياً في التولبار —
+        // قائمة "تسجيل الدخول" للزائر غير المسجَّل بالتطبيق بعد، أو قائمة
+        // "بيانات الحساب" للمسجَّل دخوله بالفعل؛ كلتاهما تحتويان الآن على
+        // زر تسجيل الدخول بواسطة Google ──
+        function openMainToolbarAuthMenu() {
+            const navUserBtn = document.getElementById('navUserBtn');
+            const loggedIntoApp = navUserBtn && !navUserBtn.classList.contains('hidden');
+            if (loggedIntoApp) openAccountInfoDropdown();
+            else openLoginModal();
+        }
+
+        // ── عند دخول قسم "تصحيح الامتحان الورقي": إن لم يكن المستخدم مسجَّلاً
+        // دخول Google بعد، حاول استرجاعاً صامتاً أولاً، فإن فشل اسأله إن كان
+        // يريد تسجيل الدخول (لحفظ أوراق التصحيح تلقائياً على Drive)، وعند
+        // الموافقة افتح له قائمة تسجيل الدخول الرئيسية على التولبار ──
+        async function pcPromptDriveSignInIfNeeded() {
+            if (driveToken) return;
+            const restored = await driveTryAutoSignIn().catch(() => false);
+            if (restored || driveToken) return;
+            if (confirm('لحفظ أوراق التصحيح تلقائياً على Google Drive أثناء العمل، يُفضَّل تسجيل الدخول بحساب Google الآن.\n\nهل تريد تسجيل الدخول بحساب Google؟')) {
+                openMainToolbarAuthMenu();
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -23365,6 +23480,9 @@
                 // فتح افتراضي من بطاقة "نظام التصحيح الامتحاني الورقي" في الرئيسية:
                 // أظهر القائمة الجانبية على شجرة الامتحانات الورقية المحفوظة على Drive
                 pcOpenSavedExamsBrowser();
+                // عند الدخول الفعلي (لا الرجوع لهذه اللوحة) إلى القسم: نبّه المستخدم
+                // لتسجيل الدخول بحساب Google إن أراد حفظ أوراق التصحيح تلقائياً
+                pcPromptDriveSignInIfNeeded();
             }
             showView('paperCorrectionMainView');
             renderPaperCorrectionMainViewActions();
@@ -23724,6 +23842,14 @@
                 }
 
                 showToast('✅ تم حفظ التصحيح على Google Drive', 'success');
+                addNotification({
+                    type: 'exam',
+                    action: 'paperCorrectionSaved',
+                    title: '☁️ تم حفظ تصحيح ورقي على Google Drive',
+                    body: `تم حفظ نتائج تصحيح "${examLeafName}" (${courseName}) على Google Drive بنجاح`,
+                    icon: 'ph-cloud-check',
+                    targetUids: currentUser?.uid ? [currentUser.uid] : null,
+                });
                 // إبطال ذاكرة الشجرة المؤقتة كي تُحمَّل مجدداً محدَّثة عند تصفحها لاحقاً
                 pcBrowseTreeState = { rootFolderId: null, years: null, expandedYear: null, semesters: null, expandedSemester: null, courses: null, expandedCourse: null, exams: null };
             } catch (err) {
@@ -23732,6 +23858,15 @@
             } finally {
                 if (btn) { btn.disabled = false; btn.innerHTML = originalHtml || `<i class="ph ph-cloud-arrow-up text-sm"></i> <span class="hidden sm:inline">حفظ التصحيح</span>`; }
             }
+        }
+
+        // ---- حفظ تلقائي فوري على Google Drive بعد كل عملية "تحليل" ناجحة (فردية عبر
+        // زر "تحليل" بجانب اسم الطالب، أو دفعية عبر زر "بدء التحليل") — يعمل بصمت
+        // (بلا أي تنبيه إضافي) إن لم يكن المستخدم مسجَّلاً دخول Google بعد، لأنه
+        // سبق تنبيهه بذلك عند دخول القسم عبر pcPromptDriveSignInIfNeeded ----
+        async function pcAutoSaveAfterAnalysis() {
+            if (!driveToken) return;
+            try { await pcSaveCorrectionToDrive(); } catch(_) {}
         }
 
         // ---- عرض جسم لوحة العرض الرئيسية: يوزّع بين وضع "الإعداد" (إرفاق نسخ الطلاب) ووضع
@@ -24435,6 +24570,7 @@ ${blocksHtml}
                 s.analyzed = true;
                 s.analysisError = null;
                 setPaperCorrectionBatchStudentStatus(id, 'success', 'تم تفريغ هذه النسخة بنجاح' + (result.studentName ? '' : ' — لم يُتعرَّف على اسم واضح، أدخله يدوياً'));
+                pcAutoSaveAfterAnalysis();
             } catch (e) {
                 s.analysisError = e?.message || 'تعذّر تحليل هذه النسخة';
                 s.analyzed = false;
@@ -24594,6 +24730,8 @@ ${blocksHtml}
 
             _paperCorrectionBatchRunning = false;
             updatePaperCorrectionBatchStartButton();
+
+            if (successCount > 0) pcAutoSaveAfterAnalysis();
 
             if (errorCount === 0 && !namelessCount) {
                 showToast(`✅ تم تحليل ${successCount} نسخة طالب بنجاح`, 'success');
