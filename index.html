@@ -24470,7 +24470,10 @@ ${blocksHtml}
         function paperCorrectionBatchStudentRowHTML(s) {
             const thumbs = (s.images || []).map((img, i) => `
                 <div class="relative shrink-0 rounded-lg overflow-hidden bg-black" style="width:56px;height:70px">
-                    <img src="${img}" class="w-full h-full object-cover">
+                    <img src="${img}" class="w-full h-full object-cover cursor-pointer select-none"
+                        ondblclick="openPaperCorrectionImagePreview('${s.id}', ${i})"
+                        ontouchstart="pcThumbLongPressStart(event, '${s.id}', ${i})"
+                        ontouchend="pcThumbLongPressCancel()" ontouchmove="pcThumbLongPressCancel()" ontouchcancel="pcThumbLongPressCancel()">
                     <button type="button" onclick="event.stopPropagation(); removePaperCorrectionBatchStudentImage('${s.id}', ${i})"
                         class="absolute top-0.5 left-0.5 bg-red-500/90 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px]">
                         <i class="ph ph-x"></i>
@@ -24769,6 +24772,49 @@ ${blocksHtml}
             if (!s) return;
             s.images.splice(index, 1);
             renderPaperCorrectionBatchPanel();
+        }
+
+        // ---- معاينة صورة مكبَّرة لمصغّرات نسخة الطالب — دبل كليك (حاسوب) أو ضغط
+        // مطوَّل (موبايل) على أي مصغّرة يفتحها بالحجم الكامل، مع تنقُّل بين صفحات
+        // نفس الطالب إن كان لديه أكثر من صورة ----
+        let _pcImagePreview = { images: [], index: 0 };
+        function openPaperCorrectionImagePreview(studentId, index) {
+            const s = findPaperCorrectionBatchStudent(studentId);
+            if (!s || !s.images || !s.images.length) return;
+            _pcImagePreview = { images: s.images, index };
+            renderPaperCorrectionImagePreview();
+            document.getElementById('paperCorrectionImagePreviewModal').classList.remove('hidden');
+        }
+        function closePaperCorrectionImagePreview() {
+            document.getElementById('paperCorrectionImagePreviewModal').classList.add('hidden');
+        }
+        function pcImagePreviewNav(delta) {
+            const n = _pcImagePreview.images.length;
+            if (!n) return;
+            _pcImagePreview.index = (_pcImagePreview.index + delta + n) % n;
+            renderPaperCorrectionImagePreview();
+        }
+        function renderPaperCorrectionImagePreview() {
+            const { images, index } = _pcImagePreview;
+            const img     = document.getElementById('paperCorrectionImagePreviewImg');
+            const counter = document.getElementById('paperCorrectionImagePreviewCounter');
+            if (img)     img.src = images[index] || '';
+            if (counter) counter.textContent = images.length > 1 ? `${index + 1} / ${images.length}` : '';
+            document.querySelectorAll('.pc-preview-nav-btn').forEach(b => b.classList.toggle('hidden', images.length <= 1));
+        }
+
+        // ── دعم الضغط المطوَّل (Long Press) على الموبايل لفتح المعاينة (بديل الدبل
+        // كليك على الحاسوب، الذي يُستخدَم عبر ondblclick مباشرة) ──
+        let _pcThumbLongPressTimer = null;
+        function pcThumbLongPressStart(event, studentId, index) {
+            pcThumbLongPressCancel();
+            _pcThumbLongPressTimer = setTimeout(() => {
+                _pcThumbLongPressTimer = null;
+                openPaperCorrectionImagePreview(studentId, index);
+            }, 500);
+        }
+        function pcThumbLongPressCancel() {
+            if (_pcThumbLongPressTimer) { clearTimeout(_pcThumbLongPressTimer); _pcThumbLongPressTimer = null; }
         }
 
         // حارس تشغيل التحليل الدفعي (يمنع تشغيل أكثر من عملية دفعية بالتوازي)
@@ -39600,6 +39646,26 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         if (_liveSessionId) { leaveLiveSession(); }
     });
     </script>
+
+    <!-- معاينة صورة مكبَّرة (Preview) لمصغّرات نسخ الطلاب الورقية — تُفتح بنقرتين
+         متتاليتين (دبل كليك) على الحاسوب أو بالضغط المطوَّل (Long Press) على الموبايل -->
+    <div id="paperCorrectionImagePreviewModal" class="hidden fixed inset-0 z-[220] flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm"
+        onclick="if(event.target === this) closePaperCorrectionImagePreview()">
+        <button onclick="closePaperCorrectionImagePreview()"
+            class="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl z-10">
+            <i class="ph ph-x"></i>
+        </button>
+        <span id="paperCorrectionImagePreviewCounter" class="absolute top-5 right-5 text-white/80 text-xs font-semibold bg-white/10 rounded-full px-3 py-1.5"></span>
+        <button onclick="pcImagePreviewNav(-1)" title="السابق"
+            class="pc-preview-nav-btn absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-2xl">
+            <i class="ph ph-caret-right"></i>
+        </button>
+        <button onclick="pcImagePreviewNav(1)" title="التالي"
+            class="pc-preview-nav-btn absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-2xl">
+            <i class="ph ph-caret-left"></i>
+        </button>
+        <img id="paperCorrectionImagePreviewImg" src="" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+    </div>
 
 </body>
 </html>
