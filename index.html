@@ -32645,6 +32645,15 @@ ${JSON.stringify(payload, null, 0)}
 <head>
 <meta charset="UTF-8">
 <title>نموذج امتحان — ${program?.title||''}</title>
+<script>
+  // ===== إعداد Paged.js قبل تحميله: تأجيل الطباعة الفعلية (window.print) حتى
+  // تنتهي عملية التقسيم الحقيقي للصفحات (after)، بدل استخدام window.onload
+  // القديم الذي كان قد يُطلق الطباعة قبل اكتمال التقسيم فيطبع محتوى غير مُجزَّأ =====
+  window.PagedConfig = {
+      after: () => window.print()
+  };
+<\/script>
+<script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"><\/script>
 <style>
   * {
     box-sizing:border-box; margin:0; padding:0;
@@ -32654,7 +32663,22 @@ ${JSON.stringify(payload, null, 0)}
     color-adjust: exact;
   }
   html, body { font-family:'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; }
-  body { padding: 24px; font-size: 13px; color: #1f2937; background:#fff; }
+  body { font-size: 13px; color: #1f2937; background:#fff; }
+  /* ===== إعداد الصفحة عبر Paged.js (CSS Paged Media حقيقي بدل الاعتماد على
+     إعدادات طباعة المتصفح الافتراضية) =====
+     الهامش 15مم على كل جهة يوفّر مساحة "زاوية" (Corner Margin Box) كافية
+     لرسم علامة ارتكاز 9مم × 9مم في كل زاوية من زوايا الصفحة — وبما أن هذه
+     الزوايا جزء من مواصفة @page نفسها، فستتكرر تلقائياً وبشكل موثوق في كل
+     صفحة من صفحات الامتحان مهما كان عددها (بخلاف الحل السابق القائم على
+     position:fixed الذي لا يضمن نفس السلوك في كل المتصفحات) */
+  @page {
+    size: A4;
+    margin: 15mm;
+    @top-left-corner    { content: ""; background:#000; width:9mm; height:9mm; }
+    @top-right-corner    { content: ""; background:#000; width:9mm; height:9mm; }
+    @bottom-left-corner  { content: ""; background:#000; width:9mm; height:9mm; }
+    @bottom-right-corner { content: ""; background:#000; width:9mm; height:9mm; }
+  }
   .exam-print-qr { width: 62px; text-align:center; flex-shrink:0; }
   .exam-print-qr img { width: 62px; height: 62px; display:block; }
   .exam-print-qr span { display:block; font-size:7px; color:#9ca3af; margin-top:3px; }
@@ -32681,19 +32705,7 @@ ${JSON.stringify(payload, null, 0)}
   .exam-print-q-sep:last-child { display:none; }
   .exam-print-warning { border:1.5px dashed #dc2626; border-radius:6px; padding:8px 14px; margin-bottom:16px; background:#fef2f2; color:#b91c1c; font-size:11px; font-weight:600; line-height:1.7; text-align:center; }
   .exam-print-end { text-align:center; font-weight:700; font-size:14px; color:#0790AC; margin-top:28px; padding-top:14px; border-top:2px solid #e0f4f7; }
-  /* ===== علامات الارتكاز (Fiducial Markers) =====
-     مربعات سوداء صلبة في زوايا الورقة الأربع تُستخدم لاحقاً (عند تصوير/مسح
-     الورقة المطبوعة) لمحاذاة الصورة تلقائياً وتصحيح ميلانها (Deskewing) قبل
-     إرسالها لمحرك القراءة الآلية Gemini Vision — بغض النظر عن طريقة التصوير
-     (سكانر أو كاميرا موبايل). position:fixed تجعلها تتكرر في كل صفحة مطبوعة
-     من هذا الامتحان (بدل الاقتصار على الصفحة الأولى فقط) */
-  .fiducial-marker { position: fixed; width: 9mm; height: 9mm; background: #000; z-index: 999; }
-  .fm-tl { top: 6mm; left: 6mm; }
-  .fm-tr { top: 6mm; right: 6mm; }
-  .fm-bl { bottom: 6mm; left: 6mm; }
-  .fm-br { bottom: 6mm; right: 6mm; }
   @media print {
-    body { padding:12px; }
     * {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
@@ -32704,10 +32716,6 @@ ${JSON.stringify(payload, null, 0)}
 </style>
 </head>
 <body>
-<div class="fiducial-marker fm-tl"></div>
-<div class="fiducial-marker fm-tr"></div>
-<div class="fiducial-marker fm-bl"></div>
-<div class="fiducial-marker fm-br"></div>
 <div class="header">
   <div class="header-top">
     <div class="logo-area">MedBox.Education <span>نظام إدارة الامتحانات</span></div>
@@ -32749,8 +32757,6 @@ ${JSON.stringify(payload, null, 0)}
 <h3 class="section"><i>✎</i> أسئلة الامتحان</h3>
 ${questionsHtml}
 <div class="exam-print-end">انتهت الأسئلة ..... بالتوفيق والنجاح لطلابنا الأعزاء</div>
-
-<script>window.onload=()=>window.print();<\/script>
 </body></html>`);
         win.document.close();
     }
