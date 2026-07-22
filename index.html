@@ -13645,6 +13645,42 @@
             return create.result.id;
         }
 
+        // ── مجلد "رمز الامتحان" (تاريخ الامتحان) — المستوى الأخير من شجرة تصحيحات
+        // الامتحانات الورقية على Drive. يُربَط المجلد فعلياً بمعرّف الامتحان الحقيقي
+        // في Firestore عبر خاصية Drive الداخلية appProperties (غير ظاهرة في الاسم)،
+        // كي تُحدَّث نفس النسخة دوماً عند إعادة حفظ نفس الامتحان بصرف النظر عن اسمه
+        // المعروض. أما عند إنشاء مجلد جديد لامتحان مختلف يقع تاريخه على نفس تاريخ
+        // امتحان آخر محفوظ مسبقاً لنفس المقرر، يُضاف رقم التكرار بجانب التاريخ
+        // تلقائياً: "٢٠٢٦-٠٥-٠١" ثم "٢٠٢٦-٠٥-٠١ (2)" ثم "٢٠٢٦-٠٥-٠١ (3)" ...
+        async function getOrCreatePaperCorrectionExamFolder(parentId, examId, baseName) {
+            // 1) ابحث أولاً عن مجلد مرتبط فعلياً بهذا الامتحان (بصرف النظر عن اسمه)
+            if (examId) {
+                const safeId = String(examId).replace(/'/g, "\\'");
+                const byId = await gapi.client.drive.files.list({
+                    q: `mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false and appProperties has { key='pcExamId' and value='${safeId}' }`,
+                    fields: 'files(id,name)',
+                    spaces: 'drive',
+                });
+                if (byId.result.files && byId.result.files.length > 0) return byId.result.files[0].id;
+            }
+
+            // 2) لا يوجد مجلد مرتبط بعد بهذا الامتحان — احسب اسماً فريداً بين إخوته
+            // (التاريخ وحده، أو مع رقم تكرار إن كان هناك امتحان آخر بنفس التاريخ)
+            const siblings = await gapi.client.drive.files.list({
+                q: `mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`,
+                fields: 'files(id,name)',
+                spaces: 'drive',
+            });
+            const existingNames = new Set((siblings.result.files || []).map(f => f.name));
+            let finalName = baseName, n = 2;
+            while (existingNames.has(finalName)) { finalName = `${baseName} (${n})`; n++; }
+
+            const resource = { name: finalName, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] };
+            if (examId) resource.appProperties = { pcExamId: String(examId) };
+            const create = await gapi.client.drive.files.create({ resource, fields: 'id' });
+            return create.result.id;
+        }
+
         // ── المجلد الجذر (أعلى الشجرة) لتصحيحات الامتحانات الورقية المحفوظة على Drive ──
         async function getOrCreatePaperCorrectionsRootFolder() {
             const search = await gapi.client.drive.files.list({
@@ -23807,17 +23843,23 @@
             try {
                 if (!gapiReady) await initGapi();
                 const exam = batch.exam;
-                const yearName   = (exam.academicYear || '').trim() || 'غير محدد';
-                const semName    = (exam.semester || '').trim() || 'غير محدد';
-                const courseName = (exam.courseCode || exam.subjectName || '').trim() || 'غير محدد';
-                const typeInfo   = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
-                const examLeafName = `${typeInfo.ar}${exam.examDate ? ' - ' + exam.examDate : ''} (${batch.examId || 'بلا رمز'})`;
+                const yearName = (exam.academicYear || '').trim() || 'غير محدد';
+                const semName  = (exam.semester || '').trim() || 'غير محدد';
+                // اسم المقرر: نُفضِّل بيانات البرنامج/المقرر الحية (نفس ما يظهر في هيدر
+                // اللوحة) على حقول الامتحان المخزَّنة، مع رجوع احتياطي لها إن تعذّر إيجاد
+                // المقرر (مثلاً حُذف لاحقاً)
+                const program = programsData[batch.programKey];
+                const course  = (program?.courses || []).find(c => c.key === batch.courseKey);
+                const courseName = (course?.code || course?.title || exam.courseCode || exam.subjectName || '').trim() || 'غير محدد';
+                // رمز الامتحان: المستوى الأخير من الشجرة — تاريخ الامتحان (+ رقم تكرار
+                // تلقائي عند وجود أكثر من امتحان محفوظ بنفس التاريخ لنفس المقرر)
+                const examLeafBaseName = (exam.examDate || '').trim() || 'بدون تاريخ';
 
                 const rootId    = await getOrCreatePaperCorrectionsRootFolder();
                 const yearId    = await getOrCreateDriveChildFolder(yearName, rootId);
                 const semId     = await getOrCreateDriveChildFolder(semName, yearId);
                 const courseId  = await getOrCreateDriveChildFolder(courseName, semId);
-                const examFolderId = await getOrCreateDriveChildFolder(examLeafName, courseId);
+                const examFolderId = await getOrCreatePaperCorrectionExamFolder(courseId, batch.examId || exam.id, examLeafBaseName);
 
                 const payload = {
                     programKey: batch.programKey,
@@ -23846,7 +23888,7 @@
                     type: 'exam',
                     action: 'paperCorrectionSaved',
                     title: '☁️ تم حفظ تصحيح ورقي على Google Drive',
-                    body: `تم حفظ نتائج تصحيح "${examLeafName}" (${courseName}) على Google Drive بنجاح`,
+                    body: `تم حفظ نتائج تصحيح الامتحان "${examLeafBaseName}" (${courseName} — ${yearName} / ${semName}) على Google Drive بنجاح`,
                     icon: 'ph-cloud-check',
                     targetUids: currentUser?.uid ? [currentUser.uid] : null,
                 });
