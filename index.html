@@ -23951,7 +23951,7 @@
                     <div class="flex items-center justify-between gap-2">
                         <div>
                             <p class="font-bold text-gray-700 mb-1 flex items-center gap-1.5"><i class="ph ph-users-three text-primary"></i> تحديد نسخة الطالب الورقية</p>
-                            <p class="text-gray-500">أرفق اسم ونسخة كل طالب من ورقة الامتحان (عدة صور — أو تصوير أكثر من صورة — أو ملف PDF لكامل الامتحان)، ثم اضغط "بدء التحليل" أسفل القائمة.</p>
+                            <p class="text-gray-500">أرفق اسم ونسخة كل طالب من ورقة الامتحان (عدة صور — أو تصوير أكثر من صورة — أو ملف PDF لكامل الامتحان)، أو ارفع عدة ملفات PDF دفعة واحدة لعدة طلاب معاً، ثم اضغط "بدء التحليل" أسفل القائمة.</p>
                         </div>
                         ${hasAnalyzed ? `
                         <button onclick="switchPaperCorrectionToDetailMode()"
@@ -23961,6 +23961,11 @@
                     </div>
                 </div>
                 <div id="paperCorrectionBatchStudentsList" class="space-y-3 mb-3">${studentsHtml}</div>
+                <label class="cursor-pointer w-full py-2.5 rounded-xl text-white text-sm font-bold flex items-center justify-center gap-2 mb-2"
+                    style="background:linear-gradient(135deg,#0790AC,#056276)">
+                    <i class="ph ph-file-pdf"></i> رفع عدة ملفات PDF لعدة طلاب معاً (كل ملف = نسخة طالب مستقلة)
+                    <input type="file" accept="application/pdf,.pdf" multiple class="hidden" onchange="capturePaperCorrectionBatchMultiStudentPdfs(event)">
+                </label>
                 <button onclick="addPaperCorrectionBatchStudent(true)"
                     class="w-full py-2.5 rounded-xl border border-dashed border-primary/40 text-primary text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary/5 mb-4">
                     <i class="ph ph-plus"></i> ادراج نسخة طالب جديدة
@@ -24693,6 +24698,70 @@ ${blocksHtml}
                 }
             }
             renderPaperCorrectionBatchPanel();
+        }
+
+        // ---- تحويل صفحة PDF واحدة إلى صورة (Data URL) — مشتركة بين رفع PDF لطالب
+        // واحد ورفع عدة PDF دفعة واحدة لعدة طلاب ----
+        async function paperCorrectionRenderPdfPageToImage(pdfDoc, pageNum) {
+            const page = await pdfDoc.getPage(pageNum);
+            const baseViewport = page.getViewport({ scale: 1 });
+            const maxDim = 1600;
+            const scale = Math.max(1, Math.min(2.5, maxDim / Math.max(baseViewport.width, baseViewport.height)));
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width  = Math.round(viewport.width);
+            canvas.height = Math.round(viewport.height);
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            return canvas.toDataURL('image/jpeg', 0.85);
+        }
+
+        // ---- رفع عدة ملفات PDF دفعة واحدة لعدة طلاب معاً: يُنشئ نسخة طالب مستقلة
+        // لكل ملف (كل ملف = امتحان طالب واحد بكامل صفحاته)، بدل إرفاق كل PDF لكل
+        // طالب بشكل منفرد. اسم كل طالب يبقى فارغاً ليُدخَل يدوياً أو يُكتشَف لاحقاً
+        // عبر زر "تحليل" بجانبه كما كان — لا تغيير على تلك الآلية ----
+        async function capturePaperCorrectionBatchMultiStudentPdfs(event) {
+            const files = Array.from(event.target.files || []);
+            if (!files.length) return;
+            setTimeout(() => { event.target.value = ''; }, 300);
+            if (!window.pdfjsLib) {
+                showToast('⚠️ تعذّر تحميل مكوّن قراءة PDF — تحقق من الاتصال بالإنترنت', 'error');
+                return;
+            }
+            const batch = _paperCorrectionBatch;
+            let addedCount = 0, failedCount = 0;
+            for (const file of files) {
+                // استخدم صف طالب فارغاً موجوداً مسبقاً (كصف الإدراج الأول التلقائي)
+                // بدل إضافة صف زائد فوقه، وإلا أضف صف طالب جديد لكل ملف
+                let s = batch.students.find(st => !st.images.length && !st.name && !st.analyzed && !st.analysisError);
+                if (!s) {
+                    addPaperCorrectionBatchStudent(false);
+                    s = batch.students[batch.students.length - 1];
+                }
+                let pdfDoc;
+                try {
+                    const buf = await file.arrayBuffer();
+                    pdfDoc = await window.pdfjsLib.getDocument({ data: buf }).promise;
+                } catch (e) {
+                    failedCount++;
+                    continue;
+                }
+                for (let p = 1; p <= pdfDoc.numPages; p++) {
+                    if (s.images.length >= 8) { showToast('⚠️ الحد الأقصى 8 صفحات لكل طالب', 'warning'); break; }
+                    try {
+                        s.images.push(await paperCorrectionRenderPdfPageToImage(pdfDoc, p));
+                    } catch (e) { /* تجاهل صفحة تعذّر تحويلها ضمن نفس الملف */ }
+                }
+                addedCount++;
+            }
+            renderPaperCorrectionBatchPanel();
+            if (addedCount) {
+                showToast(`✅ تم إدراج ${addedCount} نسخة طالب من ${files.length} ملف PDF` + (failedCount ? ` — تعذّرت قراءة ${failedCount}` : ''), 'success');
+            } else {
+                showToast('⚠️ تعذّر قراءة أي من ملفات PDF المحدَّدة', 'error');
+            }
         }
 
         function removePaperCorrectionBatchStudentImage(id, index) {
