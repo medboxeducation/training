@@ -24631,189 +24631,6 @@ ${blocksHtml}
             }
         }
 
-        /* ========================================================
-           ===== كشف علامات الارتكاز (Fiducial Markers) وتصحيح الميلان =====
-           كل ورقة امتحان مطبوعة (انظر قالب emsPrintExam) تحمل 4 مربعات سوداء
-           صلبة في زواياها الأربع. قبل إرسال أي صورة ورقة ممسوحة/مصوَّرة إلى
-           Gemini Vision، نحاول اكتشاف مراكز هذه المربعات ثم نطبّق تحويلاً
-           منظورياً (Perspective Transform) يُعيد محاذاة الورقة وتسوية ميلانها
-           إلى أبعاد قياسية موحّدة — بغض النظر عن زاوية التصوير (سكانر أو
-           كاميرا موبايل) أو انحناء الورقة. إن تعذّر اكتشاف أي علامة من الأربع
-           (تصوير مقصوص جداً، طباعة قديمة بلا علامات...) نُعيد null بهدوء
-           ويستمر المسار الطبيعي بالصورة الأصلية دون أي تصحيح.
-           ======================================================== */
-
-        const FIDUCIAL_TARGET_W = 1200;  // أبعاد الصورة الموحّدة بعد التصحيح
-        const FIDUCIAL_TARGET_H = 1697;  // بنسبة تقارب A4 (1:1.414)
-        const FIDUCIAL_MARGIN   = 40;    // هامش (px) بين حواف الصورة الناتجة ومراكز العلامات
-
-        // ---- تحويل بيانات الصورة إلى مصفوفة تدرج رمادي (luminance) لتسريع الفحص ----
-        function _fiducialGrayscale(imageData) {
-            const { data, width, height } = imageData;
-            const gray = new Uint8ClampedArray(width * height);
-            for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-                gray[p] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) | 0;
-            }
-            return gray;
-        }
-
-        // ---- البحث عن أكبر كتلة سوداء مصمتة داخل منطقة فرعية (ربع صورة قريب
-        // من إحدى الزوايا)، عبر إسقاط عدد البكسلات الداكنة على المحورين
-        // (Projection Profile) بدل flood-fill الكامل لتفادي كلفة حسابية عالية ----
-        function _findMarkerInRegion(gray, width, height, rx, ry, rw, rh) {
-            const threshold = 70; // luminance أقل من هذا القدر يُعتبر "أسود"
-            const colDark = new Int32Array(rw);
-            const rowDark = new Int32Array(rh);
-            let darkCount = 0;
-            for (let y = 0; y < rh; y++) {
-                for (let x = 0; x < rw; x++) {
-                    const gx = rx + x, gy = ry + y;
-                    if (gx < 0 || gy < 0 || gx >= width || gy >= height) continue;
-                    if (gray[gy * width + gx] < threshold) {
-                        colDark[x]++; rowDark[y]++; darkCount++;
-                    }
-                }
-            }
-            if (darkCount < 30) return null; // لا توجد كتلة داكنة كافية — لا علامة واضحة هنا
-            const colMinDark = Math.max(3, rh * 0.25);
-            const rowMinDark = Math.max(3, rw * 0.25);
-            let bestColStart = -1, bestColLen = 0, curStart = -1, curLen = 0;
-            for (let x = 0; x < rw; x++) {
-                if (colDark[x] >= colMinDark) { if (curStart === -1) curStart = x; curLen++; }
-                else { if (curLen > bestColLen) { bestColLen = curLen; bestColStart = curStart; } curStart = -1; curLen = 0; }
-            }
-            if (curLen > bestColLen) { bestColLen = curLen; bestColStart = curStart; }
-            let bestRowStart = -1, bestRowLen = 0; curStart = -1; curLen = 0;
-            for (let y = 0; y < rh; y++) {
-                if (rowDark[y] >= rowMinDark) { if (curStart === -1) curStart = y; curLen++; }
-                else { if (curLen > bestRowLen) { bestRowLen = curLen; bestRowStart = curStart; } curStart = -1; curLen = 0; }
-            }
-            if (curLen > bestRowLen) { bestRowLen = curLen; bestRowStart = curStart; }
-            if (bestColLen < 4 || bestRowLen < 4) return null; // كتلة أضيق من أن تكون مربع علامة حقيقي
-            return { x: rx + bestColStart + bestColLen / 2, y: ry + bestRowStart + bestRowLen / 2 };
-        }
-
-        // ---- كشف مراكز العلامات الأربع في الصورة (كل علامة يُفترض وجودها ضمن
-        // ~28% من العرض/الارتفاع القريبة من زاويتها، لاستيعاب ميلان معقول) ----
-        function detectFiducialMarkers(canvas) {
-            const ctx = canvas.getContext('2d');
-            const { width, height } = canvas;
-            const gray = _fiducialGrayscale(ctx.getImageData(0, 0, width, height));
-            const qw = Math.round(width * 0.28), qh = Math.round(height * 0.28);
-            const tl = _findMarkerInRegion(gray, width, height, 0, 0, qw, qh);
-            const tr = _findMarkerInRegion(gray, width, height, width - qw, 0, qw, qh);
-            const bl = _findMarkerInRegion(gray, width, height, 0, height - qh, qw, qh);
-            const br = _findMarkerInRegion(gray, width, height, width - qw, height - qh, qw, qh);
-            if (!tl || !tr || !bl || !br) return null;
-            return { tl, tr, bl, br };
-        }
-
-        // ---- حل نظام معادلات خطي عبر الحذف الغاوسي (مع اختيار المحور الجزئي
-        // لتفادي عدم الاستقرار العددي) ----
-        function _solveLinearSystem(A, b) {
-            const n = A.length;
-            const M = A.map((row, i) => [...row, b[i]]);
-            for (let col = 0; col < n; col++) {
-                let maxRow = col;
-                for (let r = col + 1; r < n; r++) if (Math.abs(M[r][col]) > Math.abs(M[maxRow][col])) maxRow = r;
-                [M[col], M[maxRow]] = [M[maxRow], M[col]];
-                if (Math.abs(M[col][col]) < 1e-10) return null; // العلامات غير منتظمة هندسياً — لا حل مستقر
-                for (let r = 0; r < n; r++) {
-                    if (r === col) continue;
-                    const factor = M[r][col] / M[col][col];
-                    for (let c = col; c <= n; c++) M[r][c] -= factor * M[col][c];
-                }
-            }
-            return M.map((row, i) => row[n] / row[i]);
-        }
-
-        // ---- حساب مصفوفة التحويل المنظوري (Homography) التي تُحوِّل 4 نقاط
-        // مصدر (مراكز العلامات المكتشَفة) إلى 4 نقاط هدف (زوايا الصورة القياسية) ----
-        function _computeHomography(src, dst) {
-            const A = [], b = [];
-            for (let i = 0; i < 4; i++) {
-                const { x: sx, y: sy } = src[i], { x: dx, y: dy } = dst[i];
-                A.push([sx, sy, 1, 0, 0, 0, -sx * dx, -sy * dx]); b.push(dx);
-                A.push([0, 0, 0, sx, sy, 1, -sx * dy, -sy * dy]); b.push(dy);
-            }
-            const h = _solveLinearSystem(A, b);
-            return h ? [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1] : null;
-        }
-
-        // ---- عكس مصفوفة homography (3×3) — ضروري للتحويل العكسي (Inverse
-        // Mapping) عند بناء صورة الوجهة بكسلاً بكسلاً دون ترك أي فجوات ----
-        function _invertHomography(H) {
-            const [a, b, c, d, e, f, g, h, i] = H;
-            const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
-            if (Math.abs(det) < 1e-12) return null;
-            const invDet = 1 / det;
-            return [
-                (e * i - f * h) * invDet, (c * h - b * i) * invDet, (b * f - c * e) * invDet,
-                (f * g - d * i) * invDet, (a * i - c * g) * invDet, (c * d - a * f) * invDet,
-                (d * h - e * g) * invDet, (b * g - a * h) * invDet, (a * e - b * d) * invDet
-            ];
-        }
-
-        function _applyHomography(H, x, y) {
-            const w = H[6] * x + H[7] * y + H[8];
-            return { x: (H[0] * x + H[1] * y + H[2]) / w, y: (H[3] * x + H[4] * y + H[5]) / w };
-        }
-
-        // ---- بناء صورة الوجهة (Canvas جديد بأبعاد قياسية موحّدة) عبر Inverse
-        // Mapping: لكل بكسل هدف نحسب مصدره المقابل عبر Hinv ونأخذ لونه ----
-        function _warpPerspective(sourceCanvas, Hinv, outW, outH) {
-            const sctx = sourceCanvas.getContext('2d');
-            const src = sctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
-            const sw = sourceCanvas.width, sh = sourceCanvas.height;
-            const outCanvas = document.createElement('canvas');
-            outCanvas.width = outW; outCanvas.height = outH;
-            const octx = outCanvas.getContext('2d');
-            const outImageData = octx.createImageData(outW, outH);
-            const out = outImageData.data;
-            for (let y = 0; y < outH; y++) {
-                for (let x = 0; x < outW; x++) {
-                    const { x: sx, y: sy } = _applyHomography(Hinv, x, y);
-                    const outIdx = (y * outW + x) * 4;
-                    const ix = Math.round(sx), iy = Math.round(sy);
-                    if (ix >= 0 && ix < sw && iy >= 0 && iy < sh) {
-                        const srcIdx = (iy * sw + ix) * 4;
-                        out[outIdx] = src[srcIdx]; out[outIdx + 1] = src[srcIdx + 1]; out[outIdx + 2] = src[srcIdx + 2];
-                    } else {
-                        out[outIdx] = out[outIdx + 1] = out[outIdx + 2] = 255; // خارج حدود المصدر → أبيض
-                    }
-                    out[outIdx + 3] = 255;
-                }
-            }
-            octx.putImageData(outImageData, 0, 0);
-            return outCanvas;
-        }
-
-        // ---- الدالة الرئيسية: تحاول اكتشاف العلامات الأربع في صورة ورقة
-        // الامتحان الممسوحة، وإن نجحت تُعيد Canvas مُصحَّح المحاذاة والميلان
-        // بأبعاد قياسية موحّدة. تُعيد null بهدوء (دون رمي استثناء) إن تعذّر
-        // الاكتشاف، بحيث يستمر المسار الطبيعي بالصورة الأصلية كما هي ----
-        function deskewViaFiducialMarkers(sourceCanvas) {
-            try {
-                const markers = detectFiducialMarkers(sourceCanvas);
-                if (!markers) return null;
-                const src = [markers.tl, markers.tr, markers.bl, markers.br];
-                const dst = [
-                    { x: FIDUCIAL_MARGIN, y: FIDUCIAL_MARGIN },
-                    { x: FIDUCIAL_TARGET_W - FIDUCIAL_MARGIN, y: FIDUCIAL_MARGIN },
-                    { x: FIDUCIAL_MARGIN, y: FIDUCIAL_TARGET_H - FIDUCIAL_MARGIN },
-                    { x: FIDUCIAL_TARGET_W - FIDUCIAL_MARGIN, y: FIDUCIAL_TARGET_H - FIDUCIAL_MARGIN }
-                ];
-                const H = _computeHomography(src, dst);
-                if (!H) return null;
-                const Hinv = _invertHomography(H);
-                if (!Hinv) return null;
-                return _warpPerspective(sourceCanvas, Hinv, FIDUCIAL_TARGET_W, FIDUCIAL_TARGET_H);
-            } catch (e) {
-                console.warn('deskewViaFiducialMarkers failed:', e);
-                return null;
-            }
-        }
-
         // ---- ضغط صورة (نفس أسلوب صور تصحيح الورقة الحالي: أقصى عرض 1600px، JPEG 0.85) ----
         async function paperCorrectionCompressImageFile(file) {
             const img = await loadImageFromFile(file);
@@ -24824,10 +24641,7 @@ ${blocksHtml}
             canvas.height = Math.round(img.height * scale);
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            // محاولة تصحيح الميلان والمحاذاة عبر علامات الارتكاز في زوايا الورقة
-            // (إن وُجدت وأمكن اكتشافها بثقة)؛ وإلا نُبقي الصورة الأصلية كما هي
-            const deskewed = deskewViaFiducialMarkers(canvas);
-            return (deskewed || canvas).toDataURL('image/jpeg', 0.85);
+            return canvas.toDataURL('image/jpeg', 0.85);
         }
 
         // ---- رفع/تصوير صورة (أو أكثر) لنسخة طالب ورقية ----
@@ -24883,9 +24697,7 @@ ${blocksHtml}
                         ctx.fillStyle = '#ffffff';
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                         await page.render({ canvasContext: ctx, viewport }).promise;
-                        // محاولة تصحيح الميلان والمحاذاة عبر علامات الارتكاز (إن وُجدت)
-                        const deskewed = deskewViaFiducialMarkers(canvas);
-                        s.images.push((deskewed || canvas).toDataURL('image/jpeg', 0.85));
+                        s.images.push(canvas.toDataURL('image/jpeg', 0.85));
                     } catch (e) {
                         showToast('⚠️ تعذّر تحويل إحدى صفحات ملف PDF', 'error');
                     }
@@ -24909,9 +24721,7 @@ ${blocksHtml}
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             await page.render({ canvasContext: ctx, viewport }).promise;
-            // محاولة تصحيح الميلان والمحاذاة عبر علامات الارتكاز (إن وُجدت)
-            const deskewed = deskewViaFiducialMarkers(canvas);
-            return (deskewed || canvas).toDataURL('image/jpeg', 0.85);
+            return canvas.toDataURL('image/jpeg', 0.85);
         }
 
         // ---- رفع عدة ملفات PDF دفعة واحدة لعدة طلاب معاً: يُنشئ نسخة طالب مستقلة
@@ -32645,15 +32455,6 @@ ${JSON.stringify(payload, null, 0)}
 <head>
 <meta charset="UTF-8">
 <title>نموذج امتحان — ${program?.title||''}</title>
-<script>
-  // ===== إعداد Paged.js قبل تحميله: تأجيل الطباعة الفعلية (window.print) حتى
-  // تنتهي عملية التقسيم الحقيقي للصفحات (after)، بدل استخدام window.onload
-  // القديم الذي كان قد يُطلق الطباعة قبل اكتمال التقسيم فيطبع محتوى غير مُجزَّأ =====
-  window.PagedConfig = {
-      after: () => window.print()
-  };
-<\/script>
-<script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"><\/script>
 <style>
   * {
     box-sizing:border-box; margin:0; padding:0;
@@ -32663,22 +32464,7 @@ ${JSON.stringify(payload, null, 0)}
     color-adjust: exact;
   }
   html, body { font-family:'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; }
-  body { font-size: 13px; color: #1f2937; background:#fff; }
-  /* ===== إعداد الصفحة عبر Paged.js (CSS Paged Media حقيقي بدل الاعتماد على
-     إعدادات طباعة المتصفح الافتراضية) =====
-     الهامش 15مم على كل جهة يوفّر مساحة "زاوية" (Corner Margin Box) كافية
-     لرسم علامة ارتكاز 9مم × 9مم في كل زاوية من زوايا الصفحة — وبما أن هذه
-     الزوايا جزء من مواصفة @page نفسها، فستتكرر تلقائياً وبشكل موثوق في كل
-     صفحة من صفحات الامتحان مهما كان عددها (بخلاف الحل السابق القائم على
-     position:fixed الذي لا يضمن نفس السلوك في كل المتصفحات) */
-  @page {
-    size: A4;
-    margin: 15mm;
-    @top-left-corner    { content: ""; background:#000; width:9mm; height:9mm; }
-    @top-right-corner    { content: ""; background:#000; width:9mm; height:9mm; }
-    @bottom-left-corner  { content: ""; background:#000; width:9mm; height:9mm; }
-    @bottom-right-corner { content: ""; background:#000; width:9mm; height:9mm; }
-  }
+  body { padding: 24px; font-size: 13px; color: #1f2937; background:#fff; }
   .exam-print-qr { width: 62px; text-align:center; flex-shrink:0; }
   .exam-print-qr img { width: 62px; height: 62px; display:block; }
   .exam-print-qr span { display:block; font-size:7px; color:#9ca3af; margin-top:3px; }
@@ -32706,6 +32492,7 @@ ${JSON.stringify(payload, null, 0)}
   .exam-print-warning { border:1.5px dashed #dc2626; border-radius:6px; padding:8px 14px; margin-bottom:16px; background:#fef2f2; color:#b91c1c; font-size:11px; font-weight:600; line-height:1.7; text-align:center; }
   .exam-print-end { text-align:center; font-weight:700; font-size:14px; color:#0790AC; margin-top:28px; padding-top:14px; border-top:2px solid #e0f4f7; }
   @media print {
+    body { padding:12px; }
     * {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
@@ -32757,6 +32544,8 @@ ${JSON.stringify(payload, null, 0)}
 <h3 class="section"><i>✎</i> أسئلة الامتحان</h3>
 ${questionsHtml}
 <div class="exam-print-end">انتهت الأسئلة ..... بالتوفيق والنجاح لطلابنا الأعزاء</div>
+
+<script>window.onload=()=>window.print();<\/script>
 </body></html>`);
         win.document.close();
     }
