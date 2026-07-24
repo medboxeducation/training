@@ -26923,9 +26923,67 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
         let _pcSplitScanIndex = 0;
         let _pcSplitTouchStartX = null;
 
+        // ---- حالة التكبير/التحريك (Zoom/Pan) لصورة نسخة الطالب الورقية في وضع التقسيم —
+        // تُتيح التكبير مباشرة (عجلة الفأرة على الحاسوب، قرص الإصبعين على اللمس) دون
+        // الحاجة للنقر المزدوج (الذي يبقى متاحاً فقط كخيار إضافي لفتح المعاينة الكاملة) ----
+        let _pcSplitZoom = { scale: 1, tx: 0, ty: 0 };
+        const PC_SPLIT_ZOOM_MIN = 1;
+        const PC_SPLIT_ZOOM_MAX = 4;
+        let _pcSplitPinchStartDist = null;
+        let _pcSplitPinchStartScale = 1;
+        let _pcSplitPanStart = null;   // {x, y, tx, ty} أثناء السحب باللمس بعد التكبير
+        let _pcSplitMouseDragStart = null; // نفس الفكرة، عبر الفأرة على الحاسوب
+
+        function _pcSplitZoomClamp(z) {
+            return Math.max(PC_SPLIT_ZOOM_MIN, Math.min(PC_SPLIT_ZOOM_MAX, z));
+        }
+
+        function _pcApplySplitZoomTransform() {
+            const img = document.getElementById('pcSplitScanImg');
+            if (img) img.style.transform = `translate(${_pcSplitZoom.tx}px, ${_pcSplitZoom.ty}px) scale(${_pcSplitZoom.scale})`;
+            const wrap = document.getElementById('pcSplitScanWrap');
+            if (wrap) wrap.style.cursor = _pcSplitZoom.scale > 1 ? 'grab' : 'zoom-in';
+            const resetBtn = document.getElementById('pcSplitZoomResetBtn');
+            if (resetBtn) resetBtn.classList.toggle('hidden', _pcSplitZoom.scale <= 1);
+        }
+
+        function pcSplitZoomReset() {
+            _pcSplitZoom = { scale: 1, tx: 0, ty: 0 };
+            _pcApplySplitZoomTransform();
+        }
+
+        // زران +/- بجانب الصورة (لمن لا يستخدم عجلة الفأرة أو قرص الإصبعين)
+        function pcSplitZoomStep(delta) {
+            const nextScale = _pcSplitZoomClamp(_pcSplitZoom.scale + delta);
+            _pcSplitZoom.scale = nextScale;
+            if (nextScale === 1) { _pcSplitZoom.tx = 0; _pcSplitZoom.ty = 0; }
+            _pcApplySplitZoomTransform();
+        }
+
+        // عجلة الفأرة: تكبير/تصغير مركَّز حول موضع المؤشر (وليس مركز الصورة فقط)
+        function pcSplitZoomWheel(e) {
+            e.preventDefault();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const cx = e.clientX - rect.left - rect.width / 2;
+            const cy = e.clientY - rect.top - rect.height / 2;
+            const prevScale = _pcSplitZoom.scale;
+            const nextScale = _pcSplitZoomClamp(prevScale + (e.deltaY < 0 ? 0.25 : -0.25));
+            if (nextScale === prevScale) return;
+            if (nextScale === 1) {
+                _pcSplitZoom = { scale: 1, tx: 0, ty: 0 };
+            } else {
+                const ratio = nextScale / prevScale;
+                _pcSplitZoom.tx = (_pcSplitZoom.tx - cx) * ratio + cx;
+                _pcSplitZoom.ty = (_pcSplitZoom.ty - cy) * ratio + cy;
+                _pcSplitZoom.scale = nextScale;
+            }
+            _pcApplySplitZoomTransform();
+        }
+
         function togglePaperCorrectionSplitView() {
             _paperCorrectionSplitViewActive = !_paperCorrectionSplitViewActive;
             _pcSplitScanIndex = 0;
+            pcSplitZoomReset();
             renderPaperCorrectionTripleView();
         }
 
@@ -26935,15 +26993,51 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
                 ? _paperCorrection.ocrImages : (_paperCorrection.sheetDriveFiles || []);
             if (!displayImages.length) return;
             _pcSplitScanIndex = (_pcSplitScanIndex + dir + displayImages.length) % displayImages.length;
+            pcSplitZoomReset(); // صفحة جديدة ← إلغاء أي تكبير على الصفحة السابقة
             renderPaperCorrectionTripleView();
         }
 
-        // ---- دعم التمرير/السحب باللمس للتنقّل بين صفحات الورقة الممسوحة في وضع التقسيم
-        // (بديل عملي لأزرار السابق/التالي على الشاشات اللمسية) ----
+        // ---- دعم اللمس على صورة نسخة الطالب الورقية في وضع التقسيم: إصبع واحد
+        // للتنقّل بين الصفحات (إن لم تكن الصورة مكبَّرة) أو للتحريك/البانّ (إن كانت
+        // مكبَّرة)، وإصبعان معاً للقرص (Pinch) للتكبير/التصغير المباشر دون نقر مزدوج ----
+        function _pcTouchDist(t0, t1) {
+            return Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        }
         function pcSplitScanTouchStart(e) {
-            _pcSplitTouchStartX = e.touches?.[0]?.clientX ?? null;
+            if (e.touches.length === 2) {
+                _pcSplitPinchStartDist = _pcTouchDist(e.touches[0], e.touches[1]);
+                _pcSplitPinchStartScale = _pcSplitZoom.scale;
+                _pcSplitTouchStartX = null;
+                _pcSplitPanStart = null;
+            } else if (e.touches.length === 1) {
+                _pcSplitPinchStartDist = null;
+                if (_pcSplitZoom.scale > 1) {
+                    _pcSplitPanStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, tx: _pcSplitZoom.tx, ty: _pcSplitZoom.ty };
+                    _pcSplitTouchStartX = null;
+                } else {
+                    _pcSplitTouchStartX = e.touches[0].clientX;
+                    _pcSplitPanStart = null;
+                }
+            }
+        }
+        function pcSplitScanTouchMove(e) {
+            if (e.touches.length === 2 && _pcSplitPinchStartDist) {
+                e.preventDefault();
+                const dist = _pcTouchDist(e.touches[0], e.touches[1]);
+                const nextScale = _pcSplitZoomClamp(_pcSplitPinchStartScale * (dist / _pcSplitPinchStartDist));
+                _pcSplitZoom.scale = nextScale;
+                if (nextScale === 1) { _pcSplitZoom.tx = 0; _pcSplitZoom.ty = 0; }
+                _pcApplySplitZoomTransform();
+            } else if (e.touches.length === 1 && _pcSplitPanStart) {
+                e.preventDefault();
+                _pcSplitZoom.tx = _pcSplitPanStart.tx + (e.touches[0].clientX - _pcSplitPanStart.x);
+                _pcSplitZoom.ty = _pcSplitPanStart.ty + (e.touches[0].clientY - _pcSplitPanStart.y);
+                _pcApplySplitZoomTransform();
+            }
         }
         function pcSplitScanTouchEnd(e) {
+            if (_pcSplitPinchStartDist !== null && e.touches.length < 2) _pcSplitPinchStartDist = null;
+            if (_pcSplitPanStart && e.touches.length === 0) { _pcSplitPanStart = null; return; }
             if (_pcSplitTouchStartX === null) return;
             const endX = e.changedTouches?.[0]?.clientX ?? _pcSplitTouchStartX;
             const dx = endX - _pcSplitTouchStartX;
@@ -26951,6 +27045,22 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
             if (Math.abs(dx) < 40) return; // عتبة أدنى لتفادي التقاط لمسة عرضية بسيطة كسحب فعلي
             // التخطيط من اليمين لليسار (RTL): السحب نحو اليمين ينتقل للصفحة السابقة، ونحو اليسار للتالية
             pcSplitScanNav(dx > 0 ? -1 : 1);
+        }
+
+        // ---- سحب الصورة بالفأرة بعد تكبيرها على الحاسوب (بديل قرص الإصبعين على اللمس) ----
+        function pcSplitScanMouseDown(e) {
+            if (_pcSplitZoom.scale <= 1) return;
+            e.preventDefault();
+            _pcSplitMouseDragStart = { x: e.clientX, y: e.clientY, tx: _pcSplitZoom.tx, ty: _pcSplitZoom.ty };
+        }
+        function pcSplitScanMouseMove(e) {
+            if (!_pcSplitMouseDragStart) return;
+            _pcSplitZoom.tx = _pcSplitMouseDragStart.tx + (e.clientX - _pcSplitMouseDragStart.x);
+            _pcSplitZoom.ty = _pcSplitMouseDragStart.ty + (e.clientY - _pcSplitMouseDragStart.y);
+            _pcApplySplitZoomTransform();
+        }
+        function pcSplitScanMouseUp() {
+            _pcSplitMouseDragStart = null;
         }
 
         // ---- بناء عرض "الشاشة مقسومة": عمود أيمن لصورة واحدة من نسخة الطالب الورقية
@@ -26963,17 +27073,37 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
             _pcTripleViewScanImages = scanSrcs; // نفس المتغيّر المستخدَم في معاينة التكبير بتبويب "نسخة الطالب الورقية" العادي
             if (_pcSplitScanIndex >= scanSrcs.length) _pcSplitScanIndex = 0;
 
+            const zs = _pcSplitZoom;
             const scanHtml = scanSrcs.length ? `
-                <div class="relative rounded-lg overflow-hidden bg-black flex items-center justify-center" style="min-height:14rem">
-                    <img src="${scanSrcs[_pcSplitScanIndex]}" class="w-full h-auto max-h-[26rem] object-contain select-none"
+                <div id="pcSplitScanWrap" class="relative rounded-lg overflow-hidden bg-black flex items-center justify-center select-none"
+                    style="min-height:14rem; touch-action:none; cursor:${zs.scale > 1 ? 'grab' : 'zoom-in'}"
+                    onwheel="pcSplitZoomWheel(event)"
+                    ontouchstart="pcSplitScanTouchStart(event)" ontouchmove="pcSplitScanTouchMove(event)" ontouchend="pcSplitScanTouchEnd(event)"
+                    onmousedown="pcSplitScanMouseDown(event)" onmousemove="pcSplitScanMouseMove(event)" onmouseup="pcSplitScanMouseUp(event)" onmouseleave="pcSplitScanMouseUp(event)">
+                    <img id="pcSplitScanImg" src="${scanSrcs[_pcSplitScanIndex]}" class="w-full h-auto max-h-[26rem] object-contain select-none"
+                        style="transform:translate(${zs.tx}px, ${zs.ty}px) scale(${zs.scale}); transform-origin:center center;"
                         ondblclick="openImagePreviewArray(_pcTripleViewScanImages, ${_pcSplitScanIndex})">
+                    <div class="absolute top-1 left-1 flex flex-col gap-1 z-10">
+                        <button type="button" onclick="pcSplitZoomStep(0.5)" title="تكبير"
+                            class="w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70">
+                            <i class="ph ph-plus text-xs"></i>
+                        </button>
+                        <button type="button" onclick="pcSplitZoomStep(-0.5)" title="تصغير"
+                            class="w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70">
+                            <i class="ph ph-minus text-xs"></i>
+                        </button>
+                        <button type="button" id="pcSplitZoomResetBtn" onclick="pcSplitZoomReset()" title="إعادة الحجم الأصلي"
+                            class="w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 ${zs.scale <= 1 ? 'hidden' : ''}">
+                            <i class="ph ph-arrows-in text-xs"></i>
+                        </button>
+                    </div>
                     ${scanSrcs.length > 1 ? `
                     <button type="button" onclick="pcSplitScanNav(-1)" title="الصفحة السابقة"
-                        class="absolute top-1/2 -translate-y-1/2 right-1 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70">
+                        class="absolute top-1/2 -translate-y-1/2 right-1 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 z-10">
                         <i class="ph ph-caret-right"></i>
                     </button>
                     <button type="button" onclick="pcSplitScanNav(1)" title="الصفحة التالية"
-                        class="absolute top-1/2 -translate-y-1/2 left-1 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70">
+                        class="absolute top-1/2 -translate-y-1/2 left-1 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 z-10">
                         <i class="ph ph-caret-left"></i>
                     </button>
                     <span class="absolute bottom-1 inset-x-0 text-center text-[10px] text-white bg-black/40 py-0.5">${_pcSplitScanIndex + 1} / ${scanSrcs.length}</span>` : ''}
@@ -36971,6 +37101,15 @@ function _listenNotificationsFromFirebase() {
                 if (!isInitialBatch && data.actorUid && data.actorUid !== cu.uid) {
                     _ringBell();
                     _showNotifToast(notif);
+                    // ── إشعار المتصفح (OS-level) عند غياب المستخدم — كان يُرسَل
+                    // سابقاً فقط لإشعارات الدردشة/المكالمات (_listenChatForNotif)،
+                    // فلا تصل أي إشعارات جرس عامة (مثل "تم حفظ التصحيح") كإشعار
+                    // نظام حتى مع بقاء التبويب مفتوحاً في الخلفية ----
+                    _sendBrowserNotification(notif.title || 'إشعار جديد', notif.body || '', {
+                        icon: '', // تُستخدَم أيقونة MedBox الافتراضية
+                        tag: 'medbox_notif_' + id,
+                        onClick: () => { try { _notifItemClick(id); } catch(_) {} }
+                    });
                 }
             });
         }, err => console.warn('[Notif] Firestore notifications listener error', err));
