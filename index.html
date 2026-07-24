@@ -23881,18 +23881,85 @@
             pcRenderBrowseTree();
         }
 
+        // ---- دائرة تقدّم (بنسبة مئوية) تُعرض داخل جسم لوحة العرض الرئيسية أثناء تحميل
+        // نسخ الطلاب الورقية المحفوظة من Google Drive — بدل ترك اللوحة فارغة دون أي
+        // مؤشر يوضّح للمستخدم أن هناك عملية تحميل جارية في الخلفية ----
+        const PC_DRIVE_PROGRESS_CIRCUMFERENCE = 2 * Math.PI * 42;
+        function pcShowDriveLoadProgress(label) {
+            const body = document.getElementById('paperCorrectionMainViewBody');
+            if (!body) return;
+            body.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-16 text-gray-500">
+                    <div class="relative w-28 h-28 mb-4">
+                        <svg viewBox="0 0 100 100" class="w-28 h-28 -rotate-90">
+                            <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" stroke-width="8"></circle>
+                            <circle id="pcDriveLoadProgressCircle" cx="50" cy="50" r="42" fill="none" stroke="#0790AC" stroke-width="8"
+                                stroke-linecap="round" stroke-dasharray="${PC_DRIVE_PROGRESS_CIRCUMFERENCE}"
+                                stroke-dashoffset="${PC_DRIVE_PROGRESS_CIRCUMFERENCE}"
+                                style="transition: stroke-dashoffset 0.15s ease"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span id="pcDriveLoadProgressText" class="text-lg font-bold text-primary">0%</span>
+                        </div>
+                    </div>
+                    <p class="text-sm">${label || 'جاري تحميل نسخ الطلاب الورقية من Google Drive...'}</p>
+                </div>`;
+        }
+        function pcUpdateDriveLoadProgress(percent) {
+            const circle = document.getElementById('pcDriveLoadProgressCircle');
+            const text = document.getElementById('pcDriveLoadProgressText');
+            if (!circle || !text) return;
+            const pct = Math.max(0, Math.min(100, Math.round(percent)));
+            circle.setAttribute('stroke-dashoffset', PC_DRIVE_PROGRESS_CIRCUMFERENCE - (pct / 100) * PC_DRIVE_PROGRESS_CIRCUMFERENCE);
+            text.textContent = pct + '%';
+        }
+
+        // ---- تحميل ملف من Drive مع تتبّع تقدّم فعلي (نسبة مئوية) عبر قراءة الاستجابة
+        // تدريجياً (stream) بدل انتظار اكتمالها دفعة واحدة كما في driveDownloadFile ----
+        async function driveDownloadFileWithProgress(fileId, onProgress) {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                headers: { Authorization: `Bearer ${driveToken}` }
+            });
+            if (!res.ok) throw new Error(`Drive download failed: ${res.status}`);
+            const total = Number(res.headers.get('Content-Length')) || 0;
+            if (!res.body || !total) {
+                // إن تعذّر معرفة الحجم الإجمالي مسبقاً (أو القراءة التدريجية غير مدعومة)،
+                // نكتفي بتنزيل الملف دفعة واحدة دون نسبة تقدّم فعلية
+                const text = await res.text();
+                if (typeof onProgress === 'function') onProgress(100);
+                return text;
+            }
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let received = 0, text = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                received += value.length;
+                text += decoder.decode(value, { stream: true });
+                if (typeof onProgress === 'function') onProgress(Math.min(99, (received / total) * 100));
+            }
+            text += decoder.decode();
+            if (typeof onProgress === 'function') onProgress(100);
+            return text;
+        }
+
         // ---- الضغط على "رمز امتحان" محفوظ: يحمّل correction.json من مجلده على Drive
         // ويستعيد كامل دفعة التصحيح (الامتحان + نتائج جميع الطلاب) داخل اللوحة الرئيسية ----
         async function pcOpenSavedExamFromDrive(folderId) {
             try {
-                showToast('⏳ جاري تحميل التصحيح المحفوظ...', 'info');
+                pcShowDriveLoadProgress();
                 const search = await gapi.client.drive.files.list({
                     q: `name='correction.json' and '${folderId}' in parents and trashed=false`,
                     fields: 'files(id,name)', pageSize: 1,
                 });
                 const file = (search.result.files || [])[0];
-                if (!file) { showToast('⚠️ لم يُعثر على بيانات محفوظة لهذا الامتحان', 'warning'); return; }
-                const content = await driveDownloadFile(file.id);
+                if (!file) {
+                    showToast('⚠️ لم يُعثر على بيانات محفوظة لهذا الامتحان', 'warning');
+                    renderPaperCorrectionBatchPanel();
+                    return;
+                }
+                const content = await driveDownloadFileWithProgress(file.id, pcUpdateDriveLoadProgress);
                 const data = JSON.parse(content);
                 _paperCorrectionBatch = {
                     programKey: data.programKey || null,
@@ -23912,6 +23979,7 @@
             } catch (err) {
                 console.error('pcOpenSavedExamFromDrive error:', err);
                 showToast('❌ تعذّر تحميل التصحيح المحفوظ', 'error');
+                renderPaperCorrectionBatchPanel();
             }
         }
 
