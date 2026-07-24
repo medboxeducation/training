@@ -23590,6 +23590,10 @@
                     class="glass-icon-btn px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-emerald-600 flex items-center gap-1.5 hover:bg-emerald-50 hover:border-emerald-300 transition-colors">
                     <i class="ph ph-cloud-arrow-up text-sm"></i> <span class="hidden sm:inline">حفظ التصحيح</span>
                 </button>
+                <button id="paperCorrectionDeleteDriveBtn" onclick="pcDeleteCorrectionFromDrive()" title="حذف التصحيح"
+                    class="glass-icon-btn px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-red-600 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors">
+                    <i class="ph ph-trash text-sm"></i> <span class="hidden sm:inline">حذف التصحيح</span>
+                </button>
                 <div class="relative paper-correction-header-menu-wrap">
                     <button onclick="togglePaperCorrectionHeaderMenu('pcPrintMenu')" title="طباعة التقرير"
                         class="glass-icon-btn px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 flex items-center gap-1.5 hover:bg-gray-100 hover:border-gray-300 transition-colors">
@@ -23928,6 +23932,66 @@
                 showToast('❌ فشل حفظ التصحيح: ' + (err.message || ''), 'error');
             } finally {
                 if (btn) { btn.disabled = false; btn.innerHTML = originalHtml || `<i class="ph ph-cloud-arrow-up text-sm"></i> <span class="hidden sm:inline">حفظ التصحيح</span>`; }
+            }
+        }
+
+        // ---- حذف دفعة التصحيح الحالية نهائياً من Google Drive (مجلد "رمز الامتحان"
+        // بكل ما يحويه، أي correction.json ونتائج جميع الطلاب المحفوظة معه) — يُحدَّد
+        // المجلد المطلوب حذفه عبر appProperties.pcExamId المرتبط بالامتحان الحالي (نفس
+        // الطريقة المستخدمة في getOrCreatePaperCorrectionExamFolder عند الحفظ)، فلا حاجة
+        // لإعادة بناء مسار الشجرة كاملاً. الحذف الفعلي هو نقل إلى سلة المهملات على Drive
+        // (trashed:true) وليس حذفاً نهائياً فورياً، فيبقى قابلاً للاسترجاع من Drive نفسه ----
+        async function pcDeleteCorrectionFromDrive() {
+            const batch = _paperCorrectionBatch;
+            if (!batch.exam) { showToast('⚠️ حدِّد الامتحان أولاً', 'warning'); return; }
+            if (!driveToken) {
+                showToast('⚠️ سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" لحذف التصحيح', 'warning');
+                return;
+            }
+            const exam = batch.exam;
+            const examLabel = [exam.examDate || '', exam.subjectName || ''].filter(Boolean).join(' - ') || 'هذا الامتحان';
+            const confirmed = confirm(`هل أنت متأكد من حذف تصحيح "${examLabel}" نهائياً من Google Drive؟ سيُحذف مع جميع نتائج الطلاب المرفقة به. لا يمكن التراجع عن هذا الإجراء بسهولة.`);
+            if (!confirmed) return;
+
+            const btn = document.getElementById('paperCorrectionDeleteDriveBtn');
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ph ph-circle-notch animate-spin"></i> جاري الحذف...`; }
+            try {
+                if (!gapiReady) await initGapi();
+                const examId = batch.examId || exam.id;
+                let folderId = null;
+                if (examId) {
+                    const safeId = String(examId).replace(/'/g, "\\'");
+                    const byId = await gapi.client.drive.files.list({
+                        q: `mimeType='application/vnd.google-apps.folder' and trashed=false and appProperties has { key='pcExamId' and value='${safeId}' }`,
+                        fields: 'files(id,name)', pageSize: 1,
+                    });
+                    folderId = (byId.result.files || [])[0]?.id || null;
+                }
+                if (!folderId) {
+                    showToast('⚠️ لا يوجد تصحيح محفوظ لهذا الامتحان على Google Drive', 'warning');
+                    return;
+                }
+                await gapi.client.drive.files.update({ fileId: folderId, resource: { trashed: true } });
+
+                showToast('🗑️ تم حذف التصحيح من Google Drive', 'info');
+                addNotification({
+                    type: 'exam',
+                    action: 'paperCorrectionDeleted',
+                    title: '🗑️ تم حذف تصحيح ورقي من Google Drive',
+                    body: `تم حذف تصحيح الامتحان "${examLabel}" من Google Drive`,
+                    icon: 'ph-trash',
+                    targetUids: currentUser?.uid ? [currentUser.uid] : null,
+                });
+                // إبطال ذاكرة الشجرة المؤقتة كي لا يظهر الامتحان المحذوف عند تصفح المحفوظات لاحقاً
+                pcBrowseTreeState = { rootFolderId: null, years: null, expandedYear: null, semesters: null, expandedSemester: null, courses: null, expandedCourse: null, exams: null };
+                // العودة لوضع "الإعداد" الافتراضي (بلا امتحان محدَّد) بعد نجاح الحذف
+                openPaperCorrectionMainView(/* keepBatch */ false);
+            } catch (err) {
+                console.error('pcDeleteCorrectionFromDrive error:', err);
+                showToast('❌ فشل حذف التصحيح: ' + (err.message || ''), 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = originalHtml || `<i class="ph ph-trash text-sm"></i> <span class="hidden sm:inline">حذف التصحيح</span>`; }
             }
         }
 
