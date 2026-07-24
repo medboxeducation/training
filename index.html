@@ -23848,12 +23848,13 @@
                 const exam = batch.exam;
                 const yearName = (exam.academicYear || '').trim() || 'غير محدد';
                 const semName  = (exam.semester || '').trim() || 'غير محدد';
-                // اسم المقرر: نُفضِّل بيانات البرنامج/المقرر الحية (نفس ما يظهر في هيدر
-                // اللوحة) على حقول الامتحان المخزَّنة، مع رجوع احتياطي لها إن تعذّر إيجاد
-                // المقرر (مثلاً حُذف لاحقاً)
+                // اسم المقرر: نُفضِّل اسم المقرر الفعلي المخزَّن على الامتحان (exam.subjectName —
+                // نفس الحقل المعروض في هيدر اللوحة كـ"اسم المقرر")، وليس رمز/اسم الدورة
+                // (course.code / course.title)، مع رجوع احتياطي لبيانات الدورة الحية إن تعذّر
+                // إيجاد اسم مقرر مخزَّن على الامتحان نفسه
                 const program = programsData[batch.programKey];
                 const course  = (program?.courses || []).find(c => c.key === batch.courseKey);
-                const courseName = (course?.code || course?.title || exam.courseCode || exam.subjectName || '').trim() || 'غير محدد';
+                const courseName = (exam.subjectName || exam.courseCode || course?.code || course?.title || '').trim() || 'غير محدد';
                 // رمز الامتحان: المستوى الأخير من الشجرة — تاريخ الامتحان (+ رقم تكرار
                 // تلقائي عند وجود أكثر من امتحان محفوظ بنفس التاريخ لنفس المقرر)
                 const examLeafBaseName = (exam.examDate || '').trim() || 'بدون تاريخ';
