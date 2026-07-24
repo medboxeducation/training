@@ -23651,6 +23651,14 @@
                 if (ret.activeStudentId && findPaperCorrectionBatchStudent(ret.activeStudentId)) {
                     batch.activeStudentId = ret.activeStudentId;
                 }
+                // نسخة النظام (أسئلة/إجابات نموذجية/علامات) قد تكون عُدِّلت أثناء
+                // التواجد في نظام الامتحانات (زر "تعديل") — نجلب أحدث نسخة محفوظة
+                // من كاش الامتحانات لضمان اعتماد أي مقارنة لاحقة بين النسخة المفرَّغة
+                // ونسخة النظام على التعديلات الجديدة مباشرة، دون تكرار فتح الامتحان
+                const freshExam = (typeof getCachedExamById === 'function')
+                    ? getCachedExamById(ret.programKey, ret.courseKey, ret.examId)
+                    : null;
+                if (freshExam) batch.exam = freshExam;
             }
             openPaperCorrectionMainView(true);
         }
@@ -24243,7 +24251,7 @@
                 <p class="text-xs font-semibold text-gray-600 flex items-center gap-1.5 mb-2">
                     <i class="ph ph-columns text-primary"></i> عرض التأكيد الثلاثي
                 </p>
-                <div class="grid grid-cols-3 gap-1.5 mb-3">
+                <div class="grid grid-cols-2 gap-1.5 mb-3">
                     <button type="button" data-triple-tab="scan" onclick="switchPaperCorrectionTripleTab('scan')"
                         class="paper-triple-tab-btn text-[11px] font-semibold py-2 rounded-lg border transition-colors">
                         <i class="ph ph-image block text-sm mb-0.5"></i> نسخة الطالب الورقية
@@ -24251,10 +24259,6 @@
                     <button type="button" data-triple-tab="transcript" onclick="switchPaperCorrectionTripleTab('transcript')"
                         class="paper-triple-tab-btn text-[11px] font-semibold py-2 rounded-lg border transition-colors">
                         <i class="ph ph-text-align-right block text-sm mb-0.5"></i> النسخة المفرَّغة (تعديل)
-                    </button>
-                    <button type="button" data-triple-tab="key" onclick="switchPaperCorrectionTripleTab('key')"
-                        class="paper-triple-tab-btn text-[11px] font-semibold py-2 rounded-lg border transition-colors">
-                        <i class="ph ph-key block text-sm mb-0.5"></i> نسخة النظام
                     </button>
                 </div>
                 <div id="paperCorrectionStudentTripleViewContent" class="mb-4 max-h-[28rem] overflow-y-auto space-y-2 glass-element rounded-xl p-2.5"></div>
