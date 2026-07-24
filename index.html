@@ -23547,8 +23547,8 @@
                     const titleParts = [exam.examDate || '', typeInfo.ar, `${exam.questions.length} سؤال`].filter(Boolean);
                     title.textContent = titleParts.join(' - ');
                 }
-                // السطر الأول: اسم المقرر
-                if (subtitle) subtitle.textContent = course?.title || course?.code || course?.key || '';
+                // السطر الأول: اسم المقرر (تحت تاريخ الامتحان مباشرة) — وليس اسم الدورة
+                if (subtitle) subtitle.textContent = exam.subjectName || '';
                 // السطر الثاني: اسم البرنامج - اسم الفصل - اسم السنة
                 if (subtitle2) {
                     const line2Parts = [program?.title || '', exam.semester || '', exam.academicYear || ''].filter(Boolean);
@@ -24157,29 +24157,20 @@
             renderPaperCorrectionStudentResults(s);
         }
 
-        // ---- هيدر عرض الطالب: اسم الامتحان أعلاه، ثم السنة/الفصل، ثم المقرر، ثم اسم الطالب أسفله بارزاً
-        //      (مع علامته المستحقة بجانبه إن كان قد خضع لـ"المطابقة والتصحيح") ----
+        // ---- هيدر عرض الطالب: اسم الطالب + العلامة المستحقة بجانبه فقط (إن وُجدت) ----
         function renderPaperCorrectionStudentDetailHeader(s) {
             const el = document.getElementById('paperCorrectionStudentHeader');
             if (!el) return;
-            const exam = _paperCorrectionBatch.exam;
-            const program = programsData[_paperCorrectionBatch.programKey];
-            const course = (program?.courses || []).find(c => c.key === _paperCorrectionBatch.courseKey);
-            const typeInfo = EXAM_TYPES.find(t => t.key === exam.examType) || EXAM_TYPES[0];
             const markBadge = s.grading
                 ? `<span class="text-sm font-bold bg-primary text-white px-2.5 py-1 rounded-full mr-auto">${paperCorrectionStudentFinalEarnedTotal(s)} / ${s.grading.totalMark}</span>`
                 : '';
             el.innerHTML = `
-                <p class="text-xs text-gray-400">${typeInfo.ar}${exam.examDate ? ' · ' + exam.examDate : ''}</p>
-                <p class="text-xs text-gray-400 mt-0.5">${exam.academicYear || '—'} / ${exam.semester || '—'}</p>
-                <p class="text-sm font-semibold text-gray-600 mt-0.5">${exam.subjectName || course?.title || '—'}</p>
-                <div class="flex items-center gap-2 mt-1.5">
+                <div class="flex items-center gap-2">
                     <p class="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <i class="ph ph-user-circle text-primary"></i> ${escapeHtml(s.name || 'بلا اسم')}
                     </p>
                     ${markBadge}
-                </div>
-                ${s.analysisError ? `<p class="text-[11px] text-red-500 mt-1.5 flex items-center gap-1"><i class="ph ph-warning-circle"></i> ${escapeHtml(s.analysisError)}</p>` : ''}`;
+                </div>`;
         }
 
         /* ════════════════════════════════════════════════════════════════
