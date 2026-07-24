@@ -27530,7 +27530,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
 
             document.getElementById('paperResultViewHeader').innerHTML = `
                 <p class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ph-user-circle text-primary"></i> ${sub.traineeName || '—'}</p>
-                <p class="text-xs text-gray-400 mt-0.5">${program?.title || ''} · ${course?.code || course?.key || ''} · ${exam.examDate || ''}</p>
+                <p class="text-xs text-gray-400 mt-0.5">${program?.title || ''} · ${exam.subjectName || course?.code || course?.key || ''} · ${exam.examDate || ''}</p>
                 <div class="mt-2 flex items-center gap-2">
                     <span class="text-2xl font-black text-primary">${sub.earnedMark ?? 0}</span>
                     <span class="text-sm text-gray-400">/ ${totalMark}</span>
