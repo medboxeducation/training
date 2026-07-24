@@ -23515,6 +23515,7 @@
         function openPaperCorrectionMainView(keepBatch) {
             if (!keepBatch) {
                 _paperCorrectionBatch = { programKey: null, courseKey: null, examId: null, exam: null, students: [], viewMode: 'setup', activeStudentId: null };
+                _paperCorrectionExamViewerReturn = null;
                 // فتح افتراضي من بطاقة "نظام التصحيح الامتحاني الورقي" في الرئيسية:
                 // أظهر القائمة الجانبية على شجرة الامتحانات الورقية المحفوظة على Drive
                 pcOpenSavedExamsBrowser();
@@ -23565,8 +23566,15 @@
             // الدورة/البرنامج): glass-icon-btn + hover:bg-{لون}-50 + حدود ملوَّنة + انتقال ناعم،
             // مع أيقونة فقط في الشاشات الصغيرة ونص + أيقونة من حجم sm فأكبر (مثل هيدر مركز الامتحانات)
 
-            // ---- الصف الأول: زر "إضافة امتحان جديد" فقط، أقصى يسار الهيدر ----
+            // ---- الصف الأول: زر "نسخة النظام" (عند عرض بيانات الطلاب فقط) ثم زر "إضافة امتحان جديد"، أقصى يسار الهيدر ----
+            const hasAnalyzedForHeader = _paperCorrectionBatch.students.some(s => s.analyzed || s.analysisError);
+            const showHeaderSystemKeyBtn = _paperCorrectionBatch.viewMode === 'detail' && hasAnalyzedForHeader && !!_paperCorrectionBatch.exam;
             wrap.innerHTML = `
+                ${showHeaderSystemKeyBtn ? `
+                <button onclick="openExamSystemFromPaperCorrectionHeader()" title="نسخة النظام"
+                    class="glass-icon-btn px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-teal-700 flex items-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors">
+                    <i class="ph ph-key text-sm"></i> <span class="hidden sm:inline">نسخة النظام</span>
+                </button>` : ''}
                 <button onclick="openPaperCorrectionScanner()" title="إضافة امتحان جديد"
                     class="glass-icon-btn px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
                     <i class="ph ph-plus-circle text-sm"></i> <span class="hidden sm:inline">إضافة امتحان جديد</span>
@@ -23605,6 +23613,46 @@
                         <button onclick="closePaperCorrectionHeaderMenus(); printPaperCorrectionAllStudentsFullReport()" class="w-full text-right px-3 py-2 text-xs hover:bg-gray-50 border-t border-gray-100">طباعة تقرير تصحيح لجميع الطلاب</button>
                     </div>
                 </div>` : '';
+        }
+
+        // ---- حالة العودة إلى لوحة عرض بيانات الطلاب بعد فتح الامتحان من نظام الامتحانات
+        // (تُستخدَم في المرحلة ٣ لإظهار/تفعيل زر "التراجع") ----
+        let _paperCorrectionExamViewerReturn = null;
+
+        // ---- زر "نسخة النظام" في هيدر لوحة العرض الرئيسية: يحفظ حالة العودة الحالية
+        // (الطالب النشط وبيانات الدفعة) ثم ينتقل فعلياً لعرض الامتحان المسجَّل في نظام
+        // الامتحانات (زر التراجع للعودة سيُضاف في المرحلة ٣) ----
+        function openExamSystemFromPaperCorrectionHeader() {
+            const batch = _paperCorrectionBatch;
+            if (!batch.exam) return;
+            _paperCorrectionExamViewerReturn = {
+                programKey: batch.programKey,
+                courseKey: batch.courseKey,
+                examId: batch.examId,
+                activeStudentId: batch.activeStudentId
+            };
+            if (typeof emsCurrentProgramKey !== 'undefined') emsCurrentProgramKey = batch.programKey;
+            if (typeof emsCurrentCourseKey  !== 'undefined') emsCurrentCourseKey  = batch.courseKey;
+            emsShowExamViewer(batch.programKey, batch.courseKey, batch.exam);
+        }
+
+        // ---- زر "تراجع" في شاشة عرض الامتحان (نظام الامتحانات): يعيد المستخدم إلى
+        // نفس صفحة عرض بيانات الطالب في لوحة تصحيح الأوراق التي انتقل منها ----
+        function returnToPaperCorrectionFromExamViewer() {
+            const ret = _paperCorrectionExamViewerReturn;
+            if (!ret) return;
+            _paperCorrectionExamViewerReturn = null;
+            // تأكيد أن الدفعة المحمَّلة حالياً في الذاكرة ما زالت لنفس الامتحان الذي
+            // خرجنا منه (لم تُستبدَل بامتحان آخر أثناء وجودنا في شاشة نظام الامتحانات)
+            const batch = _paperCorrectionBatch;
+            const stillSameExam = batch.programKey === ret.programKey && batch.courseKey === ret.courseKey && batch.examId === ret.examId;
+            if (stillSameExam) {
+                batch.viewMode = 'detail';
+                if (ret.activeStudentId && findPaperCorrectionBatchStudent(ret.activeStudentId)) {
+                    batch.activeStudentId = ret.activeStudentId;
+                }
+            }
+            openPaperCorrectionMainView(true);
         }
 
         // ---- قوائم الهيدر المنسدلة (المطابقة والتصحيح / طباعة التقرير): فتح/إغلاق بسيط + إغلاق عند الضغط خارجها ----
@@ -32016,7 +32064,16 @@ ${JSON.stringify(payload, null, 0)}
         document.getElementById('examinationViewSubtitle').textContent =
             `${program?.title||''} · ${course?.code || (qbIsDirectCourseKey(ck) ? '' : ck) || exam?.subjectName || ''}`;
         if (showExamHeaderQR) setTimeout(() => renderExamHeaderQR(examQRProgramKey, examQRCourseKey, exam), 50);
+        // زر "تراجع" يظهر فقط إن كان الوصول لهذه الشاشة قد تم من زر "نسخة النظام"
+        // في هيدر لوحة تصحيح الأوراق (المرحلة 2)، ليعيد المستخدم لنفس صفحة عرض
+        // بيانات الطالب التي كان فيها قبل الانتقال
+        const showPaperCorrectionBackBtn = !!_paperCorrectionExamViewerReturn;
         document.getElementById('examinationViewActions').innerHTML = `
+            ${showPaperCorrectionBackBtn ? `
+            <button onclick="returnToPaperCorrectionFromExamViewer()" title="التراجع والعودة لعرض بيانات الطلاب"
+              class="glass-icon-btn px-2 sm:px-3 py-2 rounded-xl text-xs font-semibold text-amber-600 flex items-center gap-1.5 hover:bg-amber-50 hover:border-amber-300 transition-colors">
+              <i class="ph ph-arrow-u-up-left text-sm"></i> <span class="hidden sm:inline">تراجع</span>
+            </button>` : ''}
             ${(canEditView || canDeleteView) ? `
             <span class="flex items-center gap-1.5">
             ${canEditView ? `
