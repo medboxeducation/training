@@ -24172,7 +24172,7 @@
             el.innerHTML = `
                 <p class="text-xs text-gray-400">${typeInfo.ar}${exam.examDate ? ' · ' + exam.examDate : ''}</p>
                 <p class="text-xs text-gray-400 mt-0.5">${exam.academicYear || '—'} / ${exam.semester || '—'}</p>
-                <p class="text-sm font-semibold text-gray-600 mt-0.5">${course?.title || '—'}</p>
+                <p class="text-sm font-semibold text-gray-600 mt-0.5">${exam.subjectName || course?.title || '—'}</p>
                 <div class="flex items-center gap-2 mt-1.5">
                     <p class="text-xl font-bold text-gray-800 flex items-center gap-2">
                         <i class="ph ph-user-circle text-primary"></i> ${escapeHtml(s.name || 'بلا اسم')}
@@ -26724,7 +26724,7 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
                 <div class="grid grid-cols-2 gap-x-3 gap-y-1">
                     <p><span class="text-gray-400">البرنامج:</span> <span class="font-bold text-gray-700">${program?.title || '—'}</span></p>
                     <p><span class="text-gray-400">رمز الدورة:</span> <span class="font-bold text-gray-700">${course?.code || course?.key || '—'}</span></p>
-                    <p><span class="text-gray-400">المقرر:</span> <span class="font-bold text-gray-700">${course?.title || '—'}</span></p>
+                    <p><span class="text-gray-400">المقرر:</span> <span class="font-bold text-gray-700">${exam.subjectName || course?.title || '—'}</span></p>
                     <p><span class="text-gray-400">تاريخ الامتحان:</span> <span class="font-bold text-gray-700">${exam.examDate || '—'}${exam.examTime ? ' · ' + exam.examTime : ''}</span></p>
                 </div>
                 <p class="text-gray-400 mt-1.5">${typeInfo.ar} · ${exam.questions.length} سؤال · ${exam.totalMark || 0} علامة</p>
