@@ -1478,13 +1478,19 @@
                  مستويات قابلة للطي (سنة دراسية ← فصل دراسي ← مقرر ← رمز الامتحان)
                  لتصحيحات الامتحانات الورقية المحفوظة على Google Drive -->
             <div id="sidebarPaperCorrectionBrowseList" class="hidden flex-1 flex flex-col overflow-hidden p-3">
-                <div class="px-1 pb-2 shrink-0">
+                <div class="px-1 pb-2 shrink-0 flex items-center justify-between gap-2">
                     <span class="text-[10px] text-gray-400 font-semibold">الامتحانات الورقية المحفوظة</span>
+                    <button id="pcMigrateOldBtn" onclick="pcMigrateOldDriveCorrections()" title="ترحيل تصحيحات قديمة محفوظة على Google Drive (correction.json) إلى قاعدة البيانات"
+                        class="text-[10px] text-gray-400 hover:text-primary flex items-center gap-1 shrink-0">
+                        <i class="ph ph-arrows-clockwise text-xs"></i> ترحيل القديم
+                    </button>
                 </div>
+                <div id="pcMigrateOldStatus" class="hidden px-1 pb-2 shrink-0 text-[10px] text-gray-500"></div>
                 <div id="sidebarPaperCorrectionBrowseTree" class="flex-1 overflow-y-auto space-y-1">
                     <!-- سيتم ملء المحتوى بواسطة pcRenderBrowseTree() -->
                 </div>
             </div>
+
 
             <!-- لوحة تصفح "تصحيح ورقي" الجانبية — تظهر بطاقات الطلاب الذين تم
                  تحليلهم بعد "المطابقة والتصحيح"، بدلاً من القائمة الجانبية
@@ -24242,6 +24248,152 @@
                 showToast('❌ فشل حذف التصحيح: ' + (err.message || ''), 'error');
             } finally {
                 if (btn) { btn.disabled = false; btn.innerHTML = originalHtml || `<i class="ph ph-trash text-sm"></i> <span class="hidden sm:inline">حذف التصحيح</span>`; }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // ─── ترحيل التصحيحات القديمة (المحفوظة سابقاً كملف correction.json على
+        //     Google Drive بصيغة JSON تحوي صور الطلاب كـ base64) إلى النظام
+        //     الجديد: كل طالب يُنشأ له سجل مستقل على Firestore، وصوره تُرفع
+        //     كملفات JPEG فعلية إلى Drive. إجراء يدوي لمرة واحدة (زر "ترحيل
+        //     القديم")، وآمن للتكرار — يتخطى أي طالب سبق ترحيله فعلياً (بالتحقق
+        //     من وجود سجل مطابق على Firestore أولاً باسمه ورقم امتحانه)، ولا
+        //     يحذف ملفات correction.json الأصلية بعد الترحيل (تبقى على Drive
+        //     كنسخة احتياطية يمكن حذفها يدوياً لاحقاً بعد التأكد من سلامة النقل) ─
+        // ══════════════════════════════════════════════════════════════════
+
+        // يجمع كل ملفات correction.json الموجودة في شجرة مجلدات Drive القديمة
+        // (المجلد الجذر ← سنة ← فصل ← مقرر ← رمز الامتحان) عبر تنقّل تكراري
+        async function pcCollectOldDriveCorrectionFiles() {
+            const files = [];
+            const rootId = await getOrCreatePaperCorrectionsRootFolder();
+            const listChildFolders = async (parentId) => {
+                const res = await gapi.client.drive.files.list({
+                    q: `mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`,
+                    fields: 'files(id,name)', pageSize: 200,
+                });
+                return res.result.files || [];
+            };
+            const years = await listChildFolders(rootId);
+            for (const year of years) {
+                const sems = await listChildFolders(year.id);
+                for (const sem of sems) {
+                    const courses = await listChildFolders(sem.id);
+                    for (const course of courses) {
+                        const exams = await listChildFolders(course.id);
+                        for (const examFolder of exams) {
+                            const search = await gapi.client.drive.files.list({
+                                q: `name='correction.json' and '${examFolder.id}' in parents and trashed=false`,
+                                fields: 'files(id,name)', pageSize: 1,
+                            });
+                            const file = (search.result.files || [])[0];
+                            if (file) files.push({ fileId: file.id, path: `${year.name}/${sem.name}/${course.name}` });
+                        }
+                    }
+                }
+            }
+            return files;
+        }
+
+        // ---- زر "ترحيل القديم": يبحث عن كل ملفات correction.json القديمة، ويحوّل
+        // كل طالب داخلها إلى سجل Firestore مستقل + صور JPEG فعلية على Drive ----
+        async function pcMigrateOldDriveCorrections() {
+            if (!driveToken) { showToast('⚠️ سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات"', 'warning'); return; }
+            if (!db) { showToast('❌ لا يوجد اتصال بقاعدة البيانات', 'error'); return; }
+            const confirmed = confirm('سيبحث هذا الإجراء عن كل تصحيحات الامتحانات الورقية القديمة المحفوظة على Google Drive (correction.json) وينقلها إلى قاعدة البيانات الجديدة. قد يستغرق بضع دقائق حسب عدد الملفات. هل تريد المتابعة؟');
+            if (!confirmed) return;
+
+            const btn = document.getElementById('pcMigrateOldBtn');
+            const statusEl = document.getElementById('pcMigrateOldStatus');
+            if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ph ph-circle-notch animate-spin text-xs"></i> جاري الترحيل...`; }
+            if (statusEl) { statusEl.classList.remove('hidden'); statusEl.textContent = 'جاري البحث عن التصحيحات القديمة...'; }
+
+            let migratedStudents = 0, migratedExams = 0, skippedStudents = 0, failedExams = 0;
+            try {
+                if (!gapiReady) await initGapi();
+                const files = await pcCollectOldDriveCorrectionFiles();
+                if (!files.length) {
+                    showToast('✅ لا توجد تصحيحات قديمة بحاجة للترحيل', 'success');
+                    return;
+                }
+
+                for (let fi = 0; fi < files.length; fi++) {
+                    const f = files[fi];
+                    if (statusEl) statusEl.textContent = `جاري ترحيل ${fi + 1} من ${files.length} (${f.path})...`;
+                    try {
+                        const content = await driveDownloadFileWithProgress(f.fileId);
+                        const data = JSON.parse(content);
+                        const exam = data.exam;
+                        const examId = data.examId;
+                        if (!exam || !examId) { failedExams++; continue; }
+
+                        for (const s of (data.students || [])) {
+                            if (!s.name || !s.name.trim() || !s.grading) continue;
+                            try {
+                                // تخطَّ أي طالب سبق ترحيله فعلياً (تحقّق بالاسم + رقم الامتحان)
+                                const existing = await db.collection('paperExamSubmissions')
+                                    .where('examId', '==', examId)
+                                    .where('traineeName', '==', s.name)
+                                    .limit(1).get();
+                                if (!existing.empty) { skippedStudents++; continue; }
+
+                                // ارفع صور الطالب (base64 القديمة) كملفات JPEG فعلية إلى Drive
+                                let sheetImages = null;
+                                if (s.images && s.images.length) {
+                                    sheetImages = await paperCorrectionUploadSheetImagesToDrive(s.images, `${s.name}-${examId}`);
+                                }
+
+                                const finalEarned = paperCorrectionStudentFinalEarnedTotal(s);
+                                const totalMark = s.grading.totalMark;
+                                const percentage = totalMark > 0 ? Math.round((finalEarned / totalMark) * 1000) / 10 : 0;
+                                const answersArr = s.grading.results.map(r => ({
+                                    index: r.index, type: r.type, mark: r.mark,
+                                    value: (s.answers[r.index] === undefined ? null : s.answers[r.index]),
+                                    earned: r.manual ? ((s.manualMarks || {})[r.index] || 0) : r.earned,
+                                    correct: r.manual ? null : r.correct,
+                                    manual: r.manual
+                                }));
+
+                                await db.collection('paperExamSubmissions').add({
+                                    programKey: data.programKey || null,
+                                    courseKey:  data.courseKey  || null,
+                                    examId,
+                                    examType: exam.examType || null,
+                                    examDate: exam.examDate || null,
+                                    totalMark, earnedMark: finalEarned, percentage,
+                                    traineeName: s.name,
+                                    answers: answersArr,
+                                    sheetImages,
+                                    status: 'graded',
+                                    createdBy: (currentUser && (currentUser.email || currentUser.uid)) || null,
+                                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                    migratedFromDrive: true
+                                });
+                                migratedStudents++;
+                            } catch (studentErr) {
+                                console.error('pcMigrateOldDriveCorrections: فشل ترحيل طالب', s.name, studentErr);
+                            }
+                        }
+                        migratedExams++;
+                    } catch (examErr) {
+                        console.error('pcMigrateOldDriveCorrections: فشل ترحيل ملف', f.fileId, examErr);
+                        failedExams++;
+                    }
+                }
+
+                pcBrowseTreeState = { tree: null, expandedYear: null, expandedSemester: null, expandedCourse: null };
+                await pcLoadBrowseYears();
+
+                const summary = `✅ تم ترحيل ${migratedStudents} طالب من ${migratedExams} امتحان` +
+                    (skippedStudents ? ` (تخطّي ${skippedStudents} مرحَّل مسبقاً)` : '') +
+                    (failedExams ? ` — تعذّر ${failedExams}` : '');
+                showToast(summary, failedExams ? 'warning' : 'success');
+            } catch (err) {
+                console.error('pcMigrateOldDriveCorrections error:', err);
+                showToast('❌ فشل الترحيل: ' + (err.message || ''), 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = `<i class="ph ph-arrows-clockwise text-xs"></i> ترحيل القديم`; }
+                if (statusEl) statusEl.classList.add('hidden');
             }
         }
 
