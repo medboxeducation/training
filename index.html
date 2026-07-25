@@ -23678,20 +23678,57 @@
         });
 
         // ══════════════════════════════════════════════════════════════════
-        // ─── حفظ تصحيح ورقي كامل إلى Google Drive + تصفح المحفوظ منها عبر شجرة
-        //     جانبية بأربعة مستويات قابلة للطي (سنة دراسية ← فصل دراسي ← مقرر ←
-        //     رمز الامتحان). الشجرة تُبنى من مجلدات Drive نفسها (تحميل كسول عند
-        //     التوسيع)، وكل "رمز امتحان" هو مجلد نهائي يحوي ملف correction.json
-        //     واحد فيه كامل بيانات الدفعة (الامتحان + نتائج جميع الطلاب) ────────
+        // ─── حفظ نتائج تصحيح دفعة الطلاب على Firebase (نفس آلية الحفظ المعتمدة
+        //     في باقي التطبيق: كل طالب سجل مستقل في paperExamSubmissions) +
+        //     تصفح الامتحانات المحفوظة سابقاً عبر شجرة جانبية بثلاثة مستويات
+        //     قابلة للطي (سنة دراسية ← فصل دراسي ← مقرر)، تُبنى من بيانات
+        //     Firestore (امتحانات لديها نتائج طلاب محفوظة فعلياً). المرفقات
+        //     فقط (صور/صفحات نموذج الطالب الورقي) تُرفع إلى Google Drive بصيغتها
+        //     الأصلية ضمن مجلد مرفقات مشترك — لا يُخزَّن أي base64 في Firestore
+        //     ولا في أي ملف JSON على Drive إطلاقاً ────────────────────────────
         // ══════════════════════════════════════════════════════════════════
 
         let pcBrowseTreeState = {
-            rootFolderId: null,
-            years: null, expandedYear: null,
-            semesters: null, expandedSemester: null,
-            courses: null, expandedCourse: null,
-            exams: null,
+            tree: null, // { year: { semester: { courseName: [examDoc, ...] } } }
+            expandedYear: null, expandedSemester: null, expandedCourse: null,
         };
+
+        // ---- يبني شجرة الامتحانات الورقية "المحفوظة فعلياً" (لديها نتائج طلاب على
+        // Firestore) من مجموعتي paperExamSubmissions (لمعرفة أي امتحانات محفوظة)
+        // وexaminations (لبيانات السنة/الفصل/المقرر) — بلا أي اعتماد على Drive ----
+        async function pcLoadSavedCorrectionsTree() {
+            if (Object.keys(programsData).length === 0) await loadProgramsFromFirestore();
+            const tree = {};
+            if (!db) return tree;
+            const subsSnap = await db.collection('paperExamSubmissions').get();
+            const examIds = new Set();
+            subsSnap.forEach(doc => { const d = doc.data(); if (d.examId) examIds.add(d.examId); });
+            if (!examIds.size) return tree;
+
+            for (const examId of examIds) {
+                let doc;
+                try { doc = await db.collection('examinations').doc(examId).get(); }
+                catch (e) { continue; }
+                if (!doc.exists) continue;
+                const d = doc.data();
+                if (!d.programKey) continue;
+                const program = programsData[d.programKey];
+                if (!program) continue;
+                const courseKey = d.courseKey || (d.courseKeys && d.courseKeys[0]) || '';
+                const course = (program.courses || []).find(c => c.key === courseKey);
+                const canManage = (typeof canCreateExam === 'function') ? canCreateExam(course) : false;
+                if (!canManage) continue;
+
+                const year = (d.academicYear || '').trim() || 'غير محدد';
+                const sem  = (d.semester || '').trim() || 'غير محدد';
+                const courseName = (d.subjectName || d.courseCode || course?.code || course?.title || '').trim() || 'غير محدد';
+                tree[year] = tree[year] || {};
+                tree[year][sem] = tree[year][sem] || {};
+                tree[year][sem][courseName] = tree[year][sem][courseName] || [];
+                tree[year][sem][courseName].push({ id: doc.id, ...d, courseKey });
+            }
+            return tree;
+        }
 
         // ---- تفعيل القائمة الجانبية على وضع "تصفح التصحيحات الورقية المحفوظة" ----
         function pcActivateBrowseSidebar() {
@@ -23712,19 +23749,21 @@
         // القائمة الجانبية على شجرة الامتحانات الورقية المحفوظة على Drive ----
         async function pcOpenSavedExamsBrowser() {
             pcActivateBrowseSidebar();
-            pcBrowseTreeState = { rootFolderId: null, years: null, expandedYear: null, semesters: null, expandedSemester: null, courses: null, expandedCourse: null, exams: null };
+            pcBrowseTreeState = { tree: null, expandedYear: null, expandedSemester: null, expandedCourse: null };
             await pcLoadBrowseYears();
         }
 
-        // ---- تحميل مستوى "السنة الدراسية" (أعلى الشجرة) ----
+        // ---- تحميل الشجرة كاملة دفعة واحدة من Firestore (لا حاجة لتحميل كسول
+        // متدرّج كما كان الحال مع مجلدات Drive — الشجرة تُبنى في الذاكرة والتنقّل
+        // بين مستوياتها بعدها فوري بلا أي طلبات شبكة إضافية) ----
         async function pcLoadBrowseYears() {
             const wrap = document.getElementById('sidebarPaperCorrectionBrowseTree');
             if (!wrap) return;
-            if (!driveToken) {
+            if (!db) {
                 wrap.innerHTML = `
                     <div class="text-center py-10 text-gray-400">
                         <i class="ph ph-cloud-slash text-2xl block mb-2 text-gray-300"></i>
-                        <p class="text-xs">سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" لتصفح التصحيحات المحفوظة</p>
+                        <p class="text-xs">لا يوجد اتصال بقاعدة البيانات</p>
                     </div>`;
                 return;
             }
@@ -23734,14 +23773,7 @@
                     <p class="text-xs">جاري تحميل الامتحانات المحفوظة...</p>
                 </div>`;
             try {
-                if (!gapiReady) await initGapi();
-                const rootId = await getOrCreatePaperCorrectionsRootFolder();
-                pcBrowseTreeState.rootFolderId = rootId;
-                const res = await gapi.client.drive.files.list({
-                    q: `mimeType='application/vnd.google-apps.folder' and '${rootId}' in parents and trashed=false`,
-                    fields: 'files(id,name)', pageSize: 100,
-                });
-                pcBrowseTreeState.years = (res.result.files || []).sort((a, b) => b.name.localeCompare(a.name, 'ar'));
+                pcBrowseTreeState.tree = await pcLoadSavedCorrectionsTree();
                 pcRenderBrowseTree();
             } catch (err) {
                 console.error('pcLoadBrowseYears error:', err);
@@ -23754,7 +23786,8 @@
             const wrap = document.getElementById('sidebarPaperCorrectionBrowseTree');
             if (!wrap) return;
             const st = pcBrowseTreeState;
-            if (!st.years || !st.years.length) {
+            const years = st.tree ? Object.keys(st.tree).sort((a, b) => b.localeCompare(a, 'ar')) : [];
+            if (!years.length) {
                 wrap.innerHTML = `
                     <div class="text-center py-10 text-gray-400">
                         <i class="ph ph-archive text-2xl block mb-2 text-gray-300"></i>
@@ -23762,122 +23795,90 @@
                     </div>`;
                 return;
             }
-            wrap.innerHTML = st.years.map(y => {
-                const isOpen = st.expandedYear && st.expandedYear.id === y.id;
+            wrap.innerHTML = years.map(y => {
+                const isOpen = st.expandedYear === y;
                 return `
                 <div class="glass-panel rounded-xl mb-2 overflow-hidden">
-                    <button onclick="pcToggleBrowseYear('${y.id}', '${escapeHtml(y.name).replace(/'/g, "\\'")}')"
+                    <button onclick="pcToggleBrowseYear('${escapeHtml(y).replace(/'/g, "\\'")}')"
                         class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/5 transition-colors">
-                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-calendar-blank text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(y.name)}</span></span>
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-calendar-blank text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(y)}</span></span>
                         <i class="ph ph-caret-down text-xs text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
                     </button>
-                    ${isOpen ? `<div class="px-2 pb-2 space-y-1.5">${pcRenderBrowseSemesters()}</div>` : ''}
+                    ${isOpen ? `<div class="px-2 pb-2 space-y-1.5">${pcRenderBrowseSemesters(y)}</div>` : ''}
                 </div>`;
             }).join('');
         }
 
-        function pcRenderBrowseSemesters() {
+        function pcRenderBrowseSemesters(year) {
             const st = pcBrowseTreeState;
-            if (st.semesters === null) return `<div class="px-2 py-2 text-xs text-gray-400 flex items-center gap-2"><i class="ph ph-circle-notch animate-spin"></i> جاري التحميل...</div>`;
-            if (!st.semesters.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد فصول محفوظة</div>`;
-            return st.semesters.map(s => {
-                const isOpen = st.expandedSemester && st.expandedSemester.id === s.id;
+            const sems = Object.keys((st.tree || {})[year] || {}).sort((a, b) => a.localeCompare(b, 'ar'));
+            if (!sems.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد فصول محفوظة</div>`;
+            return sems.map(s => {
+                const isOpen = st.expandedSemester === s;
                 return `
                 <div class="glass-element rounded-lg overflow-hidden">
-                    <button onclick="pcToggleBrowseSemester('${s.id}', '${escapeHtml(s.name).replace(/'/g, "\\'")}')"
+                    <button onclick="pcToggleBrowseSemester('${escapeHtml(s).replace(/'/g, "\\'")}')"
                         class="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
-                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-clock text-gray-400 flex-shrink-0"></i><span class="truncate">${escapeHtml(s.name)}</span></span>
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-clock text-gray-400 flex-shrink-0"></i><span class="truncate">${escapeHtml(s)}</span></span>
                         <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
                     </button>
-                    ${isOpen ? `<div class="px-2 pb-2 space-y-1">${pcRenderBrowseCourses()}</div>` : ''}
+                    ${isOpen ? `<div class="px-2 pb-2 space-y-1">${pcRenderBrowseCourses(year, s)}</div>` : ''}
                 </div>`;
             }).join('');
         }
 
-        function pcRenderBrowseCourses() {
+        function pcRenderBrowseCourses(year, sem) {
             const st = pcBrowseTreeState;
-            if (st.courses === null) return `<div class="px-2 py-2 text-xs text-gray-400 flex items-center gap-2"><i class="ph ph-circle-notch animate-spin"></i> جاري التحميل...</div>`;
-            if (!st.courses.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد مقررات محفوظة</div>`;
-            return st.courses.map(c => {
-                const isOpen = st.expandedCourse && st.expandedCourse.id === c.id;
+            const courses = Object.keys(((st.tree || {})[year] || {})[sem] || {}).sort((a, b) => a.localeCompare(b, 'ar'));
+            if (!courses.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد مقررات محفوظة</div>`;
+            return courses.map(c => {
+                const isOpen = st.expandedCourse === c;
                 return `
                 <div class="rounded-lg overflow-hidden bg-white/40">
-                    <button onclick="pcToggleBrowseCourse('${c.id}', '${escapeHtml(c.name).replace(/'/g, "\\'")}')"
+                    <button onclick="pcToggleBrowseCourse('${escapeHtml(c).replace(/'/g, "\\'")}')"
                         class="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
-                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-book-open text-gray-400 flex-shrink-0"></i><span class="truncate">${escapeHtml(c.name)}</span></span>
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-book-open text-gray-400 flex-shrink-0"></i><span class="truncate">${escapeHtml(c)}</span></span>
                         <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
                     </button>
-                    ${isOpen ? `<div class="pr-3 pb-1.5 space-y-1">${pcRenderBrowseExams()}</div>` : ''}
+                    ${isOpen ? `<div class="pr-3 pb-1.5 space-y-1">${pcRenderBrowseExams(year, sem, c)}</div>` : ''}
                 </div>`;
             }).join('');
         }
 
-        // ---- المستوى الأخير: "رمز الامتحان" (كل عنصر هو مجلد نهائي على Drive يحوي correction.json) ----
-        function pcRenderBrowseExams() {
+        // ---- المستوى الأخير: كل عنصر هو امتحان محفوظ فعلياً على Firestore (لديه
+        // نتائج طلاب) — الضغط عليه يحمّل تلك النتائج مباشرة من paperExamSubmissions ----
+        function pcRenderBrowseExams(year, sem, course) {
             const st = pcBrowseTreeState;
-            if (st.exams === null) return `<div class="px-2 py-2 text-xs text-gray-400 flex items-center gap-2"><i class="ph ph-circle-notch animate-spin"></i> جاري التحميل...</div>`;
-            if (!st.exams.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد امتحانات محفوظة</div>`;
-            return st.exams.map(e => `
+            const exams = ((((st.tree || {})[year] || {})[sem] || {})[course] || [])
+                .slice().sort((a, b) => (b.examDate || '').localeCompare(a.examDate || ''));
+            if (!exams.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد امتحانات محفوظة</div>`;
+            return exams.map(e => {
+                const label = e.examDate || e.subjectName || 'بلا تاريخ';
+                return `
                 <button onclick="pcOpenSavedExamFromDrive('${e.id}')"
                     class="w-full text-right flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-gray-600 hover:bg-primary/10 hover:text-primary transition-colors">
-                    <i class="ph ph-file-text text-amber-500 flex-shrink-0"></i><span class="truncate">${escapeHtml(e.name)}</span>
-                </button>`).join('');
+                    <i class="ph ph-file-text text-amber-500 flex-shrink-0"></i><span class="truncate">${escapeHtml(label)}</span>
+                </button>`;
+            }).join('');
         }
 
-        async function pcToggleBrowseYear(id, name) {
+        function pcToggleBrowseYear(year) {
             const st = pcBrowseTreeState;
-            if (st.expandedYear && st.expandedYear.id === id) {
-                st.expandedYear = null; st.semesters = null; st.expandedSemester = null; st.courses = null; st.expandedCourse = null; st.exams = null;
-                pcRenderBrowseTree(); return;
-            }
-            st.expandedYear = { id, name };
-            st.semesters = null; st.expandedSemester = null; st.courses = null; st.expandedCourse = null; st.exams = null;
-            pcRenderBrowseTree();
-            try {
-                const res = await gapi.client.drive.files.list({
-                    q: `mimeType='application/vnd.google-apps.folder' and '${id}' in parents and trashed=false`,
-                    fields: 'files(id,name)', pageSize: 100,
-                });
-                st.semesters = (res.result.files || []).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-            } catch (err) { console.error('pcToggleBrowseYear error:', err); st.semesters = []; }
+            if (st.expandedYear === year) { st.expandedYear = null; st.expandedSemester = null; st.expandedCourse = null; }
+            else { st.expandedYear = year; st.expandedSemester = null; st.expandedCourse = null; }
             pcRenderBrowseTree();
         }
 
-        async function pcToggleBrowseSemester(id, name) {
+        function pcToggleBrowseSemester(sem) {
             const st = pcBrowseTreeState;
-            if (st.expandedSemester && st.expandedSemester.id === id) {
-                st.expandedSemester = null; st.courses = null; st.expandedCourse = null; st.exams = null;
-                pcRenderBrowseTree(); return;
-            }
-            st.expandedSemester = { id, name };
-            st.courses = null; st.expandedCourse = null; st.exams = null;
-            pcRenderBrowseTree();
-            try {
-                const res = await gapi.client.drive.files.list({
-                    q: `mimeType='application/vnd.google-apps.folder' and '${id}' in parents and trashed=false`,
-                    fields: 'files(id,name)', pageSize: 100,
-                });
-                st.courses = (res.result.files || []).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-            } catch (err) { console.error('pcToggleBrowseSemester error:', err); st.courses = []; }
+            if (st.expandedSemester === sem) { st.expandedSemester = null; st.expandedCourse = null; }
+            else { st.expandedSemester = sem; st.expandedCourse = null; }
             pcRenderBrowseTree();
         }
 
-        async function pcToggleBrowseCourse(id, name) {
+        function pcToggleBrowseCourse(course) {
             const st = pcBrowseTreeState;
-            if (st.expandedCourse && st.expandedCourse.id === id) {
-                st.expandedCourse = null; st.exams = null;
-                pcRenderBrowseTree(); return;
-            }
-            st.expandedCourse = { id, name };
-            st.exams = null;
-            pcRenderBrowseTree();
-            try {
-                const res = await gapi.client.drive.files.list({
-                    q: `mimeType='application/vnd.google-apps.folder' and '${id}' in parents and trashed=false`,
-                    fields: 'files(id,name)', pageSize: 100,
-                });
-                st.exams = (res.result.files || []).sort((a, b) => b.name.localeCompare(a.name, 'ar'));
-            } catch (err) { console.error('pcToggleBrowseCourse error:', err); st.exams = []; }
+            st.expandedCourse = (st.expandedCourse === course) ? null : course;
             pcRenderBrowseTree();
         }
 
@@ -23944,32 +23945,63 @@
             return text;
         }
 
-        // ---- الضغط على "رمز امتحان" محفوظ: يحمّل correction.json من مجلده على Drive
-        // ويستعيد كامل دفعة التصحيح (الامتحان + نتائج جميع الطلاب) داخل اللوحة الرئيسية ----
-        async function pcOpenSavedExamFromDrive(folderId) {
+        // ---- الضغط على امتحان محفوظ في الشجرة: يجلب بيانات الامتحان من مجموعة
+        // examinations، ونتائج جميع طلابه من مجموعة paperExamSubmissions على
+        // Firestore (لا حاجة لتنزيل أي شيء من Drive هنا — صور نموذج كل طالب تُعرض
+        // مباشرة من رابط Drive العام المخزَّن ضمن sheetImages عند فتح تبويب "نسخة
+        // الطالب الورقية" الخاص به، دون تنزيل مسبق لكل الطلاب) ----
+        async function pcOpenSavedExamFromDrive(examId) {
             try {
-                pcShowDriveLoadProgress();
-                const search = await gapi.client.drive.files.list({
-                    q: `name='correction.json' and '${folderId}' in parents and trashed=false`,
-                    fields: 'files(id,name)', pageSize: 1,
-                });
-                const file = (search.result.files || [])[0];
-                if (!file) {
-                    showToast('⚠️ لم يُعثر على بيانات محفوظة لهذا الامتحان', 'warning');
+                pcShowDriveLoadProgress('جاري تحميل نتائج الطلاب المحفوظة...');
+                if (!db) throw new Error('لا يوجد اتصال بقاعدة البيانات');
+
+                const examDoc = await db.collection('examinations').doc(examId).get();
+                if (!examDoc.exists) {
+                    showToast('⚠️ لم يعد هذا الامتحان موجوداً', 'warning');
                     renderPaperCorrectionBatchPanel();
                     return;
                 }
-                const content = await driveDownloadFileWithProgress(file.id, pcUpdateDriveLoadProgress);
-                const data = JSON.parse(content);
+                const examData = { id: examDoc.id, ...examDoc.data() };
+                const courseKey = examData.courseKey || (examData.courseKeys && examData.courseKeys[0]) || '';
+
+                const subsSnap = await db.collection('paperExamSubmissions').where('examId', '==', examId).get();
+                const students = subsSnap.docs.map(doc => {
+                    const d = doc.data();
+                    const answers = {};
+                    const manualMarks = {};
+                    (d.answers || []).forEach(a => {
+                        if (a.value !== null && a.value !== undefined) answers[a.index] = a.value;
+                        if (a.manual) manualMarks[a.index] = a.earned || 0;
+                    });
+                    return {
+                        id: 'pcs_' + (++_paperCorrectionStudentSeq) + '_' + Date.now(),
+                        submissionId: doc.id,
+                        name: d.traineeName || '',
+                        nameSource: null,
+                        nameConfidence: null,
+                        images: d.sheetImages || [],
+                        answers,
+                        ocrConfidence: {},
+                        ocrEvidence: {},
+                        usedOcr: false,
+                        analyzed: true,
+                        analysisError: null,
+                        grading: paperCorrectionGradeAnswers(examData, answers),
+                        manualMarks
+                    };
+                });
+
                 _paperCorrectionBatch = {
-                    programKey: data.programKey || null,
-                    courseKey:  data.courseKey  || null,
-                    examId:     data.examId     || null,
-                    exam:       data.exam       || null,
-                    students:   data.students   || [],
-                    viewMode:   'detail',
+                    programKey: examData.programKey || null,
+                    courseKey,
+                    examId,
+                    exam: examData,
+                    students,
+                    viewMode: 'detail',
                     activeStudentId: null,
                 };
+                if (!_paperCorrectionBatch.students.length) addPaperCorrectionBatchStudent(false);
+
                 openPaperCorrectionMainView(/* keepBatch */ true);
                 // يُستدعى بعد openPaperCorrectionMainView لأن عرض "التفاصيل" يُفعِّل القائمة
                 // الجانبية تلقائياً عبر pcActivateGlobalSidebar (openSidebar) — فلو نُودي قبله
@@ -23983,74 +24015,135 @@
             }
         }
 
-        // ---- حفظ دفعة التصحيح الحالية (الامتحان المحدَّد + نتائج جميع الطلاب) بالكامل
-        // إلى Google Drive، ضمن شجرة مجلدات: سنة دراسية ← فصل دراسي ← مقرر ← رمز
-        // الامتحان — يُنشئ correction.json عند أول حفظ، ويُحدِّثه عند إعادة الحفظ ----
+        // ---- حفظ نتائج جميع طلاب الدفعة الحالية: كل طالب يُحفظ كسجل مستقل على
+        // Firestore (مجموعة paperExamSubmissions) — تماماً بنفس آلية الحفظ الفردي
+        // المعتمدة في باقي التطبيق. المرفقات فقط (صفحات نموذج الطالب الورقي) تُرفع
+        // إلى Google Drive بصيغتها الأصلية (JPEG)، ويُعاد رفع الصفحات الجديدة/المعدَّلة
+        // حصراً — أي صفحة سبق رفعها ولها مرجع Drive جاهز لا تُعاد رفعها إطلاقاً ----
         async function pcSaveCorrectionToDrive() {
             const batch = _paperCorrectionBatch;
             if (!batch.exam) { showToast('⚠️ حدِّد الامتحان أولاً', 'warning'); return; }
-            if (!driveToken) {
-                showToast('⚠️ سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" لحفظ التصحيح', 'warning');
+            if (!db) { showToast('❌ لا يوجد اتصال بقاعدة البيانات', 'error'); return; }
+
+            const students = batch.students.filter(s => s.name && s.name.trim() && s.grading);
+            if (!students.length) { showToast('⚠️ لا توجد نتائج طلاب جاهزة للحفظ بعد', 'warning'); return; }
+
+            // Google Drive مطلوب فقط إن وُجدت صفحات مصوَّرة محلياً (base64) لم تُرفع بعد؛
+            // الطلاب الذين صورهم مرفوعة أصلاً (مراجع Drive) لا يحتاجون أي اتصال بـ Drive هنا
+            const needsDrive = students.some(s => (s.images || []).some(img => typeof img === 'string'));
+            if (needsDrive && !driveToken) {
+                showToast('⚠️ سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" لرفع نماذج الطلاب الورقية', 'warning');
                 return;
             }
+
             const btn = document.getElementById('paperCorrectionSaveDriveBtn');
             const originalHtml = btn ? btn.innerHTML : '';
             if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ph ph-circle-notch animate-spin"></i> جاري الحفظ...`; }
+
+            const exam = batch.exam;
+            const program = programsData[batch.programKey];
+            const course  = (program?.courses || []).find(c => c.key === batch.courseKey);
+            let savedCount = 0, failedCount = 0;
+
             try {
-                if (!gapiReady) await initGapi();
-                const exam = batch.exam;
-                const yearName = (exam.academicYear || '').trim() || 'غير محدد';
-                const semName  = (exam.semester || '').trim() || 'غير محدد';
-                // اسم المقرر: نُفضِّل اسم المقرر الفعلي المخزَّن على الامتحان (exam.subjectName —
-                // نفس الحقل المعروض في هيدر اللوحة كـ"اسم المقرر")، وليس رمز/اسم الدورة
-                // (course.code / course.title)، مع رجوع احتياطي لبيانات الدورة الحية إن تعذّر
-                // إيجاد اسم مقرر مخزَّن على الامتحان نفسه
-                const program = programsData[batch.programKey];
-                const course  = (program?.courses || []).find(c => c.key === batch.courseKey);
-                const courseName = (exam.subjectName || exam.courseCode || course?.code || course?.title || '').trim() || 'غير محدد';
-                // رمز الامتحان: المستوى الأخير من الشجرة — تاريخ الامتحان (+ رقم تكرار
-                // تلقائي عند وجود أكثر من امتحان محفوظ بنفس التاريخ لنفس المقرر)
-                const examLeafBaseName = (exam.examDate || '').trim() || 'بدون تاريخ';
+                if (needsDrive && !gapiReady) await initGapi();
 
-                const rootId    = await getOrCreatePaperCorrectionsRootFolder();
-                const yearId    = await getOrCreateDriveChildFolder(yearName, rootId);
-                const semId     = await getOrCreateDriveChildFolder(semName, yearId);
-                const courseId  = await getOrCreateDriveChildFolder(courseName, semId);
-                const examFolderId = await getOrCreatePaperCorrectionExamFolder(courseId, batch.examId || exam.id, examLeafBaseName);
+                for (const s of students) {
+                    try {
+                        // ── ارفع الصفحات الجديدة فقط (نصوص base64) إلى Drive بصيغتها
+                        //    الأصلية؛ الصفحات المرفوعة مسبقاً (كائنات مرجع Drive) تبقى كما
+                        //    هي دون أي إعادة رفع ──
+                        const hasNewPages = (s.images || []).some(img => typeof img === 'string');
+                        if (hasNewPages) {
+                            const resolved = [];
+                            for (let i = 0; i < s.images.length; i++) {
+                                const img = s.images[i];
+                                if (typeof img === 'string') {
+                                    const uploaded = await paperCorrectionUploadSheetImagesToDrive([img], `${s.name}-${batch.examId || exam.id || 'exam'}`);
+                                    resolved.push(uploaded[0]);
+                                } else {
+                                    resolved.push(img);
+                                }
+                            }
+                            s.images = resolved;
+                        }
+                        const sheetImages = (s.images && s.images.length) ? s.images : null;
 
-                const payload = {
-                    programKey: batch.programKey,
-                    courseKey:  batch.courseKey,
-                    examId:     batch.examId,
-                    exam:       batch.exam,
-                    students:   batch.students,
-                    savedAt:    new Date().toISOString(),
-                    savedBy:    currentUser?.uid || '',
-                };
-                const content = JSON.stringify(payload);
+                        const finalEarned = paperCorrectionStudentFinalEarnedTotal(s);
+                        const totalMark = s.grading.totalMark;
+                        const percentage = totalMark > 0 ? Math.round((finalEarned / totalMark) * 1000) / 10 : 0;
+                        const answersArr = s.grading.results.map(r => ({
+                            index: r.index,
+                            type: r.type,
+                            mark: r.mark,
+                            value: (s.answers[r.index] === undefined ? null : s.answers[r.index]),
+                            earned: r.manual ? (s.manualMarks[r.index] || 0) : r.earned,
+                            correct: r.manual ? null : r.correct,
+                            manual: r.manual
+                        }));
 
-                const search = await gapi.client.drive.files.list({
-                    q: `name='correction.json' and '${examFolderId}' in parents and trashed=false`,
-                    fields: 'files(id,name)', pageSize: 1,
-                });
-                const existing = (search.result.files || [])[0];
-                if (existing) {
-                    await driveUpdateFileContent(existing.id, content);
-                } else {
-                    await driveUploadFile('correction.json', content, examFolderId);
+                        const payload = {
+                            programKey: batch.programKey,
+                            courseKey:  batch.courseKey,
+                            examId:     batch.examId,
+                            examType: exam.examType || null,
+                            examDate: exam.examDate || null,
+                            totalMark, earnedMark: finalEarned, percentage,
+                            traineeName: s.name,
+                            answers: answersArr,
+                            // مرجع Drive فقط لصور الورقة الممسوحة (بلا أي بيانات base64)
+                            sheetImages,
+                            status: 'graded'
+                        };
+
+                        if (s.submissionId) {
+                            await db.collection('paperExamSubmissions').doc(s.submissionId).update({
+                                ...payload,
+                                updatedBy: (currentUser && (currentUser.email || currentUser.uid)) || null,
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        } else {
+                            const ref = await db.collection('paperExamSubmissions').add({
+                                ...payload,
+                                createdBy: (currentUser && (currentUser.email || currentUser.uid)) || null,
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            s.submissionId = ref.id;
+                        }
+
+                        logActivity(s.submissionId ? 'edit' : 'add', 'examResult', `${s.name} — ${course?.code || course?.key || ''}`, s.submissionId, {
+                            examId: batch.examId, earnedMark: finalEarned, totalMark, percentage,
+                            usedOcr: !!s.usedOcr, source: 'paperCorrectionBatch'
+                        });
+                        savedCount++;
+                    } catch (studentErr) {
+                        console.error('pcSaveCorrectionToDrive: فشل حفظ الطالب', s.name, studentErr);
+                        failedCount++;
+                    }
                 }
 
-                showToast('✅ تم حفظ التصحيح على Google Drive', 'success');
-                addNotification({
-                    type: 'exam',
-                    action: 'paperCorrectionSaved',
-                    title: '☁️ تم حفظ تصحيح ورقي على Google Drive',
-                    body: `تم حفظ نتائج تصحيح الامتحان "${examLeafBaseName}" (${courseName} — ${yearName} / ${semName}) على Google Drive بنجاح`,
-                    icon: 'ph-cloud-check',
-                    targetUids: currentUser?.uid ? [currentUser.uid] : null,
-                });
+                // إبطال ذاكرة النتائج المخبَّأة لنفس الامتحان (إن كانت مفتوحة) لإعادة تحميلها محدَّثة
+                if (_paperResultsList.examId === batch.examId) {
+                    _paperResultsList.loaded = false;
+                }
+
+                if (failedCount) {
+                    showToast(`⚠️ تم حفظ ${savedCount} طالب — تعذّر حفظ ${failedCount}`, 'warning');
+                } else {
+                    showToast(`✅ تم حفظ نتائج ${savedCount} طالب`, 'success');
+                }
+                if (savedCount) {
+                    addNotification({
+                        type: 'exam',
+                        action: 'paperCorrectionSaved',
+                        title: '☁️ تم حفظ تصحيح ورقي',
+                        body: `تم حفظ نتائج ${savedCount} طالب لامتحان "${exam.examDate || ''}" (${exam.subjectName || course?.code || ''})`,
+                        icon: 'ph-cloud-check',
+                        targetUids: currentUser?.uid ? [currentUser.uid] : null,
+                    });
+                }
                 // إبطال ذاكرة الشجرة المؤقتة كي تُحمَّل مجدداً محدَّثة عند تصفحها لاحقاً
-                pcBrowseTreeState = { rootFolderId: null, years: null, expandedYear: null, semesters: null, expandedSemester: null, courses: null, expandedCourse: null, exams: null };
+                pcBrowseTreeState = { tree: null, expandedYear: null, expandedSemester: null, expandedCourse: null };
             } catch (err) {
                 console.error('pcSaveCorrectionToDrive error:', err);
                 showToast('❌ فشل حفظ التصحيح: ' + (err.message || ''), 'error');
@@ -24104,58 +24197,44 @@
             }
         }
 
+        // ---- حذف دفعة التصحيح الحالية نهائياً: يحذف سجلات نتائج جميع طلابها من
+        // Firestore (مجموعة paperExamSubmissions). صور نماذج الطلاب المرفوعة على
+        // Google Drive لا تُحذف تلقائياً (نفس سياسة عدم الحذف التلقائي المتّبعة في
+        // كل مرفقات التطبيق الأخرى) — تبقى محفوظة هناك وتبقى قابلة للاسترجاع ----
         async function pcDeleteCorrectionFromDrive() {
             const batch = _paperCorrectionBatch;
             if (!batch.exam) { showToast('⚠️ حدِّد الامتحان أولاً', 'warning'); return; }
-            if (!driveToken) {
-                showToast('⚠️ سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" لحذف التصحيح', 'warning');
-                return;
-            }
+            if (!db) { showToast('❌ لا يوجد اتصال بقاعدة البيانات', 'error'); return; }
             const exam = batch.exam;
             const examLabel = [exam.examDate || '', exam.subjectName || ''].filter(Boolean).join(' - ') || 'هذا الامتحان';
-            const confirmed = confirm(`هل أنت متأكد من حذف تصحيح "${examLabel}" نهائياً من Google Drive؟ سيُحذف مع جميع نتائج الطلاب المرفقة به. لا يمكن التراجع عن هذا الإجراء بسهولة.`);
+            const confirmed = confirm(`هل أنت متأكد من حذف تصحيح "${examLabel}" نهائياً؟ سيُحذف مع جميع نتائج الطلاب المرفقة به (الصور المرفوعة على Google Drive تبقى محفوظة هناك ولا تُحذف تلقائياً). لا يمكن التراجع عن هذا الإجراء.`);
             if (!confirmed) return;
 
             const btn = document.getElementById('paperCorrectionDeleteDriveBtn');
             const originalHtml = btn ? btn.innerHTML : '';
             if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ph ph-circle-notch animate-spin"></i> جاري الحذف...`; }
             try {
-                if (!gapiReady) await initGapi();
                 const examId = batch.examId || exam.id;
-                let folderId = null;
-                if (examId) {
-                    const safeId = String(examId).replace(/'/g, "\\'");
-                    const byId = await gapi.client.drive.files.list({
-                        q: `mimeType='application/vnd.google-apps.folder' and trashed=false and appProperties has { key='pcExamId' and value='${safeId}' }`,
-                        fields: 'files(id,name)', pageSize: 1,
-                    });
-                    folderId = (byId.result.files || [])[0]?.id || null;
-                }
-                if (!folderId) {
-                    showToast('⚠️ لا يوجد تصحيح محفوظ لهذا الامتحان على Google Drive', 'warning');
+                const snap = await db.collection('paperExamSubmissions').where('examId', '==', examId).get();
+                if (snap.empty) {
+                    showToast('⚠️ لا يوجد تصحيح محفوظ لهذا الامتحان', 'warning');
                     return;
                 }
-                await gapi.client.drive.files.update({ fileId: folderId, resource: { trashed: true } });
-                // بعد حذف مجلد الامتحان: تنظيف أي مجلدات آباء (مقرر/فصل/سنة) أصبحت فارغة
-                // تماماً بسببه، مع الحفاظ على أي مستوى ما زال يحوي عنصراً تابعاً آخر
-                try {
-                    const rootId = pcBrowseTreeState.rootFolderId || await getOrCreatePaperCorrectionsRootFolder();
-                    await pcCleanupEmptyParentFolders(folderId, rootId);
-                } catch (cleanupErr) {
-                    console.error('pcDeleteCorrectionFromDrive: تعذّر تنظيف المجلدات الفارغة', cleanupErr);
-                }
+                const batchWrite = db.batch();
+                snap.forEach(doc => batchWrite.delete(doc.ref));
+                await batchWrite.commit();
 
-                showToast('🗑️ تم حذف التصحيح من Google Drive', 'info');
+                showToast('🗑️ تم حذف التصحيح', 'info');
                 addNotification({
                     type: 'exam',
                     action: 'paperCorrectionDeleted',
-                    title: '🗑️ تم حذف تصحيح ورقي من Google Drive',
-                    body: `تم حذف تصحيح الامتحان "${examLabel}" من Google Drive`,
+                    title: '🗑️ تم حذف تصحيح ورقي',
+                    body: `تم حذف تصحيح الامتحان "${examLabel}"`,
                     icon: 'ph-trash',
                     targetUids: currentUser?.uid ? [currentUser.uid] : null,
                 });
                 // إبطال ذاكرة الشجرة المؤقتة كي لا يظهر الامتحان المحذوف عند تصفح المحفوظات لاحقاً
-                pcBrowseTreeState = { rootFolderId: null, years: null, expandedYear: null, semesters: null, expandedSemester: null, courses: null, expandedCourse: null, exams: null };
+                pcBrowseTreeState = { tree: null, expandedYear: null, expandedSemester: null, expandedCourse: null };
                 // العودة لوضع "الإعداد" الافتراضي (بلا امتحان محدَّد) بعد نجاح الحذف
                 openPaperCorrectionMainView(/* keepBatch */ false);
             } catch (err) {
