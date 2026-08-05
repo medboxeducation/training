@@ -8450,6 +8450,11 @@
         let acCoursesCache  = [];
 
         async function showAcademicCoursesSection() {
+            // المقررات الدراسية متاحة فقط للمستخدمين المسجَّلين (غير الضيوف)
+            if (!currentUser || document.body.classList.contains('guest-mode')) {
+                showToast?.('يجب تسجيل الدخول أولاً للاطلاع على المقررات الدراسية', 'error');
+                return;
+            }
             sidebarMode = 'academicCourses';
             ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
@@ -8575,10 +8580,14 @@
             const printC  = 'text-primary hover:bg-primary/10';
             const delC    = 'text-red-500 hover:bg-red-50 hover:border-red-300';
             const editC   = 'text-primary hover:bg-primary/10 hover:border-primary/40';
+            const cForActions = acCoursesCache.find(x => x.id === courseId);
+            const canManage = cForActions ? acCanManageCourse(cForActions) : false;
             const btns = [
                 ['ph-printer', 'طباعة', `acPrintCourse('${courseId}')`, printC],
-                ['ph-trash', 'حذف', `acDeleteCourse('${courseId}')`, delC],
-                ['ph-pencil-simple', 'تعديل', `acEditExistingCourse('${courseId}')`, editC]
+                ...(canManage ? [
+                    ['ph-trash', 'حذف', `acDeleteCourse('${courseId}')`, delC],
+                    ['ph-pencil-simple', 'تعديل', `acEditExistingCourse('${courseId}')`, editC]
+                ] : [])
             ];
             const el = document.getElementById('acHeaderActions');
             if (el) {
@@ -9492,15 +9501,50 @@
             (course.chapters || []).forEach(ch => collect(ch.outline));
         }
 
+        // ── مساعد: هل يحق للمستخدم الحالي الاطلاع على هذا المقرر؟ الضيف لا يرى
+        //    أي مقرر، الأدمن يرى الجميع، المدرب يرى مقررات البرامج التي يشارك
+        //    فيها فقط (نفس معيار trainerParticipatesInProgram المعتمد في نظام
+        //    البرامج)، والمتدرب يرى فقط مقررات البرنامج المسجَّل به فعلياً
+        //    (نفس معيار _isTraineeInProgram المعتمد في نظام الإشعارات) ──
+        function acCanViewCourse(course) {
+            if (!currentUser || document.body.classList.contains('guest-mode')) return false;
+            if (currentUser.role === 'admin') return true;
+            if (currentUser.role === 'trainer') {
+                const program = programsData[course.programKey];
+                return !!(program && trainerParticipatesInProgram(program));
+            }
+            if (currentUser.role === 'trainee') {
+                return _isTraineeInProgram(currentUser, course.programKey);
+            }
+            return false;
+        }
+
+        // ── مساعد: هل يحق للمستخدم الحالي تعديل/حذف هذا المقرر؟ الأدمن فقط،
+        //    أو المدرب المشارك في البرنامج التابع له المقرر ──
+        function acCanManageCourse(course) {
+            if (!currentUser) return false;
+            if (currentUser.role === 'admin') return true;
+            if (currentUser.role === 'trainer') {
+                const program = programsData[course.programKey];
+                return !!(program && trainerParticipatesInProgram(program));
+            }
+            return false;
+        }
+
         function acRenderSidebarList() {
             const tree = document.getElementById('sidebarAcademicCoursesTree');
             if (!tree) return;
-            if (!acCoursesCache.length) {
-                tree.innerHTML = '<p class="text-center text-xs text-gray-400 py-8">لا توجد مقررات محفوظة بعد</p>';
+            // لا تُعرض إلا المقررات التي يحق للمستخدم الحالي الاطلاع عليها
+            // (الأدمن: الجميع، المدرب: مقررات برامجه، المتدرب: مقررات برنامجه
+            // المسجَّل به فقط، الضيف: لا شيء)
+            const visibleCourses = acCoursesCache.filter(acCanViewCourse);
+            if (!visibleCourses.length) {
+                tree.innerHTML = '<p class="text-center text-xs text-gray-400 py-8">لا توجد مقررات متاحة لك حالياً</p>';
                 return;
             }
-            tree.innerHTML = acCoursesCache.map(c => {
+            tree.innerHTML = visibleCourses.map(c => {
                 const progTitle = (programsData[c.programKey] && programsData[c.programKey].title) || '';
+                const canManage = acCanManageCourse(c);
                 return `
                 <div class="glass-element rounded-xl p-3 cursor-pointer hover:border-primary/40 transition-all" onclick="acOpenExistingCourse('${c.id}')">
                     <div class="flex items-center justify-between gap-2">
@@ -9512,12 +9556,13 @@
                             <button onclick="event.stopPropagation(); acPrintCourse('${c.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="طباعة">
                                 <i class="ph ph-printer text-xs"></i>
                             </button>
+                            ${canManage ? `
                             <button onclick="event.stopPropagation(); acEditExistingCourse('${c.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-primary hover:bg-primary/10" title="تعديل">
                                 <i class="ph ph-pencil-simple text-xs"></i>
                             </button>
                             <button onclick="event.stopPropagation(); acDeleteCourse('${c.id}')" class="w-7 h-7 glass-icon-btn rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-300" title="حذف">
                                 <i class="ph ph-trash text-xs"></i>
-                            </button>
+                            </button>` : ''}
                         </div>
                     </div>
                 </div>`;
@@ -9528,6 +9573,10 @@
         function acOpenExistingCourse(id) {
             const c = acCoursesCache.find(x => x.id === id);
             if (!c) return;
+            if (!acCanViewCourse(c)) {
+                showToast?.('لا يحق لك الاطلاع على هذا المقرر', 'error');
+                return;
+            }
             acMigrateCourseAttachments(c);
             acShowCourseView(c, id);
             if (window.innerWidth < 768) closeSidebar();
@@ -9537,6 +9586,10 @@
         function acEditExistingCourse(id) {
             const c = acCoursesCache.find(x => x.id === id);
             if (!c) return;
+            if (!acCanManageCourse(c)) {
+                showToast?.('صلاحية التعديل متاحة للأدمن أو مدرب البرنامج فقط', 'error');
+                return;
+            }
             acMigrateCourseAttachments(c);
             acEditingCourseId = id;
             // إلغاء وضعية العرض (إن كانت عالقة من فتح سابق للمقرر بوضعية القراءة
@@ -9676,6 +9729,11 @@
         }
 
         async function acDeleteCourse(id) {
+            const cDel = acCoursesCache.find(x => x.id === id);
+            if (!cDel || !acCanManageCourse(cDel)) {
+                showToast?.('صلاحية الحذف متاحة للأدمن أو مدرب البرنامج فقط', 'error');
+                return;
+            }
             if (!confirm('هل تريد حذف هذا المقرر نهائياً؟ لا يمكن التراجع عن هذا الإجراء.')) return;
             try {
                 if (db) await db.collection('academicCourses').doc(id).delete();
@@ -10820,6 +10878,10 @@
 
         // ── فتح نموذج "إضافة مرجع جديد" ──
         function rlOpenNewEntryDesigner() {
+            if (!rlCanManageEntry()) {
+                showToast?.('⚠️ صلاحية إضافة مرجع جديد متاحة للأدمن أو المدرب فقط', 'error');
+                return;
+            }
             rlResetDraft();
             rlHideAllBodies();
             document.getElementById('rlDesignerForm')?.classList.remove('hidden');
@@ -10930,6 +10992,10 @@
 
         // ── حفظ المرجع: رفع صورة الغلاف والمستندات إلى Drive ثم الحفظ في Firestore ──
         async function rlSaveEntry() {
+            if (!rlCanManageEntry()) {
+                showToast?.('⚠️ صلاحية حفظ المرجع متاحة للأدمن أو المدرب فقط', 'error');
+                return;
+            }
             const title    = document.getElementById('rlTitleInput')?.value.trim() || '';
             const category = document.getElementById('rlCategoryInput')?.value.trim() || '';
             const author   = document.getElementById('rlAuthorInput')?.value.trim() || '';
@@ -11020,12 +11086,18 @@
         }
 
         function rlCanManageEntry() {
-            // إدارة المراجع (إضافة/تعديل/حذف) متاحة حالياً لكل من يستطيع فتح
-            // لوحة "أبحاث ومراجع" (نفس تعامل الموسوعة الطلابية والمقررات الدراسية)
-            return true;
+            // إدارة المراجع (إضافة/تعديل/حذف) متاحة للأدمن والمدرب فقط —
+            // الضيف والمتدرب يستطيعان الاطلاع على المحتوى (قراءة فقط) دون
+            // أي صلاحية إضافة أو تعديل أو حذف
+            if (!currentUser) return false;
+            return currentUser.role === 'admin' || currentUser.role === 'trainer';
         }
 
         function rlOpenEditEntryDesigner(id) {
+            if (!rlCanManageEntry()) {
+                showToast?.('⚠️ صلاحية تعديل المرجع متاحة للأدمن أو المدرب فقط', 'error');
+                return;
+            }
             const e = rlEntriesCache.find(x => x.id === id);
             if (!e) return;
             rlEditingEntryId = id;
@@ -11195,10 +11267,15 @@
 
             const actions = document.getElementById('rlHeaderActions');
             if (actions) {
-                actions.classList.remove('hidden');
-                actions.innerHTML = `
-                    <button onclick="rlOpenEditEntryDesigner('${rlJsAttr(e.id)}')" class="glass-icon-btn px-3 h-8 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold"><i class="ph ph-pencil-simple"></i> تعديل</button>
-                    <button onclick="rlDeleteEntry('${rlJsAttr(e.id)}')" class="glass-icon-btn px-3 h-8 rounded-lg flex items-center gap-1.5 text-red-500 text-xs font-semibold"><i class="ph ph-trash"></i> حذف</button>`;
+                if (rlCanManageEntry()) {
+                    actions.classList.remove('hidden');
+                    actions.innerHTML = `
+                        <button onclick="rlOpenEditEntryDesigner('${rlJsAttr(e.id)}')" class="glass-icon-btn px-3 h-8 rounded-lg flex items-center gap-1.5 text-primary text-xs font-semibold"><i class="ph ph-pencil-simple"></i> تعديل</button>
+                        <button onclick="rlDeleteEntry('${rlJsAttr(e.id)}')" class="glass-icon-btn px-3 h-8 rounded-lg flex items-center gap-1.5 text-red-500 text-xs font-semibold"><i class="ph ph-trash"></i> حذف</button>`;
+                } else {
+                    actions.classList.add('hidden');
+                    actions.innerHTML = '';
+                }
             }
 
             const coverWrap = document.getElementById('rlViewCoverWrap');
@@ -14525,9 +14602,11 @@
             }
             if (sidebarMode === 'refLib') {
                 // زر إضافة مرجع جديد أعلى لوحة "أبحاث ومراجع" — يبدأ نموذج
-                // إعدادات المرجع وملفاته
+                // إعدادات المرجع وملفاته — متاح للأدمن والمدرب فقط (الضيف
+                // والمتدرب يستطيعان الاطلاع فقط دون إضافة)
                 btn.title = 'إضافة مرجع جديد';
-                btn.classList.remove('hidden');
+                btn.classList.remove('admin-only');
+                btn.classList.toggle('hidden', !rlCanManageEntry());
                 return;
             }
             if (sidebarMode === 'asyncSessions') {
