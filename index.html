@@ -1176,7 +1176,25 @@
                     </div><!-- dd-inner -->
                 </div><!-- loginDropdown -->
             </div><!-- loginDropdownWrapper -->
+            <!-- زر إنشاء حساب جديد (يظهر للزوار فقط) -->
+            <div id="navRegisterWrapper" class="relative">
+                <button id="navRegisterBtn" onclick="toggleRegisterMenu(event)"
+                    class="glass-element px-3 md:px-5 py-2 rounded-full font-semibold text-xs md:text-sm text-emerald-700 flex items-center gap-1 md:gap-2 hover:bg-emerald-600 hover:text-white transition-colors duration-300 border-emerald-300">
+                    <span class="hidden md:inline">إنشاء حساب جديد</span><i class="ph ph-user-plus"></i>
+                </button>
+            </div><!-- navRegisterWrapper -->
             <!-- عنصر المستخدم المسجل (يظهر بعد الدخول) -->
+            <div id="registerMenu" class="hidden glass-panel bg-white/95 rounded-2xl shadow-2xl p-2" dir="rtl" style="position:fixed; z-index:300;">
+                <p class="text-[11px] text-gray-400 font-semibold px-3 pt-1.5 pb-1">إنشاء حساب جديد كـ</p>
+                <button onclick="openRegistrationRequestModal('trainee')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-primary/10 transition-colors">
+                    <span class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-lg shrink-0"><i class="ph ph-student"></i></span>
+                    <span class="text-sm font-bold text-gray-800">متدرب (طالب)</span>
+                </button>
+                <button onclick="openRegistrationRequestModal('trainer')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-emerald-50 transition-colors">
+                    <span class="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg shrink-0"><i class="ph ph-chalkboard-teacher"></i></span>
+                    <span class="text-sm font-bold text-gray-800">مدرب (مدرس)</span>
+                </button>
+            </div>
             <div id="navUserBtn" class="hidden items-center gap-2">
                 <div id="accountInfoWrapper" class="relative">
                     <button id="navUserNameBtn" onclick="toggleAccountInfoDropdown()"
@@ -2302,6 +2320,33 @@
                         class="mt-5 glass-element px-5 py-2.5 rounded-xl text-sm font-semibold text-primary flex items-center gap-2 mx-auto hover:border-primary/50 transition-colors">
                         <i class="ph ph-plus"></i> إضافة أول مستخدم
                     </button>
+                </div>
+            </div>
+            <!-- ك. عرض طلبات التسجيل (Registration Requests View) - مخفي افتراضياً -->
+            <div id="registrationRequestsView" class="hidden min-h-full flex flex-col">
+                <div class="flex items-center justify-between mb-5">
+                    <div class="flex items-center gap-3">
+                        <div class="glass-icon-tile w-12 h-12 rounded-xl flex items-center justify-center text-primary text-2xl">
+                            <i class="ph ph-user-plus"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800">طلبات تسجيل الدخول</h2>
+                            <p id="regRequestsCountLabel" class="text-xs text-gray-500 mt-0.5">جاري التحميل...</p>
+                        </div>
+                    </div>
+                    <button onclick="refreshRegistrationRequests()"
+                        class="glass-element px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-primary hover:border-primary/50 transition-colors">
+                        <i class="ph ph-arrows-clockwise"></i> تحديث
+                    </button>
+                </div>
+                <div id="regRequestDetailPanel" class="hidden rounded-2xl mb-4 overflow-hidden border border-white/60 shadow-sm"
+                    style="background: rgba(255,255,255,0.45); backdrop-filter: blur(12px);"></div>
+                <div id="regRequestSelectHint" class="flex-1 flex flex-col items-center justify-center text-center py-10">
+                    <div class="glass-icon-tile w-20 h-20 rounded-2xl flex items-center justify-center text-4xl text-primary/50 mb-4 mx-auto">
+                        <i class="ph ph-user-plus"></i>
+                    </div>
+                    <p class="font-semibold text-gray-500 mb-1">اختر طلباً من القائمة الجانبية</p>
+                    <p class="text-xs text-gray-400">لعرض التفاصيل وقبول الطلب أو رفضه</p>
                 </div>
             </div>
             <!-- ي. عرض سجل التدقيق (Audit Log View) - مخفي افتراضياً -->
@@ -5505,6 +5550,8 @@
             }
 
             document.getElementById('navLoginBtn').classList.add('hidden');
+            document.getElementById('navRegisterWrapper')?.classList.add('hidden');
+            if (typeof closeRegisterMenu === 'function') closeRegisterMenu();
             const navUserBtn = document.getElementById('navUserBtn');
             navUserBtn.classList.remove('hidden');
             navUserBtn.classList.add('flex');
@@ -5594,6 +5641,7 @@
             const vsMobileWrapperOut = document.getElementById('virtualSessionsMobileWrapper');
             if (vsMobileWrapperOut) { vsMobileWrapperOut.classList.add('hidden'); }
             document.getElementById('navLoginBtn').classList.remove('hidden');
+            document.getElementById('navRegisterWrapper')?.classList.remove('hidden');
             const navUserBtn = document.getElementById('navUserBtn');
             navUserBtn.classList.add('hidden');
             navUserBtn.classList.remove('flex');
@@ -6464,7 +6512,7 @@
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'refLibView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView', 'asyncSessionsView', 'paperCorrectionMainView'];
+        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'refLibView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView', 'registrationRequestsView', 'asyncSessionsView', 'paperCorrectionMainView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -12966,6 +13014,13 @@
                 subtitle: 'قائمة جميع المتدربين والطلاب',
             },
             {
+                key: 'regrequests',
+                icon: 'ph-user-plus',
+                title: 'طلبات تسجيل الدخول',
+                subtitle: 'طلبات إنشاء حساب جديد (متدرب / مدرب)',
+                regRequestsOnly: true,
+            },
+            {
                 key: 'auditlog',
                 icon: 'ph-clipboard-text',
                 title: 'سجل التدقيق',
@@ -13039,6 +13094,7 @@
             registryCards.forEach(card => {
                 // إخفاء البطاقات المخصصة للمدير فقط (مثل سجل التدقيق) عن باقي الأدوار
                 if (card.adminOnly && !canViewAuditLog()) return;
+                if (card.regRequestsOnly && !canManageRegistrationRequests()) return;
                 const isActive = activeRegistryCard === card.key;
                 const item = document.createElement('div');
                 item.className = `glass-element rounded-xl p-3.5 cursor-pointer flex items-center gap-3 hover:border-primary/50 hover:-translate-y-0.5 transition-all duration-200 ${isActive ? 'border-primary/50 bg-primary/5' : ''}`;
@@ -13074,9 +13130,450 @@
                 case 'trainees':
                     showTraineesRegistry();
                     break;
+                case 'regrequests':
+                    showRegistrationRequestsView();
+                    break;
                 case 'auditlog':
                     showAuditLogView();
                     break;
+            }
+        }
+
+        // ======== طلبات التسجيل (Registration Requests) ========
+        // الزائر غير المسجَّل يرسل طلب إنشاء حساب (متدرب / مدرب) ← يُحفظ في مجموعة registration_requests
+        // ويصل إشعار للمدير ← عند القبول يُضاف الشخص للسجل ويُنشأ حسابه ويُرسل له بريد تعيين كلمة المرور
+        // (بنفس آلية إضافة متدرب/مدرب جديد: createTraineeAuthAccount / createTrainerAuthAccount)
+        let registrationRequests = [];
+        let activeRegRequestId = null;
+        let _regRequestsFilter = 'pending';
+        let _regSubmitting = false;
+        
+        function canManageRegistrationRequests() {
+            return !!(currentUser && (currentUser.role === 'admin' || hasPermission('addTrainee') || hasPermission('addTrainer')));
+        }
+        function _regCanActOnKind(kind) {
+            if (!currentUser) return false;
+            if (currentUser.role === 'admin') return true;
+            return hasPermission(kind === 'trainer' ? 'addTrainer' : 'addTrainee');
+        }
+        
+        // ── قائمة "إنشاء حساب جديد" في التولبار ──
+        function toggleRegisterMenu(ev) {
+            if (ev) ev.stopPropagation();
+            const m = document.getElementById('registerMenu');
+            const btn = document.getElementById('navRegisterBtn');
+            if (!m || !btn) return;
+            if (!m.classList.contains('hidden')) { closeRegisterMenu(); return; }
+            if (typeof closeLoginModal === 'function') closeLoginModal();
+            if (m.parentElement !== document.body) document.body.appendChild(m); // تفادي القص داخل التولبار
+            const r = btn.getBoundingClientRect();
+            const w = Math.min(250, window.innerWidth - 16);
+            m.style.width = w + 'px';
+            m.style.top = (r.bottom + 8) + 'px';
+            let left = r.left;
+            if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+            m.style.left = Math.max(8, left) + 'px';
+            m.classList.remove('hidden');
+            setTimeout(() => document.addEventListener('click', _regMenuOutside, true), 0);
+        }
+        function _regMenuOutside(e) {
+            const m = document.getElementById('registerMenu');
+            const btn = document.getElementById('navRegisterBtn');
+            if ((m && m.contains(e.target)) || (btn && btn.contains(e.target))) return;
+            closeRegisterMenu();
+        }
+        function closeRegisterMenu() {
+            const m = document.getElementById('registerMenu');
+            if (m) m.classList.add('hidden');
+            document.removeEventListener('click', _regMenuOutside, true);
+        }
+        
+        // ── فتح نافذة التسجيل (نفس نافذة إضافة متدرب/مدرب لكن بعنوان وزر مختلفين) ──
+        function openRegistrationRequestModal(kind) {
+            closeRegisterMenu();
+            if (currentUser) { showToast('أنت مسجّل الدخول بالفعل', 'info'); return; }
+            if (kind === 'trainer') openNewTrainerModal(); else openNewTraineeModal();
+            const modal = document.getElementById(kind === 'trainer' ? 'registryTrainerModal' : 'registryTraineeModal');
+            if (!modal) return;
+            const h2 = modal.querySelector('h2');
+            if (h2) {
+                h2.innerHTML = kind === 'trainer'
+                    ? '<i class="ph ph-chalkboard-teacher text-primary"></i> إنشاء حساب جديد كمدرب'
+                    : '<i class="ph ph-student text-primary"></i> إنشاء حساب جديد كمتدرب';
+            }
+            const saveFn = kind === 'trainer' ? 'saveRegistryTrainer' : 'saveRegistryTrainee';
+            const saveBtn = Array.from(modal.querySelectorAll('button')).find(b => (b.getAttribute('onclick') || '').includes(saveFn));
+            if (saveBtn) {
+                saveBtn.id = 'regSubmitBtn';
+                saveBtn.setAttribute('onclick', `submitRegistrationRequest('${kind}')`);
+                saveBtn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> إرسال طلب التسجيل';
+            }
+            // الرمز يُولَّد عند قبول الطلب من السجل الفعلي، لذا نُخفي حقله عن مقدّم الطلب
+            const codeWrap = document.getElementById(kind === 'trainer' ? 'rtrCode' : 'rtCode')?.parentElement;
+            if (codeWrap) codeWrap.style.display = 'none';
+        }
+        
+        // ── إرسال طلب التسجيل ──
+        async function submitRegistrationRequest(kind) {
+            if (_regSubmitting) return;
+            const p = kind === 'trainer' ? 'rtr' : 'rt';
+            const el = id => document.getElementById(p + id);
+            const val = id => (el(id)?.value || '').trim();
+            const errEl = document.getElementById(p + 'Error');
+            const errMsg = document.getElementById(p + 'ErrorMsg');
+            const showErr = m => { if (errMsg) errMsg.textContent = m; if (errEl) errEl.classList.remove('hidden'); };
+        
+            const nameAr = val('NameAr'), nameEn = val('NameEn'), phone = val('Phone'),
+                  whatsapp = val('Whatsapp'), email = val('Email'), regDate = el('RegDate')?.value || '';
+            if (!nameAr)   { showErr('يرجى إدخال الاسم الثلاثي بالعربي'); return; }
+            if (!nameEn)   { showErr('يرجى إدخال الاسم الثلاثي بالإنجليزي'); return; }
+            if (!phone)    { showErr('يرجى إدخال رقم الهاتف'); return; }
+            if (!whatsapp) { showErr('يرجى إدخال رقم الواتساب'); return; }
+            if (!email)    { showErr('يرجى إدخال البريد الإلكتروني'); return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('صيغة البريد الإلكتروني غير صحيحة'); return; }
+            if (!regDate)  { showErr('يرجى تحديد تاريخ التسجيل'); return; }
+            if (!db)       { showErr('لا يوجد اتصال بقاعدة البيانات حالياً — حاول لاحقاً'); return; }
+            if (!navigator.onLine) { showErr('لا يوجد اتصال بالإنترنت — حاول مرة أخرى عند عودة الاتصال'); return; }
+            if (errEl) errEl.classList.add('hidden');
+        
+            const data = {
+                nameAr, nameEn, phone,
+                whatsappCode: el('WhatsappCode')?.value || '+966',
+                whatsapp, telegram: val('Telegram'), email,
+                registrationDate: regDate,
+                degree: val('Degree'), otherCerts: val('OtherCerts'),
+                experience: val('Experience'), interests: val('Interests')
+            };
+            if (kind === 'trainee') {
+                data.motherName = val('MotherName');
+                data.dob = el('Dob')?.value || '';
+                data.nationalId = val('NationalId');
+                data.address = val('Address');
+            } else {
+                const names = id => { const inp = el(id); return inp && inp.files ? Array.from(inp.files).map(f => ({ name: f.name, size: f.size })) : []; };
+                data.certImages = names('CertImages');
+                data.cvFiles = names('CvFiles');
+            }
+        
+            _regSubmitting = true;
+            const btn = document.getElementById('regSubmitBtn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch animate-spin"></i> جاري الإرسال...'; }
+            try {
+                await db.collection('registration_requests').add({
+                    kind, status: 'pending',
+                    nameAr, email: email.toLowerCase(), data,
+                    clientTs: Date.now(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                // إشعار في مركز الإشعارات للمدير ولمن يملك صلاحية إدارة الطلبات
+                try {
+                    addNotification({
+                        type: 'regrequest', action: 'new',
+                        title: kind === 'trainer' ? 'طلب تسجيل جديد — مدرب' : 'طلب تسجيل جديد — متدرب',
+                        body: `${nameAr} (${email}) أرسل طلب إنشاء حساب جديد كـ${kind === 'trainer' ? 'مدرب' : 'متدرب'}`,
+                        icon: 'ph-user-plus',
+                        targetRole: ['admin'],
+                        actionType: 'openRegRequests'
+                    });
+                } catch (nerr) { console.warn('[RegRequest] تعذّر إرسال الإشعار:', nerr); }
+        
+                if (kind === 'trainer') closeRegistryTrainerModal(); else closeRegistryTraineeModal();
+                showToast('✅ تم إرسال طلب التسجيل بنجاح — سيصلك بريد لتعيين كلمة المرور عند قبول الطلب', 'success');
+            } catch (err) {
+                console.error('[RegRequest] ERROR:', err);
+                const denied = err && (err.code === 'permission-denied');
+                showErr(denied ? 'تعذّر إرسال الطلب: صلاحيات قاعدة البيانات لا تسمح للزوار بإرسال طلبات (راجع Firestore Rules)'
+                               : 'تعذّر إرسال الطلب، حاول مرة أخرى');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> إرسال طلب التسجيل'; }
+            } finally {
+                _regSubmitting = false;
+            }
+        }
+        
+        // ── عرض طلبات التسجيل (للمدير / من يملك الصلاحية) ──
+        async function loadRegistrationRequests() {
+            if (!db) return;
+            try {
+                const snap = await db.collection('registration_requests').get();
+                registrationRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                    .sort((a, b) => (b.clientTs || 0) - (a.clientTs || 0));
+            } catch (e) {
+                console.error('Error loading registration requests:', e);
+                showToast('❌ تعذّر تحميل طلبات التسجيل', 'error');
+            }
+        }
+        function _updateRegRequestsCountLabel() {
+            const lbl = document.getElementById('regRequestsCountLabel');
+            if (!lbl) return;
+            const pending = registrationRequests.filter(r => r.status === 'pending').length;
+            lbl.textContent = `${registrationRequests.length} طلب — ${pending} قيد الانتظار`;
+        }
+        async function showRegistrationRequestsView() {
+            if (document.body.classList.contains('trainee-mode') || document.body.classList.contains('trainer-mode') || !canManageRegistrationRequests()) {
+                permissionDenied('الاطلاع على طلبات تسجيل الدخول');
+                return;
+            }
+            showView('registrationRequestsView');
+            document.getElementById('regRequestDetailPanel').classList.add('hidden');
+            document.getElementById('regRequestSelectHint').classList.remove('hidden');
+            const list = document.getElementById('sidebarRegistryList');
+            list.innerHTML = '<div class="text-center py-6 text-gray-400 text-xs"><i class="ph ph-circle-notch animate-spin text-2xl block mb-2 mx-auto text-primary"></i>جاري التحميل...</div>';
+            await loadRegistrationRequests();
+            _updateRegRequestsCountLabel();
+            buildSidebarRegRequests();
+        }
+        async function refreshRegistrationRequests() {
+            await loadRegistrationRequests();
+            _updateRegRequestsCountLabel();
+            buildSidebarRegRequests();
+            if (activeRegRequestId && registrationRequests.some(r => r.id === activeRegRequestId)) showRegRequestDetail(activeRegRequestId);
+        }
+        function setRegRequestsFilter(f) {
+            _regRequestsFilter = f;
+            buildSidebarRegRequests();
+        }
+        function _regStatusMeta(st) {
+            if (st === 'accepted') return { label: 'مقبول', cls: 'bg-green-50 text-green-700 border-green-200', dot: 'bg-green-500' };
+            if (st === 'rejected') return { label: 'مرفوض', cls: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-400' };
+            return { label: 'قيد الانتظار', cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-400' };
+        }
+        function buildSidebarRegRequests() {
+            const list = document.getElementById('sidebarRegistryList');
+            if (!list) return;
+            list.innerHTML = '';
+            const header = document.createElement('div');
+            header.className = 'flex items-center gap-2 px-1 pb-2 mb-2 border-b border-white/40';
+            header.innerHTML = `
+                <button class="w-7 h-7 rounded-full glass-icon-btn flex items-center justify-center text-primary shrink-0" onclick="backToRegistryCards()" title="رجوع">
+                    <i class="ph ph-arrow-right text-sm"></i>
+                </button>
+                <i class="ph ph-user-plus text-primary text-lg"></i>
+                <span class="font-bold text-sm text-gray-700">طلبات تسجيل الدخول</span>
+                <span class="mr-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">${registrationRequests.length}</span>`;
+            list.appendChild(header);
+        
+            const counts = { pending: 0, accepted: 0, rejected: 0 };
+            registrationRequests.forEach(r => { counts[r.status in counts ? r.status : 'pending']++; });
+            const tabs = document.createElement('div');
+            tabs.className = 'flex gap-1.5 mb-2';
+            tabs.innerHTML = [['pending', 'قيد الانتظار'], ['accepted', 'مقبولة'], ['rejected', 'مرفوضة']].map(([k, l]) => `
+                <button onclick="setRegRequestsFilter('${k}')" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg border transition-colors ${_regRequestsFilter === k ? 'bg-primary text-white border-primary' : 'glass-element text-gray-600 hover:border-primary/40'}">
+                    ${l} (${counts[k]})
+                </button>`).join('');
+            list.appendChild(tabs);
+        
+            const shown = registrationRequests.filter(r => (r.status || 'pending') === _regRequestsFilter);
+            if (!shown.length) {
+                const empty = document.createElement('div');
+                empty.className = 'text-center py-8 text-gray-400 text-xs';
+                empty.innerHTML = '<i class="ph ph-tray text-3xl block mb-2 mx-auto text-gray-300"></i>لا توجد طلبات في هذه الفئة';
+                list.appendChild(empty);
+                return;
+            }
+            shown.forEach(r => {
+                const meta = _regStatusMeta(r.status);
+                const isActive = r.id === activeRegRequestId;
+                const dateStr = r.clientTs ? new Date(r.clientTs).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+                const card = document.createElement('div');
+                card.className = `glass-element rounded-xl p-3 cursor-pointer transition-all hover:border-primary/50 hover:-translate-y-0.5 ${isActive ? 'border-primary/40 bg-primary/5' : ''}`;
+                card.onclick = () => { showRegRequestDetail(r.id); if (typeof closeSidebarOnMobile === 'function') closeSidebarOnMobile(); };
+                card.innerHTML = `
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0 ${meta.dot}"></span>
+                        <p class="font-bold text-sm text-gray-800 truncate flex-1">${escapeHtml(r.nameAr || '—')}</p>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${r.kind === 'trainer' ? 'bg-emerald-50 text-emerald-700' : 'bg-primary/10 text-primary'}">${r.kind === 'trainer' ? 'مدرب' : 'متدرب'}</span>
+                    </div>
+                    <p class="text-[11px] text-gray-500 truncate" dir="ltr" style="text-align:right">${escapeHtml(r.email || '')}</p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">${dateStr}</p>`;
+                list.appendChild(card);
+            });
+        }
+        
+        function _regField(icon, color, label, value, mono) {
+            return `<div class="glass-panel rounded-xl p-3">
+                <p class="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><i class="ph ${icon} ${color} text-xs"></i> ${label}</p>
+                <p class="font-semibold text-sm text-gray-800 ${mono ? 'font-mono' : 'break-words'}" ${mono ? 'dir="ltr"' : ''}>${value || '—'}</p>
+            </div>`;
+        }
+        function _regTextCard(icon, label, value) {
+            return `<div class="glass-panel rounded-xl p-4 mb-3">
+                <h4 class="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-2"><i class="ph ${icon} text-primary"></i> ${label}</h4>
+                <p class="text-sm text-gray-700 whitespace-pre-line">${value ? escapeHtml(value) : '<span class="text-gray-400">—</span>'}</p>
+            </div>`;
+        }
+        function showRegRequestDetail(id) {
+            const r = registrationRequests.find(x => x.id === id);
+            if (!r) return;
+            activeRegRequestId = id;
+            showView('registrationRequestsView');
+            buildSidebarRegRequests();
+            document.getElementById('regRequestSelectHint').classList.add('hidden');
+            const panel = document.getElementById('regRequestDetailPanel');
+            panel.classList.remove('hidden');
+        
+            const d = r.data || {};
+            const isTrainer = r.kind === 'trainer';
+            const meta = _regStatusMeta(r.status);
+            const fmtDate = v => v ? new Date(v).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+            const sentAt = r.clientTs ? new Date(r.clientTs).toLocaleString('ar-EG') : '—';
+            const canAct = r.status === 'pending' && _regCanActOnKind(r.kind);
+        
+            let fields = '';
+            fields += _regField('ph-phone', 'text-primary', 'رقم الهاتف', escapeHtml(d.phone || ''), true);
+            fields += _regField('ph-whatsapp-logo', 'text-emerald-500', 'واتساب', d.whatsapp ? escapeHtml((d.whatsappCode || '') + ' ' + d.whatsapp) : '', true);
+            fields += _regField('ph-envelope', 'text-orange-500', 'البريد الإلكتروني', escapeHtml(d.email || ''), false);
+            fields += _regField('ph-telegram-logo', 'text-blue-500', 'تيليغرام', escapeHtml(d.telegram || ''), true);
+            fields += _regField('ph-calendar', 'text-primary', 'تاريخ التسجيل', fmtDate(d.registrationDate), false);
+            fields += _regField('ph-graduation-cap', 'text-primary', 'الشهادة الجامعية', escapeHtml(d.degree || ''), false);
+            if (!isTrainer) {
+                fields += _regField('ph-cake', 'text-primary', 'تاريخ الميلاد', fmtDate(d.dob), false);
+                fields += _regField('ph-identification-card', 'text-primary', 'الرقم الوطني', escapeHtml(d.nationalId || ''), true);
+                fields += _regField('ph-person-simple', 'text-primary', 'اسم الأم', escapeHtml(d.motherName || ''), false);
+                fields += _regField('ph-map-pin', 'text-primary', 'العنوان', escapeHtml(d.address || ''), false);
+            }
+        
+            const attach = (arr) => (arr && arr.length) ? arr.map(f => `<span class="inline-flex items-center gap-1 text-xs glass-element rounded-lg px-2 py-1"><i class="ph ph-paperclip text-primary"></i>${escapeHtml(f.name || '')}</span>`).join(' ') : '<span class="text-gray-400 text-sm">—</span>';
+        
+            panel.innerHTML = `
+                <div class="p-5 border-b border-white/40" style="background: linear-gradient(135deg, rgba(7,144,172,0.06) 0%, rgba(255,255,255,0.3) 100%);">
+                    <div class="flex items-start justify-between gap-3 flex-wrap">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="text-lg font-bold text-gray-800">${escapeHtml(r.nameAr || '—')}</h3>
+                                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${isTrainer ? 'bg-emerald-50 text-emerald-700' : 'bg-primary/10 text-primary'}">${isTrainer ? 'طلب تسجيل كمدرب' : 'طلب تسجيل كمتدرب'}</span>
+                                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${meta.cls}">${meta.label}</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-0.5" dir="ltr" style="text-align:right">${escapeHtml(d.nameEn || '')}</p>
+                            <p class="text-[11px] text-gray-400 mt-1">تاريخ إرسال الطلب: ${sentAt}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-5">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">${fields}</div>
+                    ${_regTextCard('ph-certificate', 'شهادات أخرى', d.otherCerts)}
+                    ${_regTextCard('ph-briefcase', 'الخبرات السابقة', d.experience)}
+                    ${_regTextCard('ph-heart', 'الاهتمامات', d.interests)}
+                    ${isTrainer ? `
+                    <div class="glass-panel rounded-xl p-4 mb-3">
+                        <h4 class="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-2"><i class="ph ph-paperclip text-primary"></i> المرفقات (أسماء الملفات)</h4>
+                        <p class="text-[11px] text-gray-400 mb-1">صور الشهادات</p><div class="flex flex-wrap gap-1.5 mb-2">${attach(d.certImages)}</div>
+                        <p class="text-[11px] text-gray-400 mb-1">السيرة الذاتية</p><div class="flex flex-wrap gap-1.5">${attach(d.cvFiles)}</div>
+                    </div>` : ''}
+                    ${r.status === 'accepted' ? `<div class="rounded-xl border border-green-200 bg-green-50 text-green-700 text-xs px-4 py-3 flex items-center gap-2"><i class="ph ph-check-circle text-base"></i> تم قبول الطلب${r.reviewedByName ? ' بواسطة ' + escapeHtml(r.reviewedByName) : ''}${r.accountCreated === false ? ' — لكن لم يُنشأ حساب الدخول بعد (أنشئه من سجل ' + (isTrainer ? 'المدربين' : 'المتدربين') + ')' : ' وأُرسل بريد تعيين كلمة المرور'}</div>` : ''}
+                    ${r.status === 'rejected' ? `<div class="rounded-xl border border-red-200 bg-red-50 text-red-600 text-xs px-4 py-3 flex items-center gap-2"><i class="ph ph-x-circle text-base"></i> تم رفض الطلب${r.reviewedByName ? ' بواسطة ' + escapeHtml(r.reviewedByName) : ''}</div>` : ''}
+                    ${canAct ? `
+                    <div class="flex items-center gap-3 pt-3 mt-1 border-t border-white/40">
+                        <button id="regAcceptBtn" onclick="acceptRegistrationRequest('${r.id}')" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                            <i class="ph ph-check-circle"></i> قبول الطلب
+                        </button>
+                        <button id="regRejectBtn" onclick="rejectRegistrationRequest('${r.id}')" class="flex-1 bg-white text-red-500 border border-red-200 py-3 rounded-xl font-bold text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
+                            <i class="ph ph-x-circle"></i> رفض الطلب
+                        </button>
+                    </div>` : ''}
+                </div>`;
+        }
+        
+        // توليد رمز (الأحرف الأولى + عداد من 4 خانات) — نفس منطق autoGenTraineeCode / autoGenTrainerCode
+        function _regGenCode(list, nameEn) {
+            const parts = (nameEn || '').trim().split(/\s+/);
+            const initials = parts.slice(0, 3).map(x => (x[0] || '').toUpperCase()).join('');
+            let max = 0;
+            list.forEach(t => {
+                const m = (t.code || '').match(/(\d{4})$/);
+                if (m) { const n = parseInt(m[1], 10); if (n > max) max = n; }
+            });
+            return initials + String(max + 1).padStart(4, '0');
+        }
+        
+        async function _setRegRequestFields(id, fields) {
+            const idx = registrationRequests.findIndex(x => x.id === id);
+            if (idx !== -1) Object.assign(registrationRequests[idx], fields);
+            await db.collection('registration_requests').doc(id).update(fields);
+        }
+        function _regReviewer() {
+            return {
+                reviewedBy: (currentUser && currentUser.uid) || null,
+                reviewedByName: (currentUser && (currentUser.displayName || currentUser.nameAr || currentUser.name || currentUser.email)) || '',
+                reviewedAt: Date.now()
+            };
+        }
+        
+        // ── قبول الطلب: إضافة للسجل + إنشاء حساب + إرسال بريد تعيين كلمة المرور ──
+        async function acceptRegistrationRequest(id) {
+            const r = registrationRequests.find(x => x.id === id);
+            if (!r || r.status !== 'pending') return;
+            if (!_regCanActOnKind(r.kind)) { permissionDenied(r.kind === 'trainer' ? 'إضافة مدرب' : 'إضافة متدرب'); return; }
+            if (!isAppOnline) { showToast('⚠️ يتطلب قبول الطلب اتصالاً بالإنترنت', 'error'); return; }
+            if (!confirm(`قبول طلب "${r.nameAr}"؟\nسيُضاف إلى سجل ${r.kind === 'trainer' ? 'المدربين' : 'المتدربين'} ويُرسل بريد تعيين كلمة المرور إلى:\n${(r.data || {}).email || r.email}`)) return;
+        
+            const acceptBtn = document.getElementById('regAcceptBtn');
+            const rejectBtn = document.getElementById('regRejectBtn');
+            if (acceptBtn) { acceptBtn.disabled = true; acceptBtn.innerHTML = '<i class="ph ph-circle-notch animate-spin"></i> جاري القبول...'; }
+            if (rejectBtn) rejectBtn.disabled = true;
+        
+            const isTrainer = r.kind === 'trainer';
+            const coll = isTrainer ? 'registry_trainers' : 'registry_trainees';
+            try {
+                if (isTrainer) await loadTrainersFromFirebase(); else await loadTraineesFromFirebase();
+                const registry = isTrainer ? registryTrainers : registryTrainees;
+                const d = Object.assign({}, r.data || {});
+                const emailLc = (d.email || '').trim().toLowerCase();
+        
+                let newId = r.registryId || null;
+                if (!newId) {
+                    // منع التكرار: البريد مسجَّل مسبقاً في السجل
+                    if (emailLc && registry.some(t => (t.email || '').trim().toLowerCase() === emailLc)) {
+                        showToast('❌ هذا البريد الإلكتروني مسجَّل مسبقاً في السجل — لا يمكن قبول الطلب', 'error');
+                        if (acceptBtn) { acceptBtn.disabled = false; acceptBtn.innerHTML = '<i class="ph ph-check-circle"></i> قبول الطلب'; }
+                        if (rejectBtn) rejectBtn.disabled = false;
+                        return;
+                    }
+                    d.code = _regGenCode(registry, d.nameEn);
+                    if (!isTrainer) { d.createdAt = new Date(); traineeCodeCounter++; }
+                    const ref = await db.collection(coll).add(d);
+                    newId = ref.id;
+                    registry.push({ id: newId, ...d });
+                    // نحفظ الربط فوراً حتى لا يتكرر الإدخال إن فشلت الخطوة التالية وأُعيدت المحاولة
+                    await _setRegRequestFields(id, { registryId: newId });
+                    logActivity('add', isTrainer ? 'trainer' : 'trainee', d.nameAr, newId, 'قبول طلب تسجيل جديد');
+                }
+        
+                // ── إنشاء حساب الدخول + إرسال بريد تعيين كلمة المرور (نفس تدفق الإضافة العادية) ──
+                const person0 = registry.find(t => t.id === newId);
+                if (person0 && !person0.authUid) {
+                    if (isTrainer) await createTrainerAuthAccount(newId); else await createTraineeAuthAccount(newId);
+                }
+                const person = registry.find(t => t.id === newId);
+                const accountCreated = !!(person && person.authUid);
+        
+                await _setRegRequestFields(id, Object.assign({ status: 'accepted', accountCreated }, _regReviewer()));
+                if (accountCreated) showToast('✅ تم قبول الطلب وإرسال بريد تعيين كلمة المرور', 'success');
+                else showToast('⚠️ أُضيف إلى السجل لكن تعذّر إنشاء الحساب — أنشئه من سجل ' + (isTrainer ? 'المدربين' : 'المتدربين'), 'info');
+            } catch (err) {
+                console.error('[RegRequest] accept ERROR:', err);
+                showToast('❌ تعذّر قبول الطلب: ' + (err.message || err.code || ''), 'error');
+            }
+            // العودة لشاشة الطلبات (createXAuthAccount قد تفتح تفاصيل السجل)
+            _regRequestsFilter = (registrationRequests.find(x => x.id === id)?.status === 'accepted') ? 'accepted' : 'pending';
+            _updateRegRequestsCountLabel();
+            showRegRequestDetail(id);
+        }
+        
+        // ── رفض الطلب ──
+        async function rejectRegistrationRequest(id) {
+            const r = registrationRequests.find(x => x.id === id);
+            if (!r || r.status !== 'pending') return;
+            if (!_regCanActOnKind(r.kind)) { permissionDenied('رفض الطلب'); return; }
+            if (!confirm(`رفض طلب "${r.nameAr}"؟`)) return;
+            try {
+                await _setRegRequestFields(id, Object.assign({ status: 'rejected' }, _regReviewer()));
+                showToast('تم رفض الطلب', 'info');
+                _regRequestsFilter = 'rejected';
+                _updateRegRequestsCountLabel();
+                showRegRequestDetail(id);
+            } catch (err) {
+                console.error('[RegRequest] reject ERROR:', err);
+                showToast('❌ تعذّر رفض الطلب', 'error');
             }
         }
 
@@ -37181,6 +37678,8 @@ function _isTraineeInProgram(cu, programKey) {
 // cu:   كائن currentUser الحالي (للوصول لـ traineeId / name / uid عند الحاجة للاستهداف الدقيق)
 function _shouldShowNotif(data, userRole, cu) {
     if (!userRole) return false; // غير مسجل
+    // طلبات التسجيل الجديدة: للمدير ولكل من يملك صلاحية إدارة الطلبات
+    if (data && data.type === 'regrequest') return canManageRegistrationRequests();
     const { type, targetTraineeIds, targetTrainerNames, targetUids, targetRole, programKey } = data || {};
 
     // ── استهداف دقيق: مستخدم واحد بعينه أو مجموعة محدَّدة بالـ uid ──
@@ -37485,7 +37984,7 @@ function _renderNotifList() {
     // تصفية حسب الفلتر
     const catMap = {
         program : ['program', 'course', 'exam'],
-        people  : ['trainer', 'trainee'],
+        people  : ['trainer', 'trainee', 'regrequest'],
         message : ['message', 'call'],
         feature : ['feature'],
         all     : null
@@ -37551,7 +38050,7 @@ function escHtml(str) {
 }
 
 function _iconClass(type) {
-    const m = { program:'program', course:'course', trainee:'trainee', trainer:'trainer',
+    const m = { regrequest:'trainee', program:'program', course:'course', trainee:'trainee', trainer:'trainer',
                  message:'message', call:'call', feature:'feature', exam:'exam' };
     return m[type] || '';
 }
@@ -37574,6 +38073,9 @@ function _dispatchNotifAction(notif) {
     switch (actionType) {
         case 'openChat':
             if (notif.convId) { try { openChatWindow(notif.convId); } catch(_) {} }
+            break;
+        case 'openRegRequests':
+            try { if (typeof showRegistrySidebar === 'function') showRegistrySidebar(); activeRegistryCard = 'regrequests'; showRegistrationRequestsView(); } catch(_) {}
             break;
         default:
             break; // نوع إجراء غير معروف — لا تنفيذ تعسفي لأي كود
