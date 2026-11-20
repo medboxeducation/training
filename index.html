@@ -13147,6 +13147,7 @@
         let activeRegRequestId = null;
         let _regRequestsFilter = 'pending';
         let _regSubmitting = false;
+        let _regPendingRef = null, _regPendingRefKind = null;
         
         function canManageRegistrationRequests() {
             return !!(currentUser && (currentUser.role === 'admin' || hasPermission('addTrainee') || hasPermission('addTrainer')));
@@ -13259,12 +13260,19 @@
             const btn = document.getElementById('regSubmitBtn');
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch animate-spin"></i> جاري الإرسال...'; }
             try {
-                await db.collection('registration_requests').add({
+                // مرجع وثيقة ثابت: إن انتهت المهلة وأُعيدت المحاولة تُكتب نفس الوثيقة (لا تتكرر الطلبات)
+                if (!_regPendingRef || _regPendingRefKind !== kind) { _regPendingRef = db.collection('registration_requests').doc(); _regPendingRefKind = kind; }
+                const _payload = {
                     kind, status: 'pending',
                     nameAr, email: email.toLowerCase(), data,
                     clientTs: Date.now(),
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                };
+                await Promise.race([
+                    _regPendingRef.set(_payload),
+                    new Promise((_, rej) => setTimeout(() => rej({ code: 'client-timeout' }), 20000))
+                ]);
+                _regPendingRef = null; _regPendingRefKind = null;
                 // إشعار في مركز الإشعارات للمدير ولمن يملك صلاحية إدارة الطلبات
                 try {
                     addNotification({
@@ -13282,7 +13290,8 @@
             } catch (err) {
                 console.error('[RegRequest] ERROR:', err);
                 const denied = err && (err.code === 'permission-denied');
-                showErr(denied ? 'تعذّر إرسال الطلب: صلاحيات قاعدة البيانات لا تسمح للزوار بإرسال طلبات (راجع Firestore Rules)'
+                const timedOut = err && (err.code === 'client-timeout');
+                showErr(timedOut ? 'انتهت مهلة الاتصال بالخادم دون رد — غالباً قواعد Firestore تمنع الزوار من الكتابة في registration_requests، أو الاتصال ضعيف' : denied ? 'تعذّر إرسال الطلب: صلاحيات قاعدة البيانات لا تسمح للزوار بإرسال طلبات (راجع Firestore Rules)'
                                : 'تعذّر إرسال الطلب، حاول مرة أخرى');
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> إرسال طلب التسجيل'; }
             } finally {
