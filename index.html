@@ -4311,6 +4311,12 @@
                         <input id="courseSessionsInput" type="number" min="1" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="مثال: 10">
                     </div>
                     <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">اسم المنشأة التعليمية</label>
+                        <input id="courseInstitutionInput" type="text"
+                            class="w-full glass-panel rounded-lg px-3 py-2 text-sm bg-white/60 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            placeholder="اختياري — مثال: اسم المعهد / المركز">
+                    </div>
+                    <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1.5">عدد الساعات <span class="text-red-500">*</span></label>
                         <input id="courseHoursInput" type="number" min="1" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="مثال: 20">
                     </div>
@@ -11540,7 +11546,8 @@
                 payments[p.name] = { tuition: finHasVal(p.tuition) ? String(p.tuition) : null, supplies: finHasVal(p.supplies) ? String(p.supplies) : null };
             });
             return {
-                institutionName: d.institutionName || '',
+                institutionName: course.institutionName || d.institutionName || '',
+                trainerPayments: (d.trainerPayments || []).map(p => ({ date: p.date || '', amount: finHasVal(p.amount) ? String(p.amount) : '' })),
                 tuitionPerStudent: str(d.tuitionPerStudent), suppliesPerStudent: str(d.suppliesPerStudent),
                 suppliesPaid: str(d.suppliesPaid), consumables: str(d.consumables),
                 pctMain: str(d.pctMain), pctAssist1: str(d.pctAssist1), pctAssist2: str(d.pctAssist2), pctInstitution: str(d.pctInstitution),
@@ -11700,7 +11707,30 @@
                 </div>
                 <p class="text-[11px] text-gray-400 mt-3">القيمة الافتراضية لكل طالب هي قسط الدورة ومبلغ المستلزمات أعلاه، ويمكن تعديلها لكل طالب على حدة.</p>`);
 
-            body.innerHTML = info + fees + pcts + students;
+            const summary = `
+                <div class="rounded-2xl p-5 mb-4 border-2 border-amber-300 bg-gradient-to-l from-amber-50 to-emerald-50 shadow-sm">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-[11px] font-semibold text-gray-500 mb-1 flex items-center gap-1"><i class="ph ph-hand-coins text-amber-600"></i>مجموع الدفعات</p>
+                            <p id="finTop_paid" dir="ltr" class="text-2xl font-extrabold text-amber-700 text-right">0</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold text-gray-500 mb-1 flex items-center gap-1"><i class="ph ph-wallet text-emerald-600"></i>المبلغ المتبقي للمدرب</p>
+                            <p id="finTop_remaining" dir="ltr" class="text-2xl font-extrabold text-emerald-700 text-right">0</p>
+                        </div>
+                    </div>
+                </div>`;
+            const payCard = finCard('ph-hand-coins', 'قائمة الدفعات الخاصة بالمدرب', `
+                <div id="finPayRows" class="space-y-2"></div>
+                <button onclick="finAddPayment()" class="mt-3 w-9 h-9 rounded-full bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-colors" title="إضافة دفعة جديدة">
+                    <i class="ph ph-plus text-lg"></i>
+                </button>
+                <div class="mt-4 pt-3 border-t border-white/50 flex items-center justify-between gap-3">
+                    <span class="text-xs font-bold text-gray-600">مجموع دفعات المدرب</span>
+                    <span id="finPaySum" dir="ltr" class="text-sm font-bold text-primary">0</span>
+                </div>`);
+            body.innerHTML = summary + info + fees + pcts + payCard + students;
+            finRenderPayRows();
             finRecalc();
         }
 
@@ -11741,6 +11771,10 @@
             set('finOut_dueA2', r.dueA2);
             set('finOut_dueInst', r.dueInst);
             set('finOut_trainerTotal', r.trainerTotal);
+            const paid = (finState.f.trainerPayments || []).reduce((a, p) => a + finNum(p.amount), 0);
+            set('finPaySum', paid);
+            set('finTop_paid', paid);
+            set('finTop_remaining', r.trainerTotal - paid);
             set('finSum_tuition', r.totalTuition);
             set('finSum_supplies', r.totalSupplies);
 
@@ -11768,6 +11802,43 @@
                     } else warn.classList.add('hidden');
                 } else warn.classList.add('hidden');
             }
+        }
+
+        function finRenderPayRows() {
+            const box = document.getElementById('finPayRows');
+            if (!box || !finState.f) return;
+            const list = finState.f.trainerPayments;
+            box.innerHTML = list.length ? list.map((p, i) => `
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs text-gray-400 w-5">${i + 1}</span>
+                    <input type="date" value="${escapeHtml(p.date)}" oninput="finOnPayment(${i},'date',this.value)"
+                        class="px-3 py-2 rounded-lg border border-gray-200 bg-white/70 text-sm focus:outline-none focus:border-primary" title="تاريخ الدفعة">
+                    <input type="text" inputmode="decimal" dir="ltr" value="${escapeHtml(p.amount)}" placeholder="قيمة الدفعة" oninput="finOnPayment(${i},'amount',this.value)"
+                        class="w-36 px-3 py-2 rounded-lg border border-gray-200 bg-white/70 text-sm text-right focus:outline-none focus:border-primary">
+                    <button onclick="finRemovePayment(${i})" class="w-8 h-8 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors" title="حذف الدفعة">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>`).join('') : '<p class="text-xs text-gray-400">لا توجد دفعات — اضغط + لإضافة دفعة</p>';
+        }
+        function finAddPayment() {
+            if (!finState.f) return;
+            finState.f.trainerPayments.push({ date: new Date().toISOString().slice(0, 10), amount: '' });
+            finMarkDirty();
+            finRenderPayRows();
+            finRecalc();
+        }
+        function finRemovePayment(i) {
+            if (!finState.f) return;
+            finState.f.trainerPayments.splice(i, 1);
+            finMarkDirty();
+            finRenderPayRows();
+            finRecalc();
+        }
+        function finOnPayment(i, fld, value) {
+            if (!finState.f || !finState.f.trainerPayments[i]) return;
+            finState.f.trainerPayments[i][fld] = value;
+            finMarkDirty();
+            finRecalc();
         }
 
         function finOnField(key, value) {
@@ -11804,6 +11875,7 @@
             });
             const finance = {
                 institutionName: (f.institutionName || '').trim(),
+                trainerPayments: (f.trainerPayments || []).filter(p => p.date || finHasVal(p.amount)).map(p => ({ date: p.date || '', amount: finNum(p.amount) })),
                 tuitionPerStudent: finNum(f.tuitionPerStudent),
                 suppliesPerStudent: finNum(f.suppliesPerStudent),
                 suppliesPaid: finNum(f.suppliesPaid),
@@ -11816,11 +11888,12 @@
                 updatedAt: new Date().toISOString()
             };
             course.finance = finance;
+            course.institutionName = finance.institutionName;
             finState.dirty = false;
             finRenderHeaderActions();
             if (db) {
                 await offlineAwareWrite(
-                    ['programs', finState.pk, 'courses', finState.ck], 'update', { finance },
+                    ['programs', finState.pk, 'courses', finState.ck], 'update', { finance, institutionName: finance.institutionName },
                     {
                         label: `حسابات الدورة: ${course.code || finState.ck}`,
                         successMsg: '✅ تم حفظ حسابات الدورة',
@@ -18154,6 +18227,7 @@
         const courseMainTrainerInput = document.getElementById('courseMainTrainerInput');
         const courseAssistTrainer1Input = document.getElementById('courseAssistTrainer1Input');
         const courseAssistTrainer2Input = document.getElementById('courseAssistTrainer2Input');
+        const courseInstitutionInput = document.getElementById('courseInstitutionInput');
         let courseModalMode = 'add'; // 'add' | 'edit'
         let courseModalProgramKey = null;
         let courseModalActiveCourseKey = null;
@@ -18240,6 +18314,7 @@
                 courseMainTrainerInput.value = course.mainTrainer || '';
                 courseAssistTrainer1Input.value = course.assistTrainer1 || '';
                 courseAssistTrainer2Input.value = course.assistTrainer2 || '';
+                courseInstitutionInput.value = course.institutionName || (course.finance && course.finance.institutionName) || '';
             } else {
                 courseModalTitle.innerHTML = '<i class="ph ph-graduation-cap text-primary"></i> إضافة دورة جديدة';
                 courseCodeInput.value = '';
@@ -18251,6 +18326,7 @@
                 courseMainTrainerInput.value = '';
                 courseAssistTrainer1Input.value = '';
                 courseAssistTrainer2Input.value = '';
+                courseInstitutionInput.value = '';
             }
 
             courseModal.classList.remove('hidden');
@@ -18286,7 +18362,8 @@
                 whatsappGroupLink: courseWhatsappGroupInput.value.trim(),
                 mainTrainer: mainTrainer,
                 assistTrainer1: courseAssistTrainer1Input.value.trim(),
-                assistTrainer2: courseAssistTrainer2Input.value.trim()
+                assistTrainer2: courseAssistTrainer2Input.value.trim(),
+                institutionName: courseInstitutionInput.value.trim()
             };
 
             if (courseModalMode === 'edit' && courseModalActiveCourseKey) {
