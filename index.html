@@ -959,15 +959,6 @@
                         <span style="font-size:10px;font-weight:400;color:#9ca3af;">AMS</span>
                     </span>
                 </button>
-
-                <!-- زر الحسابات — حساب دفعات وأرباح الدورات التدريبية (للأدمن فقط) -->
-                <button onclick="showAccountsSection()" class="admin-only glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all">
-                    <i class="ph ph-coins"></i>
-                    <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
-                        <span>الحسابات</span>
-                        <span style="font-size:10px;font-weight:400;color:#9ca3af;">ACC</span>
-                    </span>
-                </button>
             </div>
             
         </div>
@@ -983,6 +974,10 @@
             </button>
             <button class="admin-only glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center" title="السجلات" onclick="showRegistrySidebar()">
                 <i class="ph ph-clipboard-text text-lg md:text-xl"></i>
+            </button>
+            <!-- زر الحسابات -->
+            <button class="admin-only glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center" title="الحسابات" onclick="showAccountsSection()">
+                <i class="ph ph-calculator text-lg md:text-xl"></i>
             </button>
             <!-- زر الهوم -->
             <button onclick="showDashboard()" class="glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-primary border-primary/30 bg-primary/10" title="الرئيسية">
@@ -1305,17 +1300,6 @@
                     <span style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">
                         <span>الامتحانات</span>
                         <span style="font-size:9px;font-weight:400;color:#9ca3af;">AMS</span>
-                    </span>
-                </button>
-            </div>
-
-            <!-- Accounts Mobile — للأدمن فقط -->
-            <div class="flex-1 admin-only">
-                <button onclick="showAccountsSection()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
-                    <i class="ph ph-coins text-base"></i>
-                    <span style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">
-                        <span>الحسابات</span>
-                        <span style="font-size:9px;font-weight:400;color:#9ca3af;">ACC</span>
                     </span>
                 </button>
             </div>
