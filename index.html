@@ -7586,9 +7586,14 @@
             if (!activeChatConvId || !currentUser) return;
             clearTimeout(_myTypingDebounceTimer);
             if (val && val.trim().length > 0) {
-                setTypingStatus(activeChatConvId, true);
+                // تقليل الكتابة على Firestore: تجديد الحالة كل ~2 ثانية فقط
+                if (Date.now() - (window._lastTypingSentAt || 0) > 2000) {
+                    window._lastTypingSentAt = Date.now();
+                    setTypingStatus(activeChatConvId, true);
+                }
                 _myTypingDebounceTimer = setTimeout(() => setTypingStatus(activeChatConvId, false), 3000);
             } else {
+                window._lastTypingSentAt = 0;
                 setTypingStatus(activeChatConvId, false);
             }
         }
@@ -8044,9 +8049,36 @@
             audio.currentTime = pct * audio.duration;
         }
 
-        // ── تحديث حالة الشخص في الهيدر ──
+        // ── فقاعة "جاري الكتابة..." في لوحة المحادثة للطرف الثاني (أسفل الرسائل مباشرة) ──
+        let _chatTypingBubbleTimer = null;
+        function _updateChatTypingBubble(state) {
+            const area = document.getElementById('chatMessagesArea');
+            if (!area || !area.parentNode) return;
+            let b = document.getElementById('chatTypingIndicator');
+            if (!b) {
+                b = document.createElement('div');
+                b.id = 'chatTypingIndicator';
+                b.className = 'hidden px-3 py-1.5 shrink-0';
+                area.parentNode.insertBefore(b, area.nextSibling);
+            }
+            clearTimeout(_chatTypingBubbleTimer);
+            const isTyping = state === 'typing', isVoice = state === 'recording_voice';
+            if (!isTyping && !isVoice) { b.classList.add('hidden'); return; }
+            b.innerHTML = `<div class="inline-flex items-center gap-2 glass-element rounded-2xl rounded-tl-sm px-3.5 py-2 text-xs font-semibold ${isTyping ? 'text-primary' : 'text-emerald-600'}">
+                <i class="ph ${isTyping ? 'ph-pencil-simple' : 'ph-microphone'} animate-pulse"></i>
+                <span>${isTyping ? 'جاري الكتابة...' : 'جاري إرسال رسالة صوتية...'}</span>
+            </div>`;
+            b.classList.remove('hidden');
+            const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
+            if (wasAtBottom) area.scrollTop = area.scrollHeight;
+            // أمان: إخفاء الفقاعة بعد 7 ثوانٍ إن لم يصل تحديث جديد (مثلاً إغلاق المتصفح أثناء الكتابة)
+            _chatTypingBubbleTimer = setTimeout(() => b.classList.add('hidden'), 7000);
+        }
+
+        // ── تحديث الشخص في الهيدر ──
         function updateChatContactStatus(state) {
             // state: 'online' | 'offline' | 'typing' | 'sending_file' | 'sending_media'
+            _updateChatTypingBubble(state);
             const icon = document.getElementById('chatContactStatusIcon');
             const text = document.getElementById('chatContactStatusText');
             if (!icon || !text) return;
@@ -15912,6 +15944,30 @@
         }
 
         // --- عرض تفاصيل دورة في منطقة العرض الرئيسية ---
+        // ── هل يحق للمستخدم الحالي فتح تفاصيل هذه الدورة؟ (فشل مغلق: عند عدم التأكد يُمنع) ──
+        // يُسمح بقائمة الدورات في الشريط الجانبي للجميع، أما التفاصيل فللمدير + المدرب المشارك + المتدرب المسجّل فقط
+        function canOpenCourseDetails(programKey, courseKey) {
+            if (!currentUser) return false;
+            const prog = programsData[programKey];
+            const course = prog && (prog.courses || []).find(c => c.key === courseKey);
+            if (!course) return false;
+            const role = currentUser.role;
+            if (role === 'admin') return true;
+            if (role === 'trainer') {
+                const names = [currentUser.name, currentUser.displayName, currentUser.nameAr].filter(n => n && String(n).trim());
+                const trainers = [course.mainTrainer, course.assistTrainer1, course.assistTrainer2].filter(Boolean);
+                return names.some(n => trainers.some(t => String(t).includes(String(n).trim())));
+            }
+            if (role === 'trainee') {
+                const doc = (typeof registryTrainees !== 'undefined' && currentUser.traineeId)
+                    ? registryTrainees.find(t => t.id === currentUser.traineeId) : null;
+                const names = [doc && doc.nameAr, currentUser.nameAr, currentUser.name, currentUser.displayName].filter(n => n && String(n).trim());
+                const list = course.traineesList || [];
+                return names.some(n => list.includes(n));
+            }
+            return false;
+        }
+
         function showCourseDetails(programKey, courseKey) {
             if (document.body.classList.contains('guest-mode')) {
                 showToast('🔒 سجّل دخولك للوصول إلى تفاصيل الدورات', 'info');
@@ -15919,29 +15975,10 @@
                 return;
             }
 
-            // ── وضع المدرب: التحقق من المشاركة في الدورة ──
-            if (document.body.classList.contains('trainer-mode') && currentUser) {
-                const prog = programsData[programKey];
-                const course = prog && (prog.courses || []).find(c => c.key === courseKey);
-                if (course && !trainerParticipatesInCourse(course)) {
-                    showToast('🔒 لا يمكنك الوصول إلى دورة لست مشاركاً فيها', 'info');
-                    return;
-                }
-            }
-
-            // ── وضع المتدرب: التحقق من التسجيل في الدورة ──
-            if (document.body.classList.contains('trainee-mode') && currentUser) {
-                const traineeDoc = registryTrainees.find(t => t.id === currentUser.traineeId);
-                const traineeName = traineeDoc ? traineeDoc.nameAr : null;
-                if (traineeName) {
-                    const prog = programsData[programKey];
-                    const course = prog && (prog.courses || []).find(c => c.key === courseKey);
-                    const enrolled = course && (course.traineesList || []).includes(traineeName);
-                    if (!enrolled) {
-                        showToast('🔒 لا يمكنك الوصول إلى دورة غير مسجّل بها', 'info');
-                        return;
-                    }
-                }
+            // ── التحقق من الصلاحية: تفاصيل الدورة للمدير والمدرب المشارك فيها والمتدرب المسجّل بها فقط ──
+            if (!canOpenCourseDetails(programKey, courseKey)) {
+                showToast('🔒 لا يمكنك الوصول إلى تفاصيل دورة لست مشاركاً أو مسجّلاً فيها', 'info');
+                return;
             }
             activeCourseKey = courseKey;
             const program = programsData[programKey];
