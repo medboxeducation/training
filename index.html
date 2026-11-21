@@ -959,6 +959,15 @@
                         <span style="font-size:10px;font-weight:400;color:#9ca3af;">AMS</span>
                     </span>
                 </button>
+
+                <!-- زر الحسابات — حساب دفعات وأرباح الدورات التدريبية (للأدمن فقط) -->
+                <button onclick="showAccountsSection()" class="admin-only glass-element px-3 py-2 rounded-lg font-semibold text-sm hover:text-primary flex items-center gap-1.5 transition-all">
+                    <i class="ph ph-coins"></i>
+                    <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
+                        <span>الحسابات</span>
+                        <span style="font-size:10px;font-weight:400;color:#9ca3af;">ACC</span>
+                    </span>
+                </button>
             </div>
             
         </div>
@@ -1299,6 +1308,17 @@
                     </span>
                 </button>
             </div>
+
+            <!-- Accounts Mobile — للأدمن فقط -->
+            <div class="flex-1 admin-only">
+                <button onclick="showAccountsSection()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
+                    <i class="ph ph-coins text-base"></i>
+                    <span style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">
+                        <span>الحسابات</span>
+                        <span style="font-size:9px;font-weight:400;color:#9ca3af;">ACC</span>
+                    </span>
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -1485,6 +1505,13 @@
             <!-- لوحة تصفح الجلسات الغير متزامنة الجانبية — زر "إنشاء جلسة جديدة"
                  هو زر الإضافة الموحَّد في هيدر القائمة الجانبية (sidebarAddBtn)
                  قبل زر الفرز، بنفس أسلوب باقي القوائم -->
+            <!-- لوحة "الحسابات" الجانبية — شجرة: برنامج ← دورة -->
+            <div id="sidebarAccountsList" class="hidden flex-1 flex flex-col overflow-hidden p-3">
+                <div id="sidebarAccountsTree" class="flex-1 overflow-y-auto space-y-1">
+                    <!-- يُملأ بواسطة finRenderSidebarTree() -->
+                </div>
+            </div>
+
             <div id="sidebarAsyncSessionsList" class="hidden flex-1 flex flex-col overflow-hidden p-3">
                 <div id="sidebarAsyncSessionsTree" class="flex-1 overflow-y-auto space-y-1">
                     <!-- سيتم ملء المحتوى بواسطة nsRenderSidebarList() -->
@@ -3595,6 +3622,21 @@
                     <div id="completedSessionsViewActions" class="flex items-center gap-1"></div>
                 </div>
                 <div id="completedSessionsViewBody" class="flex-1"></div>
+            </div>
+
+            <!-- لوحة "الحسابات" (Accounts View) — حساب أقساط ومستلزمات وأرباح الدورات التدريبية - مخفي افتراضياً -->
+            <div id="accountsView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
+                <div class="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                    <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-amber-600 text-xl flex-shrink-0">
+                        <i class="ph ph-coins"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-xl font-bold text-gray-800">الحسابات</h2>
+                        <p id="finHeaderSubtitle" class="text-xs text-gray-400">حساب دفعات وأرباح الدورات التدريبية</p>
+                    </div>
+                    <div id="finHeaderActions" class="hidden items-center gap-1.5 flex-wrap flex-shrink-0"></div>
+                </div>
+                <div id="accountsViewBody" class="flex-1 pb-10"></div>
             </div>
 
             <!-- ط-٢. لوحة "القياس والتقييم" (Measurement &amp; Evaluation View) - مخفي افتراضياً -->
@@ -6512,7 +6554,7 @@
         const programsData = {};
 
         // 1. Navigation & Views Logic
-        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'refLibView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView', 'registrationRequestsView', 'asyncSessionsView', 'paperCorrectionMainView'];
+        const allViews = ['dashboardView', 'aboutProgramView', 'comingSoonView', 'settingsHintView', 'programsGridView', 'academicPediaGridView', 'academicCoursesView', 'studentPediaView', 'refLibView', 'virtualSessionsView', 'examSystemGridView', 'detailsView', 'firebaseSettingsView', 'geminiSettingsView', 'usersView', 'syncView', 'traineesRegistryView', 'trainersRegistryView', 'traineeProfileView', 'examinationView', 'questionBankView', 'registeredExamsView', 'completedSessionsView', 'measureEvalView', 'chatView', 'liveSessionView', 'sessionLobbyView', 'liveSessionsTimelineView', 'auditLogView', 'registrationRequestsView', 'asyncSessionsView', 'paperCorrectionMainView', 'accountsView'];
         const detailsTitle = document.getElementById('detailsTitle');
 
         function hideAllViews() {
@@ -6767,7 +6809,7 @@
         function openChatSidebar() {
             if (!currentUser) { showToast('يجب تسجيل الدخول أولاً لاستخدام المحادثات', 'error'); return; }
             sidebarMode = 'chat';
-            ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarLiveSessionsList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarLiveSessionsList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const chatList = document.getElementById('sidebarChatList');
             if (chatList) chatList.classList.remove('hidden');
@@ -8504,7 +8546,7 @@
                 return;
             }
             sidebarMode = 'academicCourses';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -9944,7 +9986,7 @@
 
         async function showStudentPediaSection() {
             sidebarMode = 'studentPedia';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -10858,7 +10900,7 @@
         // زر بطاقة "أبحاث ومراجع" — يفتح اللوحة الرئيسية + القائمة الجانبية
         async function showRefLibSection() {
             sidebarMode = 'refLib';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -11388,9 +11430,427 @@
         let nsSidebarState = { expandedProgramKey: null, expandedCourseKey: null };
 
         // زر بطاقة "الجلسات الغير متزامنة" — يفتح اللوحة الرئيسية + القائمة الجانبية
+        // ══════════════════════════════════════════════════════════════
+        // الحسابات (Accounts) — حساب أقساط ومستلزمات وأرباح الدورات التدريبية
+        // الاختيار من شجرة (برنامج ← دورة) في القائمة الجانبية، وتُخزَّن البيانات
+        // داخل وثيقة الدورة نفسها في الحقل finance (programs/{p}/courses/{c})
+        // ══════════════════════════════════════════════════════════════
+        const finSidebarState = { expandedProgramKey: null, expandedCourseKey: null };
+        let finState = { pk: null, ck: null, f: null, dirty: false };
+
+        const FIN_SIDEBAR_LISTS = ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList'];
+
+        function finIsAdmin() { return !!(currentUser && currentUser.role === 'admin'); }
+
+        // تحويل نص رقمي (يقبل الأرقام العربية والفواصل) إلى رقم
+        function finNum(v) {
+            if (v === null || v === undefined || v === '') return 0;
+            const s = String(v)
+                .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+                .replace(/٫/g, '.')
+                .replace(/[٬,\s]/g, '');
+            const n = parseFloat(s);
+            return isNaN(n) ? 0 : n;
+        }
+        function finFmt(n) {
+            const r = Math.round((n + Number.EPSILON) * 100) / 100;
+            return r.toLocaleString('en-US', { maximumFractionDigits: 2 });
+        }
+        function finHasVal(v) { return v !== null && v !== undefined && String(v).trim() !== ''; }
+        function finGetCourse(pk, ck) {
+            const p = programsData[pk];
+            return p && Array.isArray(p.courses) ? p.courses.find(c => c.key === ck) : null;
+        }
+        function finDateText(v) {
+            if (!v) return '—';
+            if (typeof v === 'string') return v;
+            if (v.toDate) { try { return v.toDate().toISOString().slice(0, 10); } catch (e) { return '—'; } }
+            if (v instanceof Date) return v.toISOString().slice(0, 10);
+            return String(v);
+        }
+
+        // ── فتح القسم ──
+        function showAccountsSection() {
+            if (!finIsAdmin()) { showToast('⛔ ليس لديك صلاحية: الحسابات', 'error'); return; }
+            if (finState.dirty && !confirm('لديك تعديلات غير محفوظة في الحسابات. هل تريد تجاهلها؟')) return;
+            sidebarMode = 'accounts';
+            FIN_SIDEBAR_LISTS.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            const qrBtn = document.getElementById('chatQRBtn');
+            if (qrBtn) qrBtn.classList.add('hidden');
+            const quickNewBtn    = document.getElementById('sidebarQuickCreateSessionBtn');
+            const quickCourseBtn = document.getElementById('sidebarQuickCreateFromCourseBtn');
+            if (quickNewBtn)    quickNewBtn.classList.add('hidden');
+            if (quickCourseBtn) quickCourseBtn.classList.add('hidden');
+            const list = document.getElementById('sidebarAccountsList');
+            if (list) list.classList.remove('hidden');
+
+            finState = { pk: null, ck: null, f: null, dirty: false };
+            finRenderPlaceholder();
+            finRenderHeaderActions();
+            finRenderSidebarTree();
+            updateSidebarAddButton();
+            openSidebar();
+            showView('accountsView');
+        }
+
+        function finRenderPlaceholder() {
+            const body = document.getElementById('accountsViewBody');
+            if (!body) return;
+            const sub = document.getElementById('finHeaderSubtitle');
+            if (sub) sub.textContent = 'حساب دفعات وأرباح الدورات التدريبية';
+            body.innerHTML = `
+                <div class="text-center py-16 text-gray-400">
+                    <i class="ph ph-coins text-3xl block mb-2 text-gray-300"></i>
+                    <p class="text-sm">اختر دورة تدريبية من القائمة الجانبية (برنامج ← دورة) لعرض حساباتها</p>
+                </div>`;
+        }
+
+        // ── الشجرة الجانبية: برنامج ← دورة ──
+        function finRenderSidebarTree() {
+            const tree = document.getElementById('sidebarAccountsTree');
+            if (!tree) return;
+            const entries = Object.entries(programsData).filter(([k, p]) => p && Array.isArray(p.courses) && p.courses.length);
+            if (!entries.length) {
+                tree.innerHTML = '<p class="text-center text-xs text-gray-400 py-6">لا توجد دورات تدريبية بعد</p>';
+                return;
+            }
+            tree.innerHTML = entries.map(([pk, program]) => {
+                const isPOpen = finSidebarState.expandedProgramKey === pk;
+                return `
+                <div class="glass-panel rounded-xl mb-2 overflow-hidden">
+                    <button onclick="finToggleProgram('${pk}')" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/5 transition-colors">
+                        <span class="flex items-center gap-2 min-w-0">
+                            <i class="ph ph-folder-notch text-primary/70 flex-shrink-0"></i>
+                            <span class="truncate">${escapeHtml(program.title || pk)}</span>
+                        </span>
+                        <i class="ph ph-caret-down text-xs text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isPOpen ? '180' : '0'}deg)"></i>
+                    </button>
+                    ${isPOpen ? `
+                    <div class="px-2 pb-2 space-y-1">
+                        ${program.courses.map(c => {
+                            const isActive = finState.pk === pk && finState.ck === c.key;
+                            const cnt = (c.traineesList || []).length;
+                            return `
+                            <button onclick="finOpenCourse('${pk}','${c.key}')" class="w-full text-right flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${isActive ? 'bg-primary/10 text-primary font-bold' : 'text-gray-600 hover:bg-white'}">
+                                <i class="ph ph-graduation-cap text-sm flex-shrink-0 ${isActive ? 'text-primary' : 'text-gray-400'}"></i>
+                                <span class="flex-1 min-w-0 truncate">${escapeHtml(c.code || c.key)}</span>
+                                <span class="text-[10px] text-gray-400 flex-shrink-0">${cnt}</span>
+                            </button>`;
+                        }).join('')}
+                    </div>` : ''}
+                </div>`;
+            }).join('');
+        }
+        function finToggleProgram(pk) {
+            finSidebarState.expandedProgramKey = (finSidebarState.expandedProgramKey === pk) ? null : pk;
+            finRenderSidebarTree();
+        }
+
+        // ── اختيار دورة ──
+        function finLoadFromCourse(course) {
+            const d = course.finance || {};
+            const str = v => (v === null || v === undefined) ? '' : String(v);
+            const payments = {};
+            (d.payments || []).forEach(p => {
+                if (!p || !p.name) return;
+                payments[p.name] = { tuition: finHasVal(p.tuition) ? String(p.tuition) : null, supplies: finHasVal(p.supplies) ? String(p.supplies) : null };
+            });
+            return {
+                institutionName: d.institutionName || '',
+                tuitionPerStudent: str(d.tuitionPerStudent), suppliesPerStudent: str(d.suppliesPerStudent),
+                suppliesPaid: str(d.suppliesPaid), consumables: str(d.consumables),
+                pctMain: str(d.pctMain), pctAssist1: str(d.pctAssist1), pctAssist2: str(d.pctAssist2), pctInstitution: str(d.pctInstitution),
+                payments
+            };
+        }
+
+        function finOpenCourse(pk, ck) {
+            if (finState.dirty && (finState.pk !== pk || finState.ck !== ck)) {
+                if (!confirm('لديك تعديلات غير محفوظة على حسابات الدورة الحالية. هل تريد تجاهلها؟')) return;
+            }
+            const course = finGetCourse(pk, ck);
+            if (!course) return;
+            finState = { pk, ck, f: finLoadFromCourse(course), dirty: false };
+            finSidebarState.expandedProgramKey = pk;
+            finRenderCourse();
+            finRenderHeaderActions();
+            finRenderSidebarTree();
+            if (window.innerWidth < 768) closeSidebar();
+        }
+
+        function finRenderHeaderActions() {
+            const box = document.getElementById('finHeaderActions');
+            if (!box) return;
+            if (!finState.f) { box.classList.add('hidden'); box.classList.remove('flex'); box.innerHTML = ''; return; }
+            box.classList.remove('hidden'); box.classList.add('flex');
+            box.innerHTML = `
+                <span id="finDirtyBadge" class="${finState.dirty ? '' : 'hidden'} text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">تعديلات غير محفوظة</span>
+                <button onclick="finSave()" class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:opacity-90 transition-all flex items-center gap-1.5">
+                    <i class="ph ph-floppy-disk"></i><span>حفظ الحسابات</span>
+                </button>`;
+        }
+        function finMarkDirty() {
+            if (!finState.dirty) {
+                finState.dirty = true;
+                const b = document.getElementById('finDirtyBadge');
+                if (b) b.classList.remove('hidden');
+            }
+        }
+
+        // ── مكونات العرض ──
+        function finRoField(label, value) {
+            return `<div>
+                <label class="block text-[11px] font-semibold text-gray-500 mb-1">${label}</label>
+                <div class="glass-element rounded-lg px-3 py-2 text-sm font-bold text-gray-800 min-h-[38px]">${escapeHtml(value || '—')}</div>
+            </div>`;
+        }
+        function finInField(label, key, opts = {}) {
+            const f = finState.f;
+            const isText = !!opts.text;
+            return `<div>
+                <label class="block text-[11px] font-semibold text-gray-500 mb-1">${label}</label>
+                <div class="relative">
+                    <input type="text" ${isText ? '' : 'inputmode="decimal" dir="ltr"'} value="${escapeHtml(f[key])}" placeholder="${isText ? '' : '0'}"
+                        oninput="finOnField('${key}', this.value)"
+                        class="w-full px-3 py-2 ${opts.pct ? 'pl-8' : ''} rounded-lg border border-gray-200 bg-white/70 text-sm ${isText ? '' : 'text-right'} focus:outline-none focus:border-primary">
+                    ${opts.pct ? '<span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold">%</span>' : ''}
+                </div>
+            </div>`;
+        }
+        function finOutField(label, id, tone = 'primary', hint = '') {
+            const tones = {
+                primary: 'bg-primary/5 text-primary border-primary/20',
+                green: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                amber: 'bg-amber-50 text-amber-700 border-amber-200',
+                gray: 'bg-gray-50 text-gray-700 border-gray-200'
+            };
+            return `<div>
+                <label class="block text-[11px] font-semibold text-gray-500 mb-1">${label}${hint ? ` <span class="font-normal text-gray-400">(${hint})</span>` : ''}</label>
+                <div id="${id}" dir="ltr" class="rounded-lg px-3 py-2 text-sm font-bold border text-right min-h-[38px] ${tones[tone]}">0</div>
+            </div>`;
+        }
+        function finCard(icon, title, inner) {
+            return `<div class="glass-element rounded-2xl p-5 mb-4">
+                <h3 class="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2"><i class="ph ${icon} text-primary text-lg"></i>${title}</h3>
+                ${inner}
+            </div>`;
+        }
+
+        function finRenderCourse() {
+            const body = document.getElementById('accountsViewBody');
+            const course = finGetCourse(finState.pk, finState.ck);
+            if (!body || !course || !finState.f) return;
+            const program = programsData[finState.pk] || {};
+            const names = course.traineesList || [];
+            const sub = document.getElementById('finHeaderSubtitle');
+            if (sub) sub.textContent = `${program.title || ''} — ${course.code || course.key}`;
+
+            const info = finCard('ph-info', 'معلومات الدورة', `
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    ${finRoField('اسم البرنامج', program.title)}
+                    ${finRoField('رمز الدورة', course.code || course.key)}
+                    ${finRoField('تاريخ الدورة', finDateText(course.startDate))}
+                    ${finInField('اسم المنشأة التعليمية', 'institutionName', { text: true })}
+                    ${finRoField('اسم المدرب الأساسي', course.mainTrainer)}
+                    ${finRoField('اسم المدرب المساعد الأول', course.assistTrainer1)}
+                    ${finRoField('اسم المدرب المساعد الثاني', course.assistTrainer2)}
+                </div>`);
+
+            const fees = finCard('ph-coins', 'معلومات أقساط الدورة', `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    ${finInField('قسط الطالب الواحد', 'tuitionPerStudent')}
+                    ${finOutField('مجموع الأقساط', 'finOut_totalTuition', 'primary', 'مجموع أقساط الطلاب')}
+                    ${finInField('قسط المستلزمات (للطالب الواحد)', 'suppliesPerStudent')}
+                    ${finOutField('مجموع المستلزمات', 'finOut_totalSupplies', 'primary', 'مجموع مستلزمات الطلاب')}
+                    ${finInField('المستلزمات المدفوعة', 'suppliesPaid')}
+                    ${finOutField('مجموع المستلزمات الفعلي', 'finOut_actualSupplies', 'gray', 'المجموع − المدفوعة')}
+                    ${finInField('مبلغ المستهلكات (نوطة … إلخ)', 'consumables')}
+                    ${finOutField('صافي أرباح الدورة', 'finOut_net', 'green', 'الأقساط − المستهلكات')}
+                </div>`);
+
+            const pcts = finCard('ph-percent', 'النسب والمبالغ المستحقة', `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    ${finInField('نسبة المدرب الأساسي', 'pctMain', { pct: true })}
+                    ${finOutField('المبلغ المستحق للمدرب', 'finOut_dueMain', 'primary', 'الصافي × نسبته')}
+                    ${finInField('نسبة المدرب المساعد الأول', 'pctAssist1', { pct: true })}
+                    ${finOutField('المبلغ المستحق للمدرب المساعد الأول', 'finOut_dueA1', 'primary', 'مستحق المدرب × نسبته')}
+                    ${finInField('نسبة المدرب المساعد الثاني', 'pctAssist2', { pct: true })}
+                    ${finOutField('المبلغ المستحق للمدرب المساعد الثاني', 'finOut_dueA2', 'primary', 'مستحق المدرب × نسبته')}
+                    ${finInField('نسبة المنشأة التعليمية', 'pctInstitution', { pct: true })}
+                    ${finOutField('المبلغ المستحق للمنشأة التعليمية', 'finOut_dueInst', 'primary', 'الصافي × نسبتها')}
+                </div>
+                <p id="finPctWarn" class="hidden mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"></p>
+                <div class="mt-4 pt-4 border-t border-white/50">
+                    ${finOutField('مجموع أرباح الدورة الخاصة بالمدرب', 'finOut_trainerTotal', 'green', 'المستحق − المساعد الأول − المساعد الثاني + المستلزمات الفعلي')}
+                </div>`);
+
+            const rows = names.length ? names.map((n, i) => `
+                <tr class="border-t border-white/40">
+                    <td class="px-3 py-2 text-xs text-gray-400 w-10">${i + 1}</td>
+                    <td class="px-3 py-2 text-sm font-semibold text-gray-700">${escapeHtml(n)}</td>
+                    <td class="px-2 py-1.5"><input type="text" inputmode="decimal" dir="ltr" data-fin-stu="${i}" data-fld="tuition" oninput="finOnStudent(${i},'tuition',this.value)" class="w-28 px-2 py-1.5 rounded-lg border border-gray-200 bg-white/70 text-sm text-right focus:outline-none focus:border-primary"></td>
+                    <td class="px-2 py-1.5"><input type="text" inputmode="decimal" dir="ltr" data-fin-stu="${i}" data-fld="supplies" oninput="finOnStudent(${i},'supplies',this.value)" class="w-28 px-2 py-1.5 rounded-lg border border-gray-200 bg-white/70 text-sm text-right focus:outline-none focus:border-primary"></td>
+                </tr>`).join('') : `<tr><td colspan="4" class="text-center text-xs text-gray-400 py-6">لا يوجد طلاب مسجلون في هذه الدورة بعد — تُحدَّث القائمة تلقائياً عند إضافة الطلاب أو حذفهم</td></tr>`;
+
+            const students = finCard('ph-users-three', `قائمة طلاب الدورة (${names.length})`, `
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right">
+                        <thead>
+                            <tr class="text-[11px] text-gray-500">
+                                <th class="px-3 py-2 font-semibold">#</th>
+                                <th class="px-3 py-2 font-semibold">اسم الطالب</th>
+                                <th class="px-2 py-2 font-semibold">مبلغ القسط المدفوع</th>
+                                <th class="px-2 py-2 font-semibold">مبلغ المستلزمات المدفوع</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                        <tfoot>
+                            <tr class="border-t-2 border-white/60 bg-primary/5">
+                                <td></td>
+                                <td class="px-3 py-2 text-xs font-bold text-gray-600">المجموع</td>
+                                <td class="px-3 py-2 text-sm font-bold text-primary" dir="ltr" id="finSum_tuition" style="text-align:right">0</td>
+                                <td class="px-3 py-2 text-sm font-bold text-primary" dir="ltr" id="finSum_supplies" style="text-align:right">0</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-3">القيمة الافتراضية لكل طالب هي قسط الدورة ومبلغ المستلزمات أعلاه، ويمكن تعديلها لكل طالب على حدة.</p>`);
+
+            body.innerHTML = info + fees + pcts + students;
+            finRecalc();
+        }
+
+        // ── الحسابات ──
+        function finEffective(p, fld, def) {
+            return (p && finHasVal(p[fld])) ? finNum(p[fld]) : def;
+        }
+        function finCompute() {
+            const f = finState.f;
+            const course = finGetCourse(finState.pk, finState.ck);
+            const names = (course && course.traineesList) || [];
+            const tpS = finNum(f.tuitionPerStudent), spS = finNum(f.suppliesPerStudent);
+            let totalTuition = 0, totalSupplies = 0;
+            names.forEach(n => {
+                const p = f.payments[n];
+                totalTuition  += finEffective(p, 'tuition', tpS);
+                totalSupplies += finEffective(p, 'supplies', spS);
+            });
+            const actualSupplies = totalSupplies - finNum(f.suppliesPaid);
+            const net = totalTuition - finNum(f.consumables);
+            const dueMain = net * finNum(f.pctMain) / 100;
+            const dueA1 = dueMain * finNum(f.pctAssist1) / 100;
+            const dueA2 = dueMain * finNum(f.pctAssist2) / 100;
+            const dueInst = net * finNum(f.pctInstitution) / 100;
+            const trainerTotal = dueMain - dueA1 - dueA2 + actualSupplies;
+            return { names, tpS, spS, totalTuition, totalSupplies, actualSupplies, net, dueMain, dueA1, dueA2, dueInst, trainerTotal };
+        }
+        function finRecalc() {
+            if (!finState.f) return;
+            const r = finCompute();
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = finFmt(v); };
+            set('finOut_totalTuition', r.totalTuition);
+            set('finOut_totalSupplies', r.totalSupplies);
+            set('finOut_actualSupplies', r.actualSupplies);
+            set('finOut_net', r.net);
+            set('finOut_dueMain', r.dueMain);
+            set('finOut_dueA1', r.dueA1);
+            set('finOut_dueA2', r.dueA2);
+            set('finOut_dueInst', r.dueInst);
+            set('finOut_trainerTotal', r.trainerTotal);
+            set('finSum_tuition', r.totalTuition);
+            set('finSum_supplies', r.totalSupplies);
+
+            // حقول الطلاب: غير المعدَّلة تتبع القيمة الافتراضية للدورة (ما لم يكن الحقل قيد الكتابة)
+            document.querySelectorAll('input[data-fin-stu]').forEach(inp => {
+                const i = parseInt(inp.dataset.finStu, 10);
+                const fld = inp.dataset.fld;
+                const p = finState.f.payments[r.names[i]];
+                const overridden = p && finHasVal(p[fld]);
+                const def = fld === 'tuition' ? finState.f.tuitionPerStudent : finState.f.suppliesPerStudent;
+                inp.placeholder = def || '0';
+                if (document.activeElement === inp) return;
+                inp.value = overridden ? p[fld] : (def || '');
+            });
+
+            // تنبيه النسب: يُفترض أن مجموع نسبتي المدرب الأساسي والمنشأة 100%
+            const warn = document.getElementById('finPctWarn');
+            if (warn) {
+                const f = finState.f;
+                if (finHasVal(f.pctMain) && finHasVal(f.pctInstitution)) {
+                    const sum = finNum(f.pctMain) + finNum(f.pctInstitution);
+                    if (Math.abs(sum - 100) > 0.001) {
+                        warn.textContent = `تنبيه: مجموع نسبة المدرب الأساسي ونسبة المنشأة = ${finFmt(sum)}% (وليس 100%)`;
+                        warn.classList.remove('hidden');
+                    } else warn.classList.add('hidden');
+                } else warn.classList.add('hidden');
+            }
+        }
+
+        function finOnField(key, value) {
+            if (!finState.f) return;
+            finState.f[key] = value;
+            finMarkDirty();
+            finRecalc();
+        }
+        function finOnStudent(i, fld, value) {
+            if (!finState.f) return;
+            const course = finGetCourse(finState.pk, finState.ck);
+            const name = course && course.traineesList ? course.traineesList[i] : null;
+            if (!name) return;
+            if (!finState.f.payments[name]) finState.f.payments[name] = { tuition: null, supplies: null };
+            finState.f.payments[name][fld] = finHasVal(value) ? value : null;
+            finMarkDirty();
+            finRecalc();
+        }
+
+        // ── الحفظ (داخل وثيقة الدورة) ──
+        async function finSave() {
+            if (!finIsAdmin()) { showToast('⛔ ليس لديك صلاحية: الحسابات', 'error'); return; }
+            const course = finGetCourse(finState.pk, finState.ck);
+            if (!course || !finState.f) return;
+            const f = finState.f;
+            const names = course.traineesList || [];
+            const payments = names.map(n => {
+                const p = f.payments[n] || {};
+                return {
+                    name: n,
+                    tuition:  finHasVal(p.tuition)  ? finNum(p.tuition)  : null,
+                    supplies: finHasVal(p.supplies) ? finNum(p.supplies) : null
+                };
+            });
+            const finance = {
+                institutionName: (f.institutionName || '').trim(),
+                tuitionPerStudent: finNum(f.tuitionPerStudent),
+                suppliesPerStudent: finNum(f.suppliesPerStudent),
+                suppliesPaid: finNum(f.suppliesPaid),
+                consumables: finNum(f.consumables),
+                pctMain: finNum(f.pctMain),
+                pctAssist1: finNum(f.pctAssist1),
+                pctAssist2: finNum(f.pctAssist2),
+                pctInstitution: finNum(f.pctInstitution),
+                payments,
+                updatedAt: new Date().toISOString()
+            };
+            course.finance = finance;
+            finState.dirty = false;
+            finRenderHeaderActions();
+            if (db) {
+                await offlineAwareWrite(
+                    ['programs', finState.pk, 'courses', finState.ck], 'update', { finance },
+                    {
+                        label: `حسابات الدورة: ${course.code || finState.ck}`,
+                        successMsg: '✅ تم حفظ حسابات الدورة',
+                        activity: { action: 'edit', type: 'course', name: course.code || finState.ck, id: finState.ck, details: `حسابات الدورة — ضمن البرنامج: ${(programsData[finState.pk] || {}).title || ''}` }
+                    }
+                );
+            } else {
+                showToast('تم الحفظ في الذاكرة فقط (Firebase غير متصل)', 'info');
+            }
+        }
+
         async function showAsyncSessionsSection() {
             sidebarMode = 'asyncSessions';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -12198,7 +12658,7 @@
         // ويفتح القائمة الجانبية فارغة (سيتم لاحقاً تحديد محتواها بحسب البطاقة المختارة)
         function showExamSystemGrid() {
             sidebarMode = 'examSystem';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const addBtn = document.getElementById('sidebarAddBtn');
@@ -12247,7 +12707,7 @@
                 return;
             }
             sidebarMode = 'measureEval';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -12286,7 +12746,7 @@
                 return;
             }
             sidebarMode = 'measureEval';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
             const qrBtn = document.getElementById('chatQRBtn');
@@ -12362,6 +12822,7 @@
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarAccountsList')?.classList.add('hidden');
             document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarSettingsList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
@@ -12430,6 +12891,7 @@
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarAccountsList')?.classList.add('hidden');
             document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             const chatListEl = document.getElementById('sidebarChatList');
             if (chatListEl) chatListEl.classList.add('hidden');
@@ -12465,6 +12927,7 @@
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarAccountsList')?.classList.add('hidden');
             document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarUsersList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
@@ -13050,6 +13513,7 @@
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarAccountsList')?.classList.add('hidden');
             document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList').classList.remove('hidden');
             const liveListEl = document.getElementById('sidebarLiveSessionsList');
@@ -15061,6 +15525,11 @@
             // بعض اللوحات مثل الموسوعة الطلابية تلغي هذا القيد لاحقاً لتسمح
             // لجميع المسجلين (غير الزوار) بالإضافة
             btn.classList.add('admin-only');
+            if (sidebarMode === 'accounts') {
+                // لوحة "الحسابات" لا تحتاج زر إضافة — الاختيار من شجرة (برنامج ← دورة)
+                btn.classList.add('hidden');
+                return;
+            }
             if (sidebarMode === 'registry') {
                 updateRegistryAddButton();
                 return;
@@ -18965,6 +19434,7 @@
                                 document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
                                 document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarAccountsList')?.classList.add('hidden');
             document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
                             }
                         });
@@ -18998,6 +19468,7 @@
                             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
                             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarAccountsList')?.classList.add('hidden');
             document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
                             buildSidebarCourses(r.programKey);
                             showCourseDetails(r.programKey, r.course.key);
@@ -24324,7 +24795,7 @@
         // ---- تفعيل القائمة الجانبية على وضع "تصفح التصحيحات الورقية المحفوظة" ----
         function pcActivateBrowseSidebar() {
             sidebarMode = 'paperCorrectionBrowse';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const list = document.getElementById('sidebarPaperCorrectionBrowseList');
             if (list) list.classList.remove('hidden');
@@ -25109,7 +25580,7 @@
         // إظهار لوحة بطاقات الطلاب، وفتح القائمة الجانبية تلقائياً ----
         function pcActivateGlobalSidebar() {
             sidebarMode = 'paperCorrection';
-            ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionBrowseList']
+            ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionBrowseList']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const list = document.getElementById('sidebarPaperCorrectionList');
             if (list) list.classList.remove('hidden');
@@ -29017,6 +29488,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarAccountsList')?.classList.add('hidden');
             document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
@@ -29073,6 +29545,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             document.getElementById('sidebarStudentPediaList')?.classList.add('hidden');
             document.getElementById('sidebarRefLibList')?.classList.add('hidden');
             document.getElementById('sidebarAsyncSessionsList')?.classList.add('hidden');
+            document.getElementById('sidebarAccountsList')?.classList.add('hidden');
             document.getElementById('sidebarPaperCorrectionList')?.classList.add('hidden');
             document.getElementById('sidebarRegistryList')?.classList.remove('hidden');
             openSidebar();
@@ -30016,7 +30489,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'questionBank';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+        ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const addBtn = document.getElementById('sidebarAddBtn');
@@ -30590,7 +31063,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'registeredExams';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+        ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const addBtn = document.getElementById('sidebarAddBtn');
@@ -30906,7 +31379,7 @@ ${JSON.stringify(payload, null, 0)}
         if (!db) { showToast('⚠️ لا يوجد اتصال بقاعدة البيانات', 'warning'); return; }
 
         sidebarMode = 'completedSessions';
-        ['sidebarProgramList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+        ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList', 'sidebarRegistryList', 'sidebarUsersList', 'sidebarExamPanel', 'sidebarQuestionBankList', 'sidebarRegisteredExamsList', 'sidebarLiveSessionsList', 'sidebarChatList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
 
         const qrBtn  = document.getElementById('chatQRBtn');
@@ -38613,7 +39086,7 @@ window._requestBrowserNotifPermission = _requestBrowserNotifPermission;
         const panel = document.getElementById('sidebarLiveSessionsList');
         if (!panel) return false;
         sidebarMode = 'liveSessions';
-        ['sidebarProgramList','sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
+        ['sidebarProgramList', 'sidebarAccountsList', 'sidebarSettingsList','sidebarRegistryList','sidebarUsersList','sidebarExamPanel','sidebarQuestionBankList','sidebarRegisteredExamsList','sidebarChatList', 'sidebarCompletedSessionsList', 'sidebarMeasureEvalList', 'sidebarAcademicCoursesList', 'sidebarStudentPediaList', 'sidebarRefLibList', 'sidebarAsyncSessionsList', 'sidebarPaperCorrectionList', 'sidebarPaperCorrectionBrowseList']
             .forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
         panel.classList.remove('hidden');
 
