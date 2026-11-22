@@ -7047,7 +7047,7 @@
             const resultsBox = document.getElementById('chatSearchResults');
             if (!q) {
                 if (resultsBox) resultsBox.classList.add('hidden');
-                showToast('أدخل رقم الهاتف أو الإيميل أو المعرف للبحث', 'info');
+                showToast('أدخل الاسم (عربي/إنجليزي) أو الرمز أو رقم الهاتف أو الإيميل للبحث', 'info');
                 return;
             }
             performChatSearch(q);
@@ -7061,37 +7061,36 @@
 
             const lower = q.toLowerCase().replace(/\s+/g,'');
             const results = [];
+            // تطبيع النص (عربي/إنجليزي): إزالة التشكيل والتطويل وتوحيد الألف والياء والتاء المربوطة
+            const norm = v => String(v || '').toLowerCase()
+                .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+                .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+                .replace(/\s+/g, ' ').trim();
+            const tokens = norm(q).split(' ').filter(Boolean);
+            const nameMatch = (...fields) => fields.some(f => {
+                const n = norm(f);
+                return n && tokens.every(t => n.includes(t));
+            });
 
             // تحميل البيانات إن لم تكن محملة
             if (registryTrainers.length === 0) { try { await loadTrainersFromFirebase(); } catch(_){} }
             if (registryTrainees.length === 0) { try { await loadTraineesFromFirebase(); } catch(_){} }
 
-            // البحث حصراً برقم الهاتف / الإيميل / الرقم الوطني / المعرف (الرمز الشخصي)
-            // — لا يتم البحث بالاسم إطلاقاً —
-            registryTrainers.forEach(t => {
-                const match = (t.phone||'').replace(/\s+/g,'').includes(lower) ||
-                              (t.code||'').toLowerCase().includes(lower) ||
-                              (t.nationalId||'').replace(/\s+/g,'').includes(lower) ||
-                              (t.email||'').toLowerCase().includes(lower);
-                if (match) results.push({ ...t, _type: 'trainer' });
-            });
+            // البحث بالاسم (عربي/إنجليزي) أو رمز المستخدم أو الهاتف أو الإيميل أو الرقم الوطني
+            const personMatch = t =>
+                nameMatch(t.nameAr, t.nameEn, t.name, t.displayName, t.username) ||
+                (t.code||'').toLowerCase().includes(lower) ||
+                (t.phone||'').replace(/\s+/g,'').includes(lower) ||
+                (t.nationalId||'').replace(/\s+/g,'').includes(lower) ||
+                (t.email||'').toLowerCase().includes(lower);
 
-            // البحث في المتدربين
-            registryTrainees.forEach(t => {
-                const match = (t.phone||'').replace(/\s+/g,'').includes(lower) ||
-                              (t.code||'').toLowerCase().includes(lower) ||
-                              (t.nationalId||'').replace(/\s+/g,'').includes(lower) ||
-                              (t.email||'').toLowerCase().includes(lower);
-                if (match) results.push({ ...t, _type: 'trainee' });
-            });
+            registryTrainers.forEach(t => { if (personMatch(t)) results.push({ ...t, _type: 'trainer' }); });
+            registryTrainees.forEach(t => { if (personMatch(t)) results.push({ ...t, _type: 'trainee' }); });
 
             // البحث في المديرين
             if (appUsersData.length > 0) {
                 appUsersData.forEach(u => {
-                    const match = (u.email||'').toLowerCase().includes(lower) ||
-                                  (u.phone||'').replace(/\s+/g,'').includes(lower) ||
-                                  (u.username||'').toLowerCase().includes(lower);
-                    if (match) results.push({ ...u, nameAr: u.name || u.username || u.email, _type: 'admin' });
+                    if (personMatch(u)) results.push({ ...u, nameAr: u.nameAr || u.name || u.username || u.email, _type: 'admin' });
                 });
             }
 
@@ -7101,7 +7100,7 @@
             }
 
             resultsBox.innerHTML = '';
-            results.slice(0,10).forEach(r => {
+            results.slice(0,15).forEach(r => {
                 const item = document.createElement('button');
                 item.className = 'w-full text-right px-3 py-2 flex items-center gap-2.5 hover:bg-primary/8 transition-colors border-b border-white/30 last:border-0';
                 const typeColors = { trainer:'text-blue-600', trainee:'text-emerald-600', admin:'text-violet-600' };
@@ -7112,7 +7111,7 @@
                         <i class="ph ${typeIcons[r._type] || 'ph-user'} text-sm"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="font-semibold text-sm text-gray-800 truncate">${escapeHtml(r.nameAr || '—')}</p>
+                        <p class="font-semibold text-sm text-gray-800 truncate">${escapeHtml(r.nameAr || '—')}${r.nameEn ? ` <span class="text-[10px] font-normal text-gray-400" dir="ltr">${escapeHtml(r.nameEn)}</span>` : ''}</p>
                         <p class="text-[10px] text-gray-400 font-mono">${typeLabels[r._type]} ${r.code ? '· ' + r.code : ''} ${escapeHtml(r.phone ? '· ' + r.phone : '')}</p>
                     </div>
                 `;
@@ -7281,6 +7280,33 @@
             return null;
         }
 
+        // ── فتح معلومات المستخدم (الطرف الآخر) من هيدر المحادثة — لأصحاب صلاحيات إدارة المتدربين/المدربين ──
+        function _chatCanOpenUserInfo() {
+            if (!currentUser) return false;
+            if (document.body.classList.contains('trainee-mode') || document.body.classList.contains('trainer-mode')) return false;
+            return ['addTrainee','editTrainee','deleteTrainee','addTrainer','editTrainer','deleteTrainer'].some(k => hasPermission(k));
+        }
+        async function openChatUserInfo() {
+            if (!_chatCanOpenUserInfo()) { permissionDenied('عرض معلومات المستخدم'); return; }
+            const conv = chatConversations.find(c => c.id === activeChatConvId);
+            if (!conv || !conv.otherUid) return;
+            if (registryTrainees.length === 0) { try { await loadTraineesFromFirebase(); } catch(_) {} }
+            if (registryTrainers.length === 0) { try { await loadTrainersFromFirebase(); } catch(_) {} }
+            const trainee = registryTrainees.find(t => t.authUid === conv.otherUid);
+            if (trainee) {
+                if (!(hasPermission('addTrainee') || hasPermission('editTrainee') || hasPermission('deleteTrainee'))) { permissionDenied('إدارة المتدربين'); return; }
+                navigateToTraineeProfile(trainee.id);
+                return;
+            }
+            const trainer = registryTrainers.find(t => t.authUid === conv.otherUid);
+            if (trainer) {
+                if (!(hasPermission('addTrainer') || hasPermission('editTrainer') || hasPermission('deleteTrainer'))) { permissionDenied('إدارة المدربين'); return; }
+                navigateToTrainerProfile(trainer.id);
+                return;
+            }
+            showToast('لا توجد بطاقة في سجل المتدربين أو المدربين لهذا المستخدم', 'info');
+        }
+
         // ── تحديث هيدر نافذة المحادثة ──
         function _updateChatHeader(conv) {
             const isOnline  = chatOnlineStatus[conv.otherUid] || false;
@@ -7288,7 +7314,14 @@
             const nameEnEl  = document.getElementById('chatWindowNameEn');
             const codeEl    = document.getElementById('chatWindowCode');
             const onlineDot = document.getElementById('chatWindowOnlineDot');
-            if (nameArEl)  nameArEl.textContent = conv.nameAr || '—';
+            if (nameArEl)  {
+                nameArEl.textContent = conv.nameAr || '—';
+                const canOpen = _chatCanOpenUserInfo();
+                nameArEl.classList.toggle('cursor-pointer', canOpen);
+                nameArEl.classList.toggle('hover:underline', canOpen);
+                nameArEl.onclick = canOpen ? openChatUserInfo : null;
+                nameArEl.title = canOpen ? 'عرض معلومات المستخدم' : '';
+            }
             if (nameEnEl)  { nameEnEl.textContent = conv.nameEn || ''; nameEnEl.classList.toggle('hidden', !conv.nameEn); }
             if (codeEl)    codeEl.textContent = conv.code || '—';
             if (onlineDot) {
@@ -7334,6 +7367,14 @@
                 const timeStr = new Date(ts).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit' });
                 const isVoice = msg.type === 'voice' && msg.audioUrl;
 
+                // ── اسم المرسل أعلى الرسالة ──
+                const _senderName = isMine
+                    ? (currentUser && (currentUser.nameAr || currentUser.name || currentUser.displayName) || 'أنت')
+                    : (document.getElementById('chatWindowNameAr')?.textContent || '').trim();
+                const senderTag = _senderName
+                    ? `<p class="text-[11px] font-bold ${isMine ? 'text-white/90' : 'text-primary'} mb-1 truncate">${escapeHtml(_senderName)}</p>`
+                    : '';
+
                 // ── شارة "إعادة توجيه" ──
                 const forwardedTag = msg.forwarded
                     ? `<p class="text-[10px] ${isMine ? 'text-white/70' : 'text-gray-400'} flex items-center gap-1 mb-1"><i class="ph ph-share-fat text-[10px]"></i>إعادة توجيه</p>`
@@ -7370,7 +7411,7 @@
                         ? `<div class="flex justify-end mb-1.5 relative group">
                               <div class="max-w-[85%] bg-primary text-white rounded-2xl rounded-tr-sm px-3 py-2.5 shadow-sm relative" ${touchAttrs}>
                                   ${menuTrigger}
-                                  ${forwardedTag}${replyHTML}
+                                  ${senderTag}${forwardedTag}${replyHTML}
                                   ${playerHTML}
                                   <p class="text-[10px] opacity-70 mt-1.5 text-left">${timeStr} ✓✓${editedTag}</p>
                               </div>
@@ -7378,7 +7419,7 @@
                         : `<div class="flex justify-start mb-1.5 relative group">
                               <div class="max-w-[85%] glass-element rounded-2xl rounded-tl-sm px-3 py-2.5 shadow-sm relative" ${touchAttrs}>
                                   ${menuTrigger}
-                                  ${forwardedTag}${replyHTML}
+                                  ${senderTag}${forwardedTag}${replyHTML}
                                   ${playerHTML}
                                   <p class="text-[10px] text-gray-400 mt-1.5">${timeStr}${editedTag}</p>
                               </div>
@@ -7388,7 +7429,7 @@
                     ? `<div class="flex justify-end mb-1.5 relative group">
                           <div class="max-w-[78%] bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm relative" ${touchAttrs}>
                               ${menuTrigger}
-                              ${forwardedTag}${replyHTML}
+                              ${senderTag}${forwardedTag}${replyHTML}
                               <p class="text-sm leading-relaxed">${escapeHtml(msg.text)}</p>
                               <p class="text-[10px] opacity-70 mt-1 text-left">${timeStr} ✓✓${editedTag}</p>
                           </div>
@@ -7396,7 +7437,7 @@
                     : `<div class="flex justify-start mb-1.5 relative group">
                           <div class="max-w-[78%] glass-element rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm relative" ${touchAttrs}>
                               ${menuTrigger}
-                              ${forwardedTag}${replyHTML}
+                              ${senderTag}${forwardedTag}${replyHTML}
                               <p class="text-sm text-gray-800 leading-relaxed">${escapeHtml(msg.text)}</p>
                               <p class="text-[10px] text-gray-400 mt-1">${timeStr}${editedTag}</p>
                           </div>
@@ -11293,7 +11334,7 @@
                     const yKey = `${catKey}|y:${y}`;
                     const isActive = rlActiveCategory === cat && rlActiveYear === y;
                     return `
-                        <button onclick="rlShowYearCards('${rlJsAttr(cat)}','${rlJsAttr(y)}')"
+                        <button onclick="rlShowYearCards('${rlJsAttr(cat)}','${rlJsAttr(y)}'); closeSidebar();"
                             class="w-full text-right flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-primary/5'}">
                             <span class="flex items-center gap-2 min-w-0">
                                 <i class="ph ph-calendar-blank text-primary/70 flex-shrink-0"></i>
