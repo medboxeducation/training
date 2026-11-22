@@ -29172,7 +29172,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
         }
 
         /* ---- حالة قائمة نتائج التصحيح الورقي لامتحان معين ---- */
-        let _paperResultsList = { programKey: null, courseKey: null, examId: null, exam: null, submissions: [], filterText: '', sortBy: 'name-asc', loaded: false };
+        let _paperResultsList = { programKey: null, courseKey: null, examId: null, exam: null, submissions: [], electronic: [], filterText: '', sortBy: 'name-asc', typeFilter: 'all', loaded: false };
 
         /* ---- نقطة دخول من أزرار قديمة (بطاقات الشريط الجانبي/صفحة الدورة): تفتح لوحة عرض الامتحان
                الرئيسية ثم تُظهر قسم الأوراق المصححة تلقائياً وتُمرِّر الشاشة إليه ---- */
@@ -29200,7 +29200,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             if (!nowHidden) loadPaperResultsInline(programKey, courseKey, examId);
         }
 
-        /* ---- تحميل جميع الأوراق المصححة لامتحان معين وعرضها كبطاقات ضمن لوحة العرض الرئيسية ---- */
+        /* ---- تحميل نتائج الامتحان (الورقية + الإلكترونية) وعرضها كبطاقات ضمن لوحة العرض الرئيسية ---- */
         async function loadPaperResultsInline(programKey, courseKey, examId) {
             // إن كانت النتائج محمَّلة مسبقاً لنفس الامتحان، لا داعي لإعادة الجلب من القاعدة
             if (_paperResultsList.loaded && _paperResultsList.examId === examId) {
@@ -29209,12 +29209,14 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             }
 
             const exam = (typeof getCachedExamById === 'function') ? getCachedExamById(programKey, courseKey, examId) : null;
-            _paperResultsList = { programKey, courseKey, examId, exam, submissions: [], filterText: '', sortBy: 'name-asc', loaded: false };
+            _paperResultsList = { programKey, courseKey, examId, exam, submissions: [], electronic: [], filterText: '', sortBy: 'name-asc', typeFilter: 'all', loaded: false };
 
             const searchInput = document.getElementById('paperResultsSearch');
             const sortSelect  = document.getElementById('paperResultsSort');
+            const typeSelect  = document.getElementById('paperResultsTypeFilter');
             if (searchInput) searchInput.value = '';
             if (sortSelect)  sortSelect.value  = 'name-asc';
+            if (typeSelect)  typeSelect.value  = 'all';
 
             document.getElementById('paperResultsListRows').innerHTML =
                 `<p class="text-xs text-gray-400 italic text-center py-8 col-span-full">جاري تحميل النتائج...</p>`;
@@ -29222,23 +29224,58 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             if (!db) { showToast('❌ لا يوجد اتصال بقاعدة البيانات', 'error'); renderPaperResultsList(); return; }
             if (!examId) { renderPaperResultsList(); return; }
 
+            // 1) التسليمات الورقية (المصحَّحة)
             try {
                 const snap = await db.collection('paperExamSubmissions').where('examId', '==', examId).get();
                 _paperResultsList.submissions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             } catch (e) {
                 console.error('تعذّر تحميل نتائج التصحيح الورقي:', e);
-                showToast('❌ فشل تحميل النتائج', 'error');
+                showToast('❌ فشل تحميل النتائج الورقية', 'error');
                 _paperResultsList.submissions = [];
             }
+
+            // 2) الجلسات الإلكترونية المسلَّمة (تُستثنى الجلسات غير المكتملة in_progress)
+            try {
+                const esnap = await db.collection('examinations').doc(examId).collection('sessions').get();
+                _paperResultsList.electronic = esnap.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .filter(x => x.status === 'submitted');
+            } catch (e) {
+                console.error('تعذّر تحميل نتائج الامتحان الإلكتروني:', e);
+                showToast('❌ فشل تحميل النتائج الإلكترونية', 'error');
+                _paperResultsList.electronic = [];
+            }
+
             _paperResultsList.loaded = true;
             renderPaperResultsList();
         }
 
         /* ---- تطبيق البحث والفرز على قائمة النتائج المحمّلة ---- */
         function filterSortPaperResults() {
-            const { submissions, filterText, sortBy } = _paperResultsList;
-            const needle = (filterText || '').trim().toLowerCase();
-            let list = submissions.filter(s => !needle || (s.traineeName || '').toLowerCase().includes(needle));
+            const { submissions, electronic, filterText, sortBy, typeFilter, exam } = _paperResultsList;
+            const ex = exam || {};
+            const examTotal = ex.totalMark || (ex.questions || []).reduce((a, q) => a + (parseFloat(q.mark) || 0), 0);
+
+            // توحيد سجلات الإلكتروني بنفس أسماء حقول سجلات الورقي (traineeName, earnedMark, totalMark, percentage, createdAt)
+            const elec = (electronic || []).map(e => ({
+                id: e.id, _kind: 'electronic',
+                traineeName: e.traineeName || '', traineeId: e.traineeId || null,
+                earnedMark: e.score ?? 0, totalMark: examTotal,
+                percentage: e.scorePct ?? (examTotal > 0 ? Math.round(((e.score || 0) / examTotal) * 1000) / 10 : 0),
+                createdAt: e.submittedAt || e.gradedAt || null,
+                needsReview: e.autoGraded === false
+            }));
+
+            let all = [];
+            if (typeFilter !== 'electronic') all = all.concat(submissions);
+            if (typeFilter !== 'paper')      all = all.concat(elec);
+
+            const _n = v => String(v || '').toLowerCase()
+                .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+                .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+                .replace(/\s+/g, ' ').trim();
+            const needle = _n(filterText);
+            let list = all.filter(s => !needle || _n(s.traineeName).includes(needle));
 
             list = list.slice().sort((a, b) => {
                 if (sortBy === 'name-asc')  return (a.traineeName || '').localeCompare(b.traineeName || '', 'ar');
@@ -29249,6 +29286,11 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
                 return 0;
             });
             return list;
+        }
+
+        function applyPaperResultsTypeFilter(val) {
+            _paperResultsList.typeFilter = val || 'all';
+            renderPaperResultsList();
         }
 
         function applyPaperResultsSearch(val) {
@@ -29262,16 +29304,17 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
         }
 
         /* ---- عرض قائمة نتائج الطلاب على شكل بطاقات (بعد الفلترة والفرز) ---- */
-        /* كل بطاقة تعرض: اسم الطالب، اسم المقرر، تاريخ الامتحان، النتيجة المستحقة/العلامة الكاملة */
+        /* كل بطاقة تعرض: اسم الطالب (يفتح ملفه)، اسم المقرر، تاريخ الامتحان، نوع الامتحان، العلامة، النسبة، التقدير */
         function renderPaperResultsList() {
             const list = filterSortPaperResults();
             const container = document.getElementById('paperResultsListRows');
             const countEl = document.getElementById('paperResultsCount');
-            if (countEl) countEl.textContent = `${list.length} من أصل ${_paperResultsList.submissions.length} نتيجة`;
+            const totalAll = (_paperResultsList.submissions || []).length + (_paperResultsList.electronic || []).length;
+            if (countEl) countEl.textContent = `${list.length} من أصل ${totalAll} نتيجة`;
             if (!container) return;
 
             if (!list.length) {
-                container.innerHTML = `<p class="text-xs text-gray-400 italic text-center py-8 col-span-full">${_paperResultsList.submissions.length ? 'لا توجد نتائج مطابقة للبحث' : 'لا توجد أوراق مُصحَّحة لهذا الامتحان بعد'}</p>`;
+                container.innerHTML = `<p class="text-xs text-gray-400 italic text-center py-8 col-span-full">${totalAll ? 'لا توجد نتائج مطابقة للبحث أو الفلتر' : 'لا توجد نتائج لهذا الامتحان بعد'}</p>`;
                 return;
             }
 
@@ -29280,16 +29323,18 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             const examDateStr = exam.examDate ? (exam.examDate + (exam.examTime ? ' · ' + exam.examTime : '')) : '—';
 
             container.innerHTML = list.map(s => {
+                const isElec = s._kind === 'electronic';
                 const totalMark = s.totalMark || exam.totalMark || 0;
                 const pct = s.percentage ?? (totalMark > 0 ? Math.round(((s.earnedMark || 0) / totalMark) * 1000) / 10 : 0);
-                const pctClass = pct >= 60 ? 'text-green-600' : (pct >= 50 ? 'text-amber-600' : 'text-red-500');
-                return `
-                <div onclick="openPaperResultViewModal('${s.id}')"
-                    class="glass-element rounded-xl p-3.5 flex flex-col gap-1.5 cursor-pointer hover:border-primary/50 transition-colors" title="عرض التأكيد الثلاثي لهذه الورقة">
-                    <div class="flex items-center justify-between gap-2">
-                        <p class="font-semibold text-sm text-gray-800 truncate flex items-center gap-1.5">
-                            <i class="ph ph-user-circle text-primary"></i> ${s.traineeName || '—'}
-                        </p>
+                const pctClass = pct >= 60 ? 'text-green-600' : 'text-red-500';
+                const grade = getGradeLabel(pct);
+                const typeBadge = isElec
+                    ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-sky-50 text-sky-700 border-sky-200">إلكتروني</span>'
+                    : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">ورقي</span>';
+                const gradeBadge = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${grade.bg} ${grade.color}">${grade.label}</span>`;
+                const onCard = isElec ? `openElectronicResult('${s.id}')` : `openPaperResultViewModal('${s.id}')`;
+                const cardTitle = isElec ? 'عرض نسخة الحل الإلكتروني' : 'عرض التأكيد الثلاثي لهذه الورقة';
+                const actions = isElec ? '' : `
                         <div class="flex items-center gap-1 shrink-0">
                             <button onclick="event.stopPropagation(); printPaperResultReport('${s.id}')" title="طباعة تقرير الطالب"
                                 class="glass-icon-btn w-7 h-7 rounded-full flex items-center justify-center text-primary hover:bg-primary/10">
@@ -29303,13 +29348,64 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
                                 class="glass-icon-btn w-7 h-7 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50">
                                 <i class="ph ph-trash text-xs"></i>
                             </button>
-                        </div>
+                        </div>`;
+                return `
+                <div onclick="${onCard}"
+                    class="glass-element rounded-xl p-3.5 flex flex-col gap-1.5 cursor-pointer hover:border-primary/50 transition-colors" title="${cardTitle}">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="font-semibold text-sm text-gray-800 truncate flex items-center gap-1.5">
+                            <i class="ph ph-user-circle text-primary"></i>
+                            <span onclick="event.stopPropagation(); openResultTraineeProfile('${isElec ? 'electronic' : 'paper'}','${s.id}')"
+                                class="truncate hover:text-primary hover:underline" title="فتح ملف الطالب">${escapeHtml(s.traineeName || '—')}</span>
+                        </p>${actions}
                     </div>
-                    <p class="text-[11px] text-gray-400 flex items-center gap-1 truncate"><i class="ph ph-book-bookmark text-gray-300"></i> ${subjectName}</p>
+                    <p class="text-[11px] text-gray-400 flex items-center gap-1 truncate"><i class="ph ph-book-bookmark text-gray-300"></i> ${escapeHtml(subjectName)}</p>
                     <p class="text-[11px] text-gray-400 flex items-center gap-1"><i class="ph ph-calendar-blank text-gray-300"></i> ${examDateStr}</p>
-                    <p class="text-[11px] text-gray-500 font-semibold mt-0.5">${s.earnedMark ?? 0} / ${totalMark} — <span class="${pctClass}">${pct}%</span></p>
+                    <p class="text-[11px] text-gray-500 font-semibold mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        ${typeBadge}
+                        <span>${s.earnedMark ?? 0} / ${totalMark}</span> — <span class="${pctClass}">${pct}%</span> — ${gradeBadge}
+                        ${s.needsReview ? '<span class="text-[10px] text-amber-600 font-semibold">(يحتاج مراجعة يدوية)</span>' : ''}
+                    </p>
                 </div>`;
             }).join('');
+        }
+
+        /* ---- فتح نسخة الحل الإلكتروني للطالب (نفس نافذة صفحة الامتحانات المنجزة) ---- */
+        function openElectronicResult(sessionId) {
+            const sess = (_paperResultsList.electronic || []).find(x => x.id === sessionId);
+            const exam = _paperResultsList.exam;
+            if (!sess || !exam) { showToast('⚠️ تعذّر إيجاد بيانات الجلسة', 'warning'); return; }
+            if (!sess.submittedAnswers) { showToast('لا توجد إجابات محفوظة لهذه الجلسة', 'info'); return; }
+            _p5CopyCache[exam.id] = { exam, session: sess, traineeNameAr: sess.traineeName || '' };
+            _p5ShowStudentExamCopy(exam.id);
+        }
+
+        /* ---- الانتقال إلى ملف الطالب عند الضغط على اسمه في نتائج الامتحان ---- */
+        async function openResultTraineeProfile(kind, id) {
+            const src = kind === 'electronic' ? (_paperResultsList.electronic || []) : (_paperResultsList.submissions || []);
+            const rec = src.find(x => x.id === id);
+            if (!rec) return;
+            if (registryTrainees.length === 0) { try { await loadTraineesFromFirebase(); } catch (_) {} }
+
+            let trainee = null;
+            if (rec.traineeId) {
+                trainee = registryTrainees.find(t => t.id === rec.traineeId) || registryTrainees.find(t => t.authUid === rec.traineeId) || null;
+            }
+            if (!trainee) {
+                const norm = v => String(v || '').toLowerCase()
+                    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+                    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+                    .replace(/\s+/g, ' ').trim();
+                const n = norm(rec.traineeName);
+                const matches = n ? registryTrainees.filter(t => norm(t.nameAr) === n || norm(t.nameEn) === n) : [];
+                if (matches.length > 1) {
+                    showToast('⚠️ يوجد أكثر من متدرب بنفس الاسم — افتح ملفه من سجل المتدربين', 'warning');
+                    return;
+                }
+                trainee = matches[0] || null;
+            }
+            if (!trainee) { showToast('❌ لم يتم العثور على ملف لهذا الطالب في سجل المتدربين', 'error'); return; }
+            navigateToTraineeProfile(trainee.id);
         }
 
         /* ---- حذف نتيجة ورقة مصحَّحة نهائياً من Firestore ---- */
@@ -29549,7 +29645,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
                 const totalMark = s.totalMark || 0;
                 const pct = s.percentage ?? (totalMark > 0 ? Math.round(((s.earnedMark || 0) / totalMark) * 1000) / 10 : 0);
                 const gradeInfo = (typeof getGradeLabel === 'function') ? getGradeLabel(pct) : null;
-                return `<tr><td>${i + 1}</td><td>${s.traineeName || '—'}</td><td>${s.earnedMark ?? 0}</td><td>${totalMark}</td><td>${pct}%</td><td>${gradeInfo?.label || '—'}</td></tr>`;
+                return `<tr><td>${i + 1}</td><td>${s.traineeName || '—'}</td><td>${s.earnedMark ?? 0}</td><td>${totalMark}</td><td>${pct}%</td><td>${gradeInfo?.label || '—'}</td><td>${s._kind === 'electronic' ? 'إلكتروني' : 'ورقي'}</td></tr>`;
             }).join('');
 
             const avgPct = Math.round((list.reduce((sum, s) => {
@@ -29576,7 +29672,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
 <h2>كشف نتائج — ${typeInfo?.ar || 'امتحان'}</h2>
 <h4>${program?.title || ''} — ${course?.code || courseKey || ''}${exam?.examDate ? ' · ' + exam.examDate : ''} | ${new Date().toLocaleDateString('ar-EG')}</h4>
 <table>
-    <thead><tr><th>#</th><th>اسم الطالب</th><th>العلامة المستحقة</th><th>العلامة الكلية</th><th>النسبة</th><th>التقدير</th></tr></thead>
+    <thead><tr><th>#</th><th>اسم الطالب</th><th>العلامة المستحقة</th><th>العلامة الكلية</th><th>النسبة</th><th>التقدير</th><th>النوع</th></tr></thead>
     <tbody>${rows}</tbody>
 </table>
 <p class="summary">عدد الطلاب: ${list.length} — متوسط النسبة: ${avgPct}%</p>
@@ -33900,7 +33996,7 @@ ${JSON.stringify(payload, null, 0)}
             });
         }
 
-        document.getElementById('examinationViewBody').innerHTML = emsBuildExamDetailsHTML(exam, { pk, ck, canManagePapers: canManageView });
+        document.getElementById('examinationViewBody').innerHTML = emsBuildExamDetailsHTML(exam, { pk, ck, canManagePapers: (canEditBase || canDeleteBase) });
     }
 
     // إظهار/إخفاء قائمة الأسئلة في شاشة عرض تفاصيل الامتحان (مخفية افتراضياً)
@@ -33996,10 +34092,10 @@ ${JSON.stringify(payload, null, 0)}
           <div class="glass-element rounded-xl p-5">
             <div class="flex items-center justify-between mb-4">
               <h3 class="font-bold text-base text-primary flex items-center gap-2">
-                <i class="ph ph-list-bullets"></i> الأسئلة
+                <i class="ph ph-list-bullets"></i> نموذج الأسئلة
               </h3>
               <button id="emsExamQuestionsToggleBtn" onclick="emsToggleExamQuestionsVisibility()"
-                class="w-8 h-8 rounded-lg glass-icon-btn flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="إظهار/إخفاء الأسئلة">
+                class="w-8 h-8 rounded-lg glass-icon-btn flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="إظهار/إخفاء نموذج الأسئلة">
                 <i id="emsExamQuestionsToggleIcon" class="ph ph-caret-down text-sm" style="transition:transform 0.2s ease; transform:rotate(0deg);"></i>
               </button>
             </div>
@@ -34020,22 +34116,28 @@ ${JSON.stringify(payload, null, 0)}
           </div>
 
           ${canManagePapers ? `
-          <!-- قسم الأوراق المصححة -->
+          <!-- قسم نتائج الامتحان (ورقي + إلكتروني) -->
           <div class="glass-element rounded-xl p-5">
             <div class="flex items-center justify-between mb-4">
               <h3 class="font-bold text-base text-primary flex items-center gap-2">
-                <i class="ph ph-list-checks"></i> الأوراق المصححة
+                <i class="ph ph-list-checks"></i> نتائج الامتحان
               </h3>
               <button id="emsPaperResultsToggleBtn" onclick="emsTogglePaperResultsSection('${pk}','${ck}','${exam.id || ''}')"
-                class="w-8 h-8 rounded-lg glass-icon-btn flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="إظهار/إخفاء الأوراق المصححة">
+                class="w-8 h-8 rounded-lg glass-icon-btn flex items-center justify-center text-primary hover:bg-primary/10 transition-colors" title="إظهار/إخفاء نتائج الامتحان">
                 <i id="emsPaperResultsToggleIcon" class="ph ph-caret-down text-sm" style="transition:transform 0.2s ease; transform:rotate(0deg);"></i>
               </button>
             </div>
             <div id="emsPaperResultsSectionBody" class="hidden">
-              <div class="grid grid-cols-2 gap-2 mb-3">
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                 <input id="paperResultsSearch" type="text" placeholder="ابحث باسم الطالب..."
-                    class="w-full glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                    class="w-full glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary col-span-2 sm:col-span-1"
                     oninput="applyPaperResultsSearch(this.value)">
+                <select id="paperResultsTypeFilter" onchange="applyPaperResultsTypeFilter(this.value)"
+                    class="w-full glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary" title="نوع الامتحان">
+                    <option value="all">الكل (ورقي + إلكتروني)</option>
+                    <option value="electronic">إلكتروني</option>
+                    <option value="paper">ورقي</option>
+                </select>
                 <select id="paperResultsSort" onchange="applyPaperResultsSort(this.value)"
                     class="w-full glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary">
                     <option value="name-asc">الاسم (أ-ي)</option>
@@ -34052,7 +34154,7 @@ ${JSON.stringify(payload, null, 0)}
                   </button>
               </div>
               <div id="paperResultsListRows" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <p class="text-xs text-gray-400 italic text-center py-8 col-span-full">اضغط السهم لعرض الأوراق المصححة</p>
+                  <p class="text-xs text-gray-400 italic text-center py-8 col-span-full">اضغط السهم لعرض نتائج الامتحان</p>
               </div>
             </div>
           </div>` : ''}
