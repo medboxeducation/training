@@ -1453,8 +1453,18 @@
                  (شجرة المتدربين وتقييماتهم المحفوظة) يُبنى ديناميكياً بواسطة
                  mevRenderSidebarTree() -->
             <div id="sidebarMeasureEvalList" class="hidden flex-1 flex flex-col overflow-hidden p-3">
-                <div id="sidebarMeasureEvalTree" class="flex-1 overflow-y-auto space-y-1">
-                    <!-- سيتم ملء المحتوى بواسطة mevRenderSidebarTree() -->
+                <div class="flex-1 overflow-y-auto">
+                    <!-- شجرة أدوات التقييم المحفوظة: البرنامج ← المقرر ← اسم أداة التقييم (mevRenderToolsTree) -->
+                    <div id="sidebarMeasureEvalToolsWrap">
+                        <p class="text-[11px] font-bold text-gray-400 px-1 mb-1.5 flex items-center gap-1.5"><i class="ph ph-clipboard-text"></i> أدوات التقييم المحفوظة</p>
+                        <div id="sidebarMeasureEvalToolsTree" class="space-y-1"></div>
+                    </div>
+                    <div id="sidebarMeasureEvalTraineesWrap" class="mt-4 pt-3 border-t border-white/40">
+                        <p class="text-[11px] font-bold text-gray-400 px-1 mb-1.5 flex items-center gap-1.5"><i class="ph ph-users"></i> تقييمات المتدربين</p>
+                        <div id="sidebarMeasureEvalTree" class="space-y-1">
+                            <!-- سيتم ملء المحتوى بواسطة mevRenderSidebarTree() -->
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -3638,6 +3648,17 @@
                          الظاهر حالياً في measureEvalViewBody — تُبنى ديناميكياً
                          حسب الشاشة الفرعية النشطة (انظر mevSetHeaderActions) -->
                     <div id="measureEvalHeaderActions" class="flex items-center gap-1.5 flex-shrink-0"></div>
+                </div>
+                <!-- أزرار تحت عنوان اللوحة (أيقونة + اسم الزر): إنشاء أداة تقييم جديدة ثم البحث عن أداة تقييم -->
+                <div id="measureEvalToolbar" class="flex items-center gap-2 mb-4">
+                    <button onclick="openMeasureEvalChoiceModalStandalone()" title="إنشاء أداة تقييم جديدة"
+                        class="flex-1 sm:flex-none justify-center glass-icon-btn h-9 px-3 rounded-lg text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
+                        <i class="ph ph-plus-circle text-sm"></i> <span>إنشاء أداة تقييم جديدة</span>
+                    </button>
+                    <button onclick="mevOpenToolSearchPage()" title="بحث عن أداة تقييم"
+                        class="flex-1 sm:flex-none justify-center glass-icon-btn h-9 px-3 rounded-lg text-xs font-semibold text-gray-600 flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
+                        <i class="ph ph-magnifying-glass text-sm"></i> <span>بحث</span>
+                    </button>
                 </div>
                 <div id="measureEvalViewBody" class="flex-1">
                     <div class="text-center py-16 text-gray-400">
@@ -15764,6 +15785,8 @@
                 csOpenCreateNewExam();
             } else if (sidebarMode === 'measureEval') {
                 openMeasureEvalChoiceModalStandalone();
+                // في الشاشات الصغيرة فقط: أغلق القائمة الجانبية واعرض لوحة العرض الرئيسية
+                closeSidebarOnMobile();
             } else if (sidebarMode === 'academicCourses') {
                 acOpenNewCourseDesigner();
             } else if (sidebarMode === 'studentPedia') {
@@ -19430,6 +19453,8 @@
             } else if (sidebarMode === 'chat') {
                 const res = document.getElementById('chatSearchResults');
                 if (res) res.classList.add('hidden');
+            } else if (sidebarMode === 'measureEval') {
+                mevSidebarSearch('');
             }
         }
 
@@ -19443,6 +19468,9 @@
             if (sidebarMode === 'chat') {
                 // لا بحث فوري — ينتظر اكتمال الكتابة ثم Enter أو زر البحث
                 return;
+            } else if (sidebarMode === 'measureEval') {
+                // القياس والتقييم: البحث عن أداة تقييم باسمها
+                mevSidebarSearch(q);
             } else {
                 performSearch(q);
             }
@@ -20537,6 +20565,7 @@
             const body = document.getElementById('measureEvalViewBody');
             if (!body) return;
             mevSetHeaderActions('');
+            mevToolbarShow(true);
             body.innerHTML = `
                 <div class="space-y-5 pb-10 animate-[fadeIn_0.3s_ease-in-out]">
 
@@ -20588,7 +20617,35 @@
                     </button>
                   </div>
 
-                  <!-- بطاقة: البحث عن أداة تقييم مخزنة -->
+                </div>`;
+
+            // تهيئة قسم "إنشاء بطاقة جديدة": سطر عنصر واحد فارغ بداية
+            _mevElements = [];
+            addMevElementRowInline();
+
+            // تحميل/عرض البطاقات المخزنة في قسم البحث
+            loadMevTemplatesForInlineSearch();
+        }
+
+        function mevToolbarShow(show) {
+            document.getElementById('measureEvalToolbar')?.classList.toggle('hidden', !show);
+        }
+
+        // زر "بحث" تحت العنوان: يعرض في لوحة العرض الرئيسية قسم البحث عن أداة تقييم مخزنة
+        function mevOpenToolSearchPage() {
+            const body = document.getElementById('measureEvalViewBody');
+            if (!body) return;
+            _mevStandaloneFlow = true;
+            _mevPendingTemplate = null;
+            _mevCurrentTraineeId = null;
+            _mevCurrentTraineeName = '';
+            _mevCurrentTraineeCode = '';
+            _mevSelectedProgramKey = null;
+            _mevSelectedCourseKey = null;
+            mevSetHeaderActions('');
+            mevToolbarShow(true);
+            body.innerHTML = `
+                <div class="space-y-5 pb-10 animate-[fadeIn_0.3s_ease-in-out]">
                   <div class="glass-element rounded-xl p-5">
                     <h3 class="font-bold text-base mb-4 text-primary flex items-center gap-2">
                       <i class="ph ph-magnifying-glass"></i> البحث عن أداة تقييم مخزنة
@@ -20599,15 +20656,9 @@
                       <div class="text-center py-4 text-gray-400"><i class="ph ph-spinner animate-spin"></i></div>
                     </div>
                   </div>
-
                 </div>`;
-
-            // تهيئة قسم "إنشاء بطاقة جديدة": سطر عنصر واحد فارغ بداية
-            _mevElements = [];
-            addMevElementRowInline();
-
-            // تحميل/عرض البطاقات المخزنة في قسم البحث
             loadMevTemplatesForInlineSearch();
+            setTimeout(() => document.getElementById('mevInlineSearchInput')?.focus(), 80);
         }
 
         // ── سطور عناصر المهارة داخل قسم "إنشاء بطاقة جديدة" المدمج بالصفحة ──
@@ -20665,6 +20716,7 @@
                 return;
             }
             _mevTemplates.unshift(template);
+            try { mevRenderToolsTree(); } catch (_) {}
             mevOpenInlineSessionPage(template);
         }
 
@@ -20742,6 +20794,7 @@
             const body = document.getElementById('measureEvalViewBody');
             if (!body) return;
             mevSetHeaderActions('');
+            mevToolbarShow(true);
             body.innerHTML = `
                 <div class="text-center py-16 text-gray-400">
                     <i class="ph ph-ruler text-3xl block mb-2 text-gray-300"></i>
@@ -21226,6 +21279,7 @@
         // الصفحة، ثم قسم أداة التقييم نفسها لإدخال النتائج، ثم زر الحفظ
         // ══════════════════════════════════════════════════════════════════
         function mevOpenInlineSessionPage(template, existingRecord = null) {
+            mevToolbarShow(false);
             _mevSelectedTemplate = template;
             if (!existingRecord) _mevSelectedTrainerName = '';
             const body = document.getElementById('measureEvalViewBody');
@@ -21694,7 +21748,163 @@
                     return;
                 }
             }
+            await mevEnsureTemplatesLoaded();
             mevRenderSidebarTree();
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // شجرة "أدوات التقييم المحفوظة" (بطاقات المهارات) في القائمة الجانبية:
+        // اسم البرنامج ← اسم المقرر ← اسم أداة التقييم. ارتباط الأداة بالبرنامج/المقرر
+        // مستنتج من التقييمات التي نُفِّذت بها (traineeAssessments)، وتُعرض الأداة
+        // تحت كل برنامج/مقرر استُخدمت فيه؛ أما غير المستخدمة بعد فتظهر تحت "غير مرتبطة"
+        // ══════════════════════════════════════════════════════════════════
+        const mevToolsExpanded = new Set();
+        let mevToolsQuery = '';
+
+        async function mevEnsureTemplatesLoaded() {
+            if (_mevTemplatesLoaded || !db) return;
+            try {
+                const snap = await db.collection('skillAssessmentTemplates').get();
+                _mevTemplates = [];
+                snap.forEach(doc => _mevTemplates.push({ id: doc.id, ...doc.data() }));
+                _mevTemplatesLoaded = true;
+            } catch (e) { /* تُعرض الشجرة فارغة عند الفشل */ }
+        }
+
+        function mevToolPlacements() {
+            const NONE = '__none__', NOCOURSE = '__nocourse__';
+            const list = [];
+            (_mevTemplates || []).forEach(t => {
+                const seen = new Set();
+                const places = [];
+                (mevSidebarState.records || []).forEach(r => {
+                    const match = r.templateId ? r.templateId === t.id : (r.skillName && r.skillName === t.skillName);
+                    if (!match) return;
+                    const pk = r.programKey || NONE;
+                    const ck = r.courseKey || (r.programKey ? NOCOURSE : NONE);
+                    const id = pk + '|' + ck;
+                    if (seen.has(id)) return;
+                    seen.add(id);
+                    places.push({
+                        pk, pTitle: r.programKey ? (r.programTitle || 'بدون برنامج') : 'أدوات غير مرتبطة ببرنامج',
+                        ck, cLabel: r.courseKey ? (r.courseCode || r.courseKey) : 'بدون مقرر'
+                    });
+                });
+                if (!places.length) places.push({ pk: NONE, pTitle: 'أدوات غير مرتبطة ببرنامج', ck: NONE, cLabel: 'بدون مقرر' });
+                places.forEach(pl => list.push({ tool: t, ...pl }));
+            });
+            return list;
+        }
+
+        function mevToggleToolsNode(key) {
+            if (mevToolsExpanded.has(key)) mevToolsExpanded.delete(key); else mevToolsExpanded.add(key);
+            mevRenderToolsTree();
+        }
+
+        function mevToolLeafHTML(pl, extraCaption) {
+            return `
+            <button onclick="mevOpenToolFromSidebar('${mevJsAttr(pl.tool.id)}','${mevJsAttr(pl.pk)}','${mevJsAttr(pl.ck)}')"
+                class="w-full text-right flex items-start gap-2 px-3 py-2 rounded-lg text-xs text-gray-600 hover:bg-primary/10 hover:text-primary transition-colors">
+                <i class="ph ph-clipboard-text text-sm flex-shrink-0 mt-0.5 text-gray-400"></i>
+                <span class="flex-1 min-w-0">
+                    <span class="block leading-snug whitespace-normal break-words">${escapeHtml(pl.tool.skillName || '')}</span>
+                    ${extraCaption ? `<span class="block text-[10px] text-gray-400 mt-0.5 truncate">${escapeHtml(extraCaption)}</span>` : ''}
+                </span>
+            </button>`;
+        }
+
+        function mevRenderToolsTree() {
+            const container = document.getElementById('sidebarMeasureEvalToolsTree');
+            if (!container) return;
+            const q = mevToolsQuery.trim().toLowerCase();
+            let placements = mevToolPlacements();
+
+            if (q) {
+                // وضع البحث: قائمة مسطَّحة بالأدوات المطابقة (كل أداة مرة واحدة) مع مسارها
+                const seen = new Set();
+                const hits = placements.filter(pl => (pl.tool.skillName || '').toLowerCase().includes(q) && !seen.has(pl.tool.id) && seen.add(pl.tool.id));
+                container.innerHTML = hits.length
+                    ? hits.map(pl => mevToolLeafHTML(pl, `${pl.pTitle} ← ${pl.cLabel}`)).join('')
+                    : `<div class="text-center py-6 text-gray-400"><i class="ph ph-magnifying-glass text-2xl block mb-1.5 text-gray-300"></i><p class="text-xs">لا توجد أداة تقييم مطابقة</p></div>`;
+                return;
+            }
+
+            if (!placements.length) {
+                container.innerHTML = `<div class="text-center py-6 text-gray-400"><i class="ph ph-clipboard-text text-2xl block mb-1.5 text-gray-300"></i><p class="text-xs">لا توجد أدوات تقييم محفوظة بعد</p></div>`;
+                return;
+            }
+            const byProgram = {};
+            placements.forEach(pl => {
+                byProgram[pl.pk] = byProgram[pl.pk] || { pTitle: pl.pTitle, courses: {} };
+                byProgram[pl.pk].courses[pl.ck] = byProgram[pl.pk].courses[pl.ck] || { cLabel: pl.cLabel, items: [] };
+                byProgram[pl.pk].courses[pl.ck].items.push(pl);
+            });
+            const pKeys = Object.keys(byProgram).sort((a, b) => {
+                if (a === '__none__') return 1; if (b === '__none__') return -1;
+                return byProgram[a].pTitle.localeCompare(byProgram[b].pTitle, 'ar');
+            });
+            container.innerHTML = pKeys.map(pk => {
+                const pg = byProgram[pk];
+                const pNode = `tp:${pk}`;
+                const pOpen = mevToolsExpanded.has(pNode);
+                const total = Object.values(pg.courses).reduce((n, c) => n + c.items.length, 0);
+                const cKeys = Object.keys(pg.courses).sort((a, b) => pg.courses[a].cLabel.localeCompare(pg.courses[b].cLabel, 'ar'));
+                const coursesHTML = cKeys.map(ck => {
+                    const cd = pg.courses[ck];
+                    const cNode = `${pNode}|c:${ck}`;
+                    const cOpen = mevToolsExpanded.has(cNode);
+                    const items = cd.items.slice().sort((a, b) => (a.tool.skillName || '').localeCompare(b.tool.skillName || '', 'ar'));
+                    return `
+                    <div class="mb-1">
+                        <button onclick="mevToggleToolsNode('${mevJsAttr(cNode)}')"
+                            class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-primary/5 transition-colors">
+                            <span class="flex items-center gap-2 min-w-0"><i class="ph ph-graduation-cap text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(cd.cLabel)}</span></span>
+                            <span class="flex items-center gap-1.5 flex-shrink-0">
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${items.length}</span>
+                                <i class="ph ph-caret-down text-[10px] text-gray-400 transition-transform" style="transform: rotate(${cOpen ? '180' : '0'}deg)"></i>
+                            </span>
+                        </button>
+                        ${cOpen ? `<div class="pr-3 pl-1 space-y-0.5 mb-1">${items.map(pl => mevToolLeafHTML(pl)).join('')}</div>` : ''}
+                    </div>`;
+                }).join('');
+                return `
+                <div class="mb-1">
+                    <button onclick="mevToggleToolsNode('${mevJsAttr(pNode)}')"
+                        class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-primary/5 transition-colors">
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-books text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(pg.pTitle)}</span></span>
+                        <span class="flex items-center gap-1.5 flex-shrink-0">
+                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${total}</span>
+                            <i class="ph ph-caret-down text-xs text-gray-400 transition-transform" style="transform: rotate(${pOpen ? '180' : '0'}deg)"></i>
+                        </span>
+                    </button>
+                    ${pOpen ? `<div class="pr-3 pl-1 mb-1">${coursesHTML}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        // البحث في القائمة الجانبية (وضع القياس والتقييم): عن أداة تقييم باسمها —
+        // أثناء البحث تُخفى شجرة تقييمات المتدربين وتظهر نتائج الأدوات فقط
+        function mevSidebarSearch(q) {
+            mevToolsQuery = q || '';
+            document.getElementById('sidebarMeasureEvalTraineesWrap')?.classList.toggle('hidden', !!mevToolsQuery.trim());
+            mevRenderToolsTree();
+        }
+
+        // اختيار أداة من الشجرة: تُعرض على لوحة العرض الرئيسية (صفحة الجلسة) مع تعبئة
+        // البرنامج/المقرر المرتبطين بها، وتُغلق القائمة الجانبية في الشاشات الصغيرة فقط
+        function mevOpenToolFromSidebar(toolId, pk, ck) {
+            const t = (_mevTemplates || []).find(x => x.id === toolId);
+            if (!t) return;
+            _mevStandaloneFlow = true;
+            _mevPendingTemplate = null;
+            _mevCurrentTraineeId = null;
+            _mevCurrentTraineeName = '';
+            _mevCurrentTraineeCode = '';
+            _mevEditRecordId = null;
+            _mevSelectedProgramKey = (pk && !pk.startsWith('__')) ? pk : null;
+            _mevSelectedCourseKey = (ck && !ck.startsWith('__')) ? ck : null;
+            mevOpenInlineSessionPage(t);
+            closeSidebarOnMobile();
         }
 
         // فتح/طي عقدة في الشجرة (برنامج، سنة، فصل، دورة، أو طالب) — مفتاح
@@ -21747,6 +21957,7 @@
         }
 
         function mevRenderSidebarTree() {
+            mevRenderToolsTree();
             const container = document.getElementById('sidebarMeasureEvalTree');
             if (!container) return;
 
@@ -21923,6 +22134,7 @@
             const r = records.find(x => x.id === recordId);
             const body = document.getElementById('measureEvalViewBody');
             if (!r || !body) return;
+            mevToolbarShow(false);
             _mevDetailCurrentId = recordId;
             _mevDetailCurrentTraineeId = traineeId;
 
