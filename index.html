@@ -893,6 +893,46 @@
         100% { box-shadow: 0 0 0 0 rgba(7,144,172,0); }
     }
     .ac-att-flash { animation: acAttFlash 0.8s ease-out 2; border-color: rgba(7,144,172,0.6) !important; }
+
+    /* ═══════════ التول بار المتقلّص عند التمرير — المرحلة 1 (شاشات < 1024px) ═══════════ */
+    @media (max-width: 1023.98px) {
+        #navTitleWrap {
+            overflow: hidden; white-space: nowrap;
+            transition: max-width .45s cubic-bezier(.4,0,.2,1), opacity .35s ease, margin .45s cubic-bezier(.4,0,.2,1);
+        }
+        #mainToolbar.nav-compact #navTitleWrap {
+            max-width: 0 !important; opacity: 0; margin-inline-start: -0.75rem; pointer-events: none;
+        }
+        #navActionsRow {
+            transition: max-height .45s cubic-bezier(.4,0,.2,1), opacity .35s ease, margin .45s cubic-bezier(.4,0,.2,1);
+        }
+        #mainToolbar.nav-compact #navActionsRow {
+            max-height: 0 !important; opacity: 0; overflow: hidden; margin-top: -0.5rem; pointer-events: none;
+        }
+        #mainToolbar.nav-measuring, #mainToolbar.nav-measuring * { transition: none !important; }
+        #navUserNameBtn {
+            transition: width .45s cubic-bezier(.4,0,.2,1), height .45s cubic-bezier(.4,0,.2,1),
+                        padding .45s cubic-bezier(.4,0,.2,1), background .3s ease, box-shadow .3s ease;
+        }
+        #navUserNameBtn .nav-user-inner {
+            display: flex; align-items: center; gap: .375rem; overflow: hidden;
+            border-radius: inherit; width: 100%; height: 100%; justify-content: center; white-space: nowrap;
+        }
+        #navUserNameBtn .nav-user-text,
+        #navUserNameBtn .nav-user-icon,
+        #navUserNameBtn .nav-user-caret { transition: opacity .3s ease; }
+        #navUserNameBtn .nav-user-initials {
+            display: none; opacity: 0; font-weight: 800; font-size: 13px; line-height: 1;
+            color: #0790AC; letter-spacing: 0; transition: opacity .3s ease .15s;
+        }
+        #mainToolbar.nav-compact #navUserNameBtn { padding-left: 0 !important; padding-right: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+        #mainToolbar.nav-compact #navUserNameBtn .nav-user-text,
+        #mainToolbar.nav-compact #navUserNameBtn .nav-user-icon,
+        #mainToolbar.nav-compact #navUserNameBtn .nav-user-caret { opacity: 0; position: absolute; pointer-events: none; }
+        #mainToolbar.nav-compact #navUserNameBtn .nav-user-initials { display: inline; opacity: 1; }
+        #mainToolbar.nav-compact #navUserNameBtn #navConnectionLabel { opacity: 0; pointer-events: none; }
+        #navUserNameBtn #navConnectionLabel { transition: opacity .25s ease; }
+    }
     </style>
 </head>
 <body class="guest-mode text-gray-800 overflow-hidden flex flex-col">
@@ -980,7 +1020,7 @@
                 <i class="ph ph-calculator text-lg md:text-xl"></i>
             </button>
             <!-- زر الهوم -->
-            <button onclick="showDashboard()" class="glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-primary border-primary/30 bg-primary/10" title="الرئيسية">
+            <span id="navHomePlaceholder" class="hidden"></span><button id="navHomeBtn" onclick="showDashboard()" class="glass-icon-btn w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-primary border-primary/30 bg-primary/10" title="الرئيسية">
                 <i class="ph ph-house text-lg md:text-xl"></i>
             </button>
 
@@ -1208,13 +1248,16 @@
                         <span id="navConnectionLabel" dir="ltr" title="حالة الاتصال بالإنترنت"
                             class="absolute font-bold leading-none rounded"
                             style="top:-7px; left:14px; font-size:8px; padding:1px 5px; background:rgba(255,255,255,0.95); color:#9ca3af;">—</span>
-                        <div class="flex flex-col items-end leading-tight">
+                        <span class="nav-user-inner">
+                        <div class="nav-user-text flex flex-col items-end leading-tight">
                             <span id="navUserName" class="max-w-[100px] md:max-w-[120px] truncate">—</span>
                             <span id="navUserRole" class="text-[9px] md:text-[10px] font-normal text-gray-400 leading-none"></span>
                             <span id="navConnectionPending" class="text-[8px] font-normal leading-none text-amber-500"></span>
                         </div>
-                        <i class="ph ph-user-circle text-primary text-base md:text-lg"></i>
-                        <i class="ph ph-caret-down text-[10px] text-gray-400 hidden md:inline"></i>
+                        <span id="navUserInitials" class="nav-user-initials" aria-hidden="true"></span>
+                        <i class="nav-user-icon ph ph-user-circle text-primary text-base md:text-lg"></i>
+                        <i class="nav-user-caret ph ph-caret-down text-[10px] text-gray-400 hidden md:inline"></i>
+                        </span>
                     </button>
 
                     <!-- ====== نافذة بيانات الحساب (إيميل + تسجيل الخروج) ====== -->
@@ -5622,6 +5665,7 @@
             navUserBtn.classList.add('flex');
             document.getElementById('navUserName').textContent =
                 currentUser.displayName || currentUser.email || 'مستخدم';
+            if (typeof _updateNavUserInitials === 'function') _updateNavUserInitials();
             // صفة الحساب (مدرب / مدير / متدرب) تحت اسم المستخدم
             const navUserRoleEl = document.getElementById('navUserRole');
             if (navUserRoleEl) {
@@ -5716,6 +5760,8 @@
             if (accountInfoEmail) accountInfoEmail.textContent = '—';
             const navUserRoleElOut = document.getElementById('navUserRole');
             if (navUserRoleElOut) navUserRoleElOut.textContent = '';
+            if (typeof _updateNavUserInitials === 'function') _updateNavUserInitials();
+            if (typeof _setNavCompact === 'function') _setNavCompact(false, true);
             // تفريغ حقول تسجيل الدخول
             const emailEl    = document.getElementById('loginEmail');
             const passEl     = document.getElementById('loginPassword');
@@ -5803,6 +5849,193 @@
                 _restoreAnchoredDropdown('accountInfoDropdown');
             }, { once: true });
         }
+
+
+        // ======== التول بار المتقلّص عند التمرير للأعلى — المرحلة 1 ========
+        // (1) زر الحساب يتحوّل إلى دائرة بأول حرف من الاسم والكنية (انكماش سلس من اليمين إلى اليسار)
+        // (2) اسم البرنامج يختفي بشكل سلس من اليسار إلى اليمين
+        // يعمل في الشاشات < 1024px فقط (حيث التول بار بثلاثة أسطر).
+        let _navCompact = false;
+        let _navLastToggle = 0;
+
+        function _updateNavUserInitials() {
+            const el = document.getElementById('navUserInitials');
+            const nameEl = document.getElementById('navUserName');
+            if (!el || !nameEl) return;
+            const name = (nameEl.textContent || '').trim();
+            if (!name || name === '—') { el.textContent = ''; return; }
+            const base = name.includes('@') ? name.split('@')[0] : name;
+            const parts = base.split(/[\s._-]+/).filter(Boolean);
+            const first = Array.from(parts[0] || '')[0] || '';
+            const last  = parts.length > 1 ? (Array.from(parts[parts.length - 1])[0] || '') : '';
+            el.textContent = (first + last).toUpperCase();
+        }
+
+        function _navBtnSize() {
+            return window.innerWidth >= 768 ? 40 : 36; // نفس مقاس أزرار الأيقونات (w-9 / md:w-10)
+        }
+
+        // ======== المرحلة 2: إخفاء السطر الثاني للأعلى + نقل زر الهوم بجانب الحساب ========
+        let _navDoneTimer = null, _navGhost = null, _navLastScroller = null;
+        const _NAV_MS = 450;
+
+        // يضع زر الهوم في مجموعة الحساب (السطر الأول) أو يعيده إلى مكانه الأصلي في السطر الثاني
+        function _navHomeMove(toSlot) {
+            const home = document.getElementById('navHomeBtn');
+            const slot = document.getElementById('navAuthSlot');
+            const ph   = document.getElementById('navHomePlaceholder');
+            if (!home || !slot || !ph) return;
+            if (toSlot) { if (home.parentElement !== slot) slot.insertBefore(home, slot.firstChild); }
+            else if (home.parentElement !== ph.parentElement) ph.after(home);
+        }
+
+        // قياس الحالة النهائية (بدون حركة) ثم الرجوع للحالة الحالية دون أي وميض
+        function _navMeasure(targetCompact) {
+            const nav = document.getElementById('mainToolbar');
+            const btn = document.getElementById('navUserNameBtn');
+            const title = document.getElementById('navTitleWrap');
+            const row = document.getElementById('navActionsRow');
+            const home = document.getElementById('navHomeBtn');
+            const slot = document.getElementById('navAuthSlot');
+            const prevClass = nav.classList.contains('nav-compact');
+            const prevW = btn ? btn.style.width : '', prevH = btn ? btn.style.height : '';
+            const prevInSlot = home.parentElement === slot;
+            nav.classList.add('nav-measuring');
+            nav.classList.toggle('nav-compact', targetCompact);
+            if (btn) {
+                if (targetCompact) { const s = _navBtnSize(); btn.style.width = s + 'px'; btn.style.height = s + 'px'; }
+                else { btn.style.width = ''; btn.style.height = ''; }
+            }
+            _navHomeMove(targetCompact);
+            const m = {
+                rect: home.getBoundingClientRect(),
+                btnW: btn ? btn.offsetWidth : 0, btnH: btn ? btn.offsetHeight : 0,
+                rowH: row ? row.offsetHeight : 0, titleW: title ? title.scrollWidth : 0
+            };
+            nav.classList.toggle('nav-compact', prevClass);
+            if (btn) { btn.style.width = prevW; btn.style.height = prevH; }
+            _navHomeMove(prevInSlot);
+            void nav.offsetWidth;
+            nav.classList.remove('nav-measuring');
+            return m;
+        }
+
+        // نسخة طائرة من زر الهوم تنتقل من مكانه الحالي إلى مكانه الجديد
+        function _navFlyGhost(home, first, last) {
+            const g = home.cloneNode(true);
+            g.removeAttribute('id'); g.removeAttribute('onclick'); g.setAttribute('aria-hidden', 'true'); g.tabIndex = -1;
+            Object.assign(g.style, {
+                position: 'fixed', left: first.left + 'px', top: first.top + 'px',
+                width: first.width + 'px', height: first.height + 'px', margin: '0',
+                zIndex: '9999', pointerEvents: 'none', transition: 'none', transform: 'none', visibility: 'visible'
+            });
+            document.body.appendChild(g);
+            void g.offsetWidth;
+            g.style.transition = 'transform ' + _NAV_MS + 'ms cubic-bezier(.4,0,.2,1)';
+            g.style.transform = 'translate(' + (last.left - first.left) + 'px,' + (last.top - first.top) + 'px)';
+            return g;
+        }
+
+        function _setNavCompact(compact, instant) {
+            const nav   = document.getElementById('mainToolbar');
+            const btn   = document.getElementById('navUserNameBtn');
+            const title = document.getElementById('navTitleWrap');
+            const row   = document.getElementById('navActionsRow');
+            const home  = document.getElementById('navHomeBtn');
+            if (!nav || !home) return;
+            if (compact && window.innerWidth >= 1024) compact = false;
+            if (_navCompact === compact && !instant) return;
+            _navCompact = compact;
+            _navLastToggle = Date.now();
+            clearTimeout(_navDoneTimer);
+            if (_navGhost) { _navGhost.remove(); _navGhost = null; }
+            home.style.visibility = '';
+
+            // ── رجوع فوري بدون حركة (تغيير حجم الشاشة / تسجيل الخروج) ──
+            if (instant) {
+                nav.classList.add('nav-measuring');
+                nav.classList.toggle('nav-compact', compact);
+                if (title) title.style.maxWidth = '';
+                if (btn) { btn.style.width = ''; btn.style.height = ''; }
+                if (row) { row.style.maxHeight = ''; row.style.overflow = ''; }
+                if (!compact) _navHomeMove(false);
+                void nav.offsetWidth;
+                nav.classList.remove('nav-measuring');
+                return;
+            }
+
+            const btnVisible = !!(btn && btn.offsetParent !== null);
+            const first = home.getBoundingClientRect();
+            const m = _navMeasure(compact);
+
+            // الهوم يطير بنسخة مؤقتة، والزر الحقيقي مخفي حتى الوصول
+            _navGhost = _navFlyGhost(home, first, m.rect);
+            home.style.visibility = 'hidden';
+            if (!compact) _navHomeMove(false);
+
+            // قيم البداية
+            if (compact) {
+                if (title) title.style.maxWidth = m.titleW + 'px';
+                if (btnVisible) { btn.style.width = btn.offsetWidth + 'px'; btn.style.height = btn.offsetHeight + 'px'; }
+                if (row) { row.style.maxHeight = row.offsetHeight + 'px'; row.style.overflow = 'hidden'; }
+            } else {
+                if (title) title.style.maxWidth = '0px';
+                if (row) { row.style.maxHeight = '0px'; row.style.overflow = 'hidden'; }
+            }
+            void nav.offsetWidth;
+            nav.classList.toggle('nav-compact', compact);
+            void nav.offsetWidth;
+
+            // قيم النهاية
+            if (compact) {
+                if (btnVisible) { const s = _navBtnSize(); btn.style.width = s + 'px'; btn.style.height = s + 'px'; }
+            } else {
+                if (title) title.style.maxWidth = m.titleW + 'px';
+                if (row) row.style.maxHeight = m.rowH + 'px';
+                if (btnVisible) { btn.style.width = m.btnW + 'px'; btn.style.height = m.btnH + 'px'; }
+            }
+
+            _navDoneTimer = setTimeout(function () {
+                if (compact) {
+                    _navHomeMove(true);
+                } else {
+                    if (title) title.style.maxWidth = '';
+                    if (row) { row.style.maxHeight = ''; row.style.overflow = ''; }
+                    if (btn) { btn.style.width = ''; btn.style.height = ''; }
+                }
+                home.style.visibility = '';
+                if (_navGhost) { _navGhost.remove(); _navGhost = null; }
+                // حالة خاصة: إن لم يعد المحتوى قابلاً للتمرير بعد التقلّص نعيد التول بار
+                if (compact && _navLastScroller && _navLastScroller.isConnected && _navLastScroller.scrollTop <= 4) _setNavCompact(false);
+            }, _NAV_MS + 40);
+        }
+
+        (function _initNavCompactOnScroll() {
+            const lastTop = new WeakMap();
+            const IGNORE = '#chatMessagesArea, #liveChatMessagesList';
+            document.addEventListener('scroll', function (e) {
+                const t = e.target;
+                if (!(t instanceof Element)) return;
+                if (window.innerWidth >= 1024) { if (_navCompact) _setNavCompact(false, true); return; }
+                const area = document.getElementById('mainContentArea');
+                if (!area || !area.contains(t) && t !== area) return;
+                if (t.matches(IGNORE) || t.closest(IGNORE)) return;
+                const top = t.scrollTop;
+                const prev = lastTop.has(t) ? lastTop.get(t) : top;
+                lastTop.set(t, top);
+                _navLastScroller = t;
+                if (Date.now() - _navLastToggle < 560) return;   // تجاهل ارتدادات التخطيط أثناء الحركة
+                const delta = top - prev;
+                if (top <= 4) { if (_navCompact) _setNavCompact(false); }
+                else if (delta > 10 && !_navCompact) _setNavCompact(true);   // تمرير للأعلى (سحب الإصبع للأعلى)
+                else if (delta < -10 && _navCompact) _setNavCompact(false);  // رجوع للأسفل
+            }, true);
+
+            window.addEventListener('resize', function () {
+                if (window.innerWidth >= 1024 && _navCompact) _setNavCompact(false, true);
+            });
+            document.addEventListener('DOMContentLoaded', _updateNavUserInitials);
+        })();
 
         // ======== نقل مجموعة (تسجيل الدخول / اسم المستخدم) إلى السطر الأول في الشاشات الصغيرة ========
         // في الشاشات الكبيرة (lg+) تبقى ضمن صف الأزرار كالمعتاد. في الشاشات الصغيرة تُنقل
