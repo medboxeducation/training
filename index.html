@@ -3481,14 +3481,14 @@
                          الشاشات المتوسطة والكبيرة، وأيقونة فقط في الشاشات
                          الصغيرة (نفس أسلوب أزرار التعديل/الحذف في هيدر عرض
                          الامتحان) -->
-                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="flex items-center gap-2">
                         <button onclick="esCreateNewExam()" title="إنشاء امتحان جديد"
-                          class="flex-1 sm:flex-none justify-center glass-icon-btn px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
-                          <i class="ph ph-file-plus text-base"></i> <span>إنشاء امتحان جديد</span>
+                          class="glass-icon-btn px-2.5 sm:px-4 py-2.5 rounded-xl text-sm font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
+                          <i class="ph ph-file-plus text-base"></i> <span class="hidden sm:inline">إنشاء امتحان جديد</span>
                         </button>
                         <button onclick="esCreateNewMeasureEval()" title="إنشاء قياس وتقييم جديد"
-                          class="flex-1 sm:flex-none justify-center glass-icon-btn px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold text-teal-700 flex items-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors">
-                          <i class="ph ph-ruler text-base"></i> <span>إنشاء قياس وتقييم جديد</span>
+                          class="glass-icon-btn px-2.5 sm:px-4 py-2.5 rounded-xl text-sm font-semibold text-teal-700 flex items-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors">
+                          <i class="ph ph-ruler text-base"></i> <span class="hidden sm:inline">إنشاء قياس وتقييم جديد</span>
                         </button>
                     </div>
                 </div>
@@ -3549,7 +3549,7 @@
             <!-- ط. نظام الامتحانات (EMS View) -->
             <div id="examinationView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
                 <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 mb-5 pb-4 border-b border-white/40">
-                    <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
+                    <div id="examinationViewIconTile" class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
                         <i class="ph ph-exam"></i>
                     </div>
                     <div class="min-w-0 flex-1">
@@ -16957,6 +16957,7 @@
             const course  = (program?.courses || []).find(c => c.key === courseKey);
 
             showView('examinationView');
+            document.getElementById('examinationViewIconTile')?.classList.remove('hidden');
             document.getElementById('examinationViewTitle').textContent = 'امتحانات الدورة';
             document.getElementById('examinationViewSubtitle').textContent =
                 `${program?.title || ''} · ${course?.code || courseKey}`;
@@ -24372,8 +24373,8 @@
             if (!exam?.id || !effPk) return;
             new QRCode(headerQREl, {
                 text: getExamProfileURL(effPk, effCk, exam.id),
-                width: 32,
-                height: 32,
+                width: 40,
+                height: 40,
                 colorDark: '#0790AC',
                 colorLight: '#ffffff',
                 correctLevel: QRCode.CorrectLevel.M
@@ -32746,6 +32747,7 @@ ${JSON.stringify(payload, null, 0)}
             : [];
 
         showView('examinationView');
+        document.getElementById('examinationViewIconTile')?.classList.remove('hidden');
         document.getElementById('examinationViewTitle').textContent = existingExam ? 'تعديل الامتحان' : 'تصميم امتحان جديد';
         document.getElementById('examinationViewSubtitle').textContent = course
             ? `${program.title} · ${course.code || ck}`
@@ -34116,6 +34118,7 @@ ${JSON.stringify(payload, null, 0)}
         const deleteBtnId = `examViewerDeleteBtn_${exam.id || ''}`;
 
         showView('examinationView');
+        document.getElementById('examinationViewIconTile')?.classList.add('hidden');
         // اسم الامتحان في الهيدر مسبوقاً برمز QR مصغّر (يفتح مودال QR الكامل
         // عند الضغط عليه) — يتيح الوصول السريع لبيانات الامتحان بمسح الرمز.
         // يظهر رمز QR طالما توفّر معرّف امتحان محفوظ + برنامج (الدورة لم
@@ -34133,7 +34136,7 @@ ${JSON.stringify(payload, null, 0)}
             <span class="inline-flex items-center gap-2 align-middle">
                 ${showExamHeaderQR ? `
                 <span id="examHeaderQR_${exam.id}"
-                    class="w-8 h-8 rounded-lg glass-element flex items-center justify-center overflow-hidden cursor-pointer hover:shadow-md transition-shadow shrink-0"
+                    class="w-11 h-11 rounded-lg glass-element flex items-center justify-center overflow-hidden cursor-pointer hover:shadow-md transition-shadow shrink-0"
                     title="عرض رمز QR الخاص بالامتحان" onclick="openExamQRModal('${examQRProgramKey}','${qbCk}','${exam.id}')"></span>` : ''}
                 <span>${escapeHtml(examDisplayName)}</span>
             </span>`;
