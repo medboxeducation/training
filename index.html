@@ -4433,13 +4433,13 @@
         <div class="glass-panel bg-white/90 w-full max-w-sm rounded-2xl p-6 shadow-2xl" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between mb-5 pb-4 border-b border-white/40">
                 <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <i class="ph ph-user-plus text-primary"></i> إضافة متدرب للدورة
+                    <i class="ph ph-user-plus text-primary"></i> <span id="traineeAddChoiceTitle">إضافة متدرب للدورة</span>
                 </h2>
                 <button class="glass-icon-btn w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 hover:border-red-200" onclick="closeTraineeAddChoiceModal()">
                     <i class="ph ph-x text-lg"></i>
                 </button>
             </div>
-            <p class="text-xs text-gray-500 mb-4">اختر طريقة إضافة المتدرب إلى هذه الدورة</p>
+            <p id="traineeAddChoiceDesc" class="text-xs text-gray-500 mb-4">اختر طريقة إضافة المتدرب إلى هذه الدورة</p>
             <div class="space-y-3">
                 <button onclick="chooseSearchTrainee()" class="w-full glass-panel hover:border-primary hover:bg-primary/5 rounded-xl p-4 flex items-center gap-3 text-right transition-colors">
                     <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
@@ -18557,8 +18557,13 @@
         // ======== 1.4.1 اختيار طريقة إضافة متدرب للدورة (بحث / جديد) ========
         let traineeAddChoiceContext = null; // { programKey, courseKey }
 
-        function openTraineeAddChoiceModal(programKey, courseKey) {
-            traineeAddChoiceContext = { programKey, courseKey };
+        function openTraineeAddChoiceModal(programKey, courseKey, extra) {
+            traineeAddChoiceContext = Object.assign({ programKey, courseKey }, extra || {});
+            const pcMode = !!(extra && extra.pc);
+            const t = document.getElementById('traineeAddChoiceTitle');
+            const d = document.getElementById('traineeAddChoiceDesc');
+            if (t) t.textContent = pcMode ? 'اختيار الطالب' : 'إضافة متدرب للدورة';
+            if (d) d.textContent = pcMode ? 'ابحث عن طالب موجود في السجل أو أضف طالباً جديداً' : 'اختر طريقة إضافة المتدرب إلى هذه الدورة';
             document.getElementById('traineeAddChoiceModal')?.classList.remove('hidden');
         }
 
@@ -18572,6 +18577,7 @@
             const ctx = traineeAddChoiceContext;
             closeTraineeAddChoiceModal();
             if (!ctx) return;
+            if (ctx.pc && !hasPermission('addTrainee')) { permissionDenied('إضافة متدرب'); return; }
             openNewTraineeModal(null, ctx);
         }
 
@@ -18769,7 +18775,8 @@
             const ctx = traineeSearchModalContext;
             const program = ctx ? programsData[ctx.programKey] : null;
             const course = program && program.courses ? program.courses.find(c => c.key === ctx.courseKey) : null;
-            const existingNames = (course && course.traineesList ? course.traineesList : []);
+            const pcMode = !!(ctx && ctx.pc);
+            const existingNames = pcMode ? [] : (course && course.traineesList ? course.traineesList : []);
 
             let filtered = registryTrainees;
             if (q) {
@@ -18805,7 +18812,7 @@
                     ${added
                         ? `<span class="text-[11px] text-emerald-600 font-semibold flex items-center gap-1 shrink-0"><i class="ph ph-check-circle"></i> مضاف</span>`
                         : `<button onclick="selectTraineeFromSearch('${t.id}')" class="text-xs bg-primary text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-primary/90 transition-colors shrink-0">
-                                <i class="ph ph-plus"></i> إضافة
+                                <i class="ph ${pcMode ? 'ph-check' : 'ph-plus'}"></i> ${pcMode ? 'اختيار' : 'إضافة'}
                            </button>`}
                 </div>`;
             }).join('');
@@ -18814,6 +18821,12 @@
         function selectTraineeFromSearch(traineeId) {
             const trainee = registryTrainees.find(t => t.id === traineeId);
             if (!trainee || !traineeSearchModalContext) return;
+            if (traineeSearchModalContext.pc) {
+                const sid = traineeSearchModalContext.pcStudentId;
+                closeTraineeSearchModal();
+                pcApplyTraineeNameToStudent(sid, trainee);
+                return;
+            }
             addRegistryTraineeToCourse(traineeSearchModalContext.programKey, traineeSearchModalContext.courseKey, trainee);
             renderTraineeSearchResults();
         }
@@ -22973,6 +22986,9 @@
                     // تمت الإضافة من تدفق "القياس والتقييم" المستقل (بطاقة لوحة
                     // نظام الامتحانات) — حدِّد المتدرب الجديد كهدف للتقييم فوراً
                     mevTraineeCreatedStandalone(newTrainee);
+                } else if (courseCtx && courseCtx.pc) {
+                    // تمت الإضافة من التصحيح الورقي: ضع اسم المتدرب الجديد في خانة اسم الطالب
+                    pcApplyTraineeNameToStudent(courseCtx.pcStudentId, newTrainee);
                 } else if (courseCtx) {
                     // تمت الإضافة من سياق دورة: اربط المتدرب الجديد بالدورة مباشرة بدل فتح سجل المتدربين
                     addRegistryTraineeToCourse(courseCtx.programKey, courseCtx.courseKey, newTrainee);
@@ -24892,8 +24908,8 @@
         // ══════════════════════════════════════════════════════════════════
 
         let pcBrowseTreeState = {
-            tree: null, // { year: { semester: { courseName: [examDoc, ...] } } }
-            expandedYear: null, expandedSemester: null, expandedCourse: null,
+            tree: null, // { programKey: { title, years: { year: { semester: { courseName: [examDoc, ...] } } } } }
+            expandedProgram: null, expandedYear: null, expandedSemester: null, expandedCourse: null,
         };
 
         // ---- يبني شجرة الامتحانات الورقية "المحفوظة فعلياً" (لديها نتائج طلاب على
@@ -24925,10 +24941,14 @@
                 const year = (d.academicYear || '').trim() || 'غير محدد';
                 const sem  = (d.semester || '').trim() || 'غير محدد';
                 const courseName = (d.subjectName || d.courseCode || course?.code || course?.title || '').trim() || 'غير محدد';
-                tree[year] = tree[year] || {};
-                tree[year][sem] = tree[year][sem] || {};
-                tree[year][sem][courseName] = tree[year][sem][courseName] || [];
-                tree[year][sem][courseName].push({ id: doc.id, ...d, courseKey });
+                // الشجرة: البرنامج ← السنة الدراسية ← الفصل الدراسي ← المقرر ← الامتحان (تاريخ + وقت)
+                const pKey = d.programKey;
+                tree[pKey] = tree[pKey] || { title: program.title || pKey, years: {} };
+                const yrs = tree[pKey].years;
+                yrs[year] = yrs[year] || {};
+                yrs[year][sem] = yrs[year][sem] || {};
+                yrs[year][sem][courseName] = yrs[year][sem][courseName] || [];
+                yrs[year][sem][courseName].push({ id: doc.id, ...d, courseKey });
             }
             return tree;
         }
@@ -24984,13 +25004,14 @@
             }
         }
 
-        // ---- رسم الشجرة كاملة (المستوى الأول: السنة الدراسية) ----
+        // ---- رسم الشجرة كاملة (المستوى الأول: اسم البرنامج) ----
+        function pcBrowseJs(v) { return escapeHtml(v).replace(/'/g, "\\'"); }
         function pcRenderBrowseTree() {
             const wrap = document.getElementById('sidebarPaperCorrectionBrowseTree');
             if (!wrap) return;
             const st = pcBrowseTreeState;
-            const years = st.tree ? Object.keys(st.tree).sort((a, b) => b.localeCompare(a, 'ar')) : [];
-            if (!years.length) {
+            const progKeys = st.tree ? Object.keys(st.tree).sort((a, b) => (st.tree[a].title || '').localeCompare(st.tree[b].title || '', 'ar')) : [];
+            if (!progKeys.length) {
                 wrap.innerHTML = `
                     <div class="text-center py-10 text-gray-400">
                         <i class="ph ph-archive text-2xl block mb-2 text-gray-300"></i>
@@ -24998,65 +25019,83 @@
                     </div>`;
                 return;
             }
-            wrap.innerHTML = years.map(y => {
-                const isOpen = st.expandedYear === y;
+            wrap.innerHTML = progKeys.map(pk => {
+                const isOpen = st.expandedProgram === pk;
                 return `
                 <div class="glass-panel rounded-xl mb-2 overflow-hidden">
-                    <button onclick="pcToggleBrowseYear('${escapeHtml(y).replace(/'/g, "\\'")}')"
+                    <button onclick="pcToggleBrowseProgram('${pcBrowseJs(pk)}')"
                         class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/5 transition-colors">
-                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-calendar-blank text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(y)}</span></span>
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-graduation-cap text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(st.tree[pk].title)}</span></span>
                         <i class="ph ph-caret-down text-xs text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
                     </button>
-                    ${isOpen ? `<div class="px-2 pb-2 space-y-1.5">${pcRenderBrowseSemesters(y)}</div>` : ''}
+                    ${isOpen ? `<div class="px-2 pb-2 space-y-1.5">${pcRenderBrowseYears(pk)}</div>` : ''}
                 </div>`;
             }).join('');
         }
 
-        function pcRenderBrowseSemesters(year) {
+        function pcRenderBrowseYears(pk) {
             const st = pcBrowseTreeState;
-            const sems = Object.keys((st.tree || {})[year] || {}).sort((a, b) => a.localeCompare(b, 'ar'));
-            if (!sems.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد فصول محفوظة</div>`;
-            return sems.map(s => {
-                const isOpen = st.expandedSemester === s;
+            const years = Object.keys(st.tree[pk].years).sort((a, b) => b.localeCompare(a, 'ar'));
+            return years.map(y => {
+                const isOpen = st.expandedYear === y;
                 return `
                 <div class="glass-element rounded-lg overflow-hidden">
-                    <button onclick="pcToggleBrowseSemester('${escapeHtml(s).replace(/'/g, "\\'")}')"
-                        class="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
-                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-clock text-gray-400 flex-shrink-0"></i><span class="truncate">${escapeHtml(s)}</span></span>
+                    <button onclick="pcToggleBrowseYear('${pcBrowseJs(y)}')"
+                        class="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 transition-colors">
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-calendar-blank text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(y)}</span></span>
                         <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
                     </button>
-                    ${isOpen ? `<div class="px-2 pb-2 space-y-1">${pcRenderBrowseCourses(year, s)}</div>` : ''}
+                    ${isOpen ? `<div class="px-2 pb-2 space-y-1">${pcRenderBrowseSemesters(pk, y)}</div>` : ''}
                 </div>`;
             }).join('');
         }
 
-        function pcRenderBrowseCourses(year, sem) {
+        function pcRenderBrowseSemesters(pk, year) {
             const st = pcBrowseTreeState;
-            const courses = Object.keys(((st.tree || {})[year] || {})[sem] || {}).sort((a, b) => a.localeCompare(b, 'ar'));
+            const sems = Object.keys(st.tree[pk].years[year] || {}).sort((a, b) => a.localeCompare(b, 'ar'));
+            if (!sems.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد فصول محفوظة</div>`;
+            return sems.map(sm => {
+                const isOpen = st.expandedSemester === sm;
+                return `
+                <div class="rounded-lg overflow-hidden bg-white/40">
+                    <button onclick="pcToggleBrowseSemester('${pcBrowseJs(sm)}')"
+                        class="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+                        <span class="flex items-center gap-2 min-w-0"><i class="ph ph-clock text-gray-400 flex-shrink-0"></i><span class="truncate">${escapeHtml(sm)}</span></span>
+                        <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
+                    </button>
+                    ${isOpen ? `<div class="pr-2 pb-1.5 space-y-1">${pcRenderBrowseCourses(pk, year, sm)}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        function pcRenderBrowseCourses(pk, year, sem) {
+            const st = pcBrowseTreeState;
+            const courses = Object.keys(((st.tree[pk].years[year] || {})[sem]) || {}).sort((a, b) => a.localeCompare(b, 'ar'));
             if (!courses.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد مقررات محفوظة</div>`;
             return courses.map(c => {
                 const isOpen = st.expandedCourse === c;
                 return `
                 <div class="rounded-lg overflow-hidden bg-white/40">
-                    <button onclick="pcToggleBrowseCourse('${escapeHtml(c).replace(/'/g, "\\'")}')"
+                    <button onclick="pcToggleBrowseCourse('${pcBrowseJs(c)}')"
                         class="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
                         <span class="flex items-center gap-2 min-w-0"><i class="ph ph-book-open text-gray-400 flex-shrink-0"></i><span class="truncate">${escapeHtml(c)}</span></span>
                         <i class="ph ph-caret-down text-[10px] text-gray-400 flex-shrink-0 transition-transform" style="transform: rotate(${isOpen ? '180' : '0'}deg)"></i>
                     </button>
-                    ${isOpen ? `<div class="pr-3 pb-1.5 space-y-1">${pcRenderBrowseExams(year, sem, c)}</div>` : ''}
+                    ${isOpen ? `<div class="pr-3 pb-1.5 space-y-1">${pcRenderBrowseExams(pk, year, sem, c)}</div>` : ''}
                 </div>`;
             }).join('');
         }
 
         // ---- المستوى الأخير: كل عنصر هو امتحان محفوظ فعلياً على Firestore (لديه
-        // نتائج طلاب) — الضغط عليه يحمّل تلك النتائج مباشرة من paperExamSubmissions ----
-        function pcRenderBrowseExams(year, sem, course) {
+        // نتائج طلاب) — يُعرض بتاريخ الامتحان ووقته — الضغط عليه يحمّل تلك النتائج
+        // مباشرة من paperExamSubmissions ----
+        function pcRenderBrowseExams(pk, year, sem, course) {
             const st = pcBrowseTreeState;
-            const exams = ((((st.tree || {})[year] || {})[sem] || {})[course] || [])
-                .slice().sort((a, b) => (b.examDate || '').localeCompare(a.examDate || ''));
+            const exams = ((((st.tree[pk].years[year] || {})[sem]) || {})[course] || [])
+                .slice().sort((a, b) => ((b.examDate || '') + (b.examTime || '')).localeCompare((a.examDate || '') + (a.examTime || '')));
             if (!exams.length) return `<div class="px-2 py-2 text-xs text-gray-400">لا يوجد امتحانات محفوظة</div>`;
             return exams.map(e => {
-                const label = e.examDate || e.subjectName || 'بلا تاريخ';
+                const label = [e.examDate, e.examTime].filter(Boolean).join(' - ') || e.subjectName || 'بلا تاريخ';
                 return `
                 <button onclick="pcOpenSavedExamFromDrive('${e.id}')"
                     class="w-full text-right flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-gray-600 hover:bg-primary/10 hover:text-primary transition-colors">
@@ -25065,17 +25104,24 @@
             }).join('');
         }
 
+        function pcToggleBrowseProgram(pk) {
+            const st = pcBrowseTreeState;
+            st.expandedProgram = (st.expandedProgram === pk) ? null : pk;
+            st.expandedYear = null; st.expandedSemester = null; st.expandedCourse = null;
+            pcRenderBrowseTree();
+        }
+
         function pcToggleBrowseYear(year) {
             const st = pcBrowseTreeState;
-            if (st.expandedYear === year) { st.expandedYear = null; st.expandedSemester = null; st.expandedCourse = null; }
-            else { st.expandedYear = year; st.expandedSemester = null; st.expandedCourse = null; }
+            st.expandedYear = (st.expandedYear === year) ? null : year;
+            st.expandedSemester = null; st.expandedCourse = null;
             pcRenderBrowseTree();
         }
 
         function pcToggleBrowseSemester(sem) {
             const st = pcBrowseTreeState;
-            if (st.expandedSemester === sem) { st.expandedSemester = null; st.expandedCourse = null; }
-            else { st.expandedSemester = sem; st.expandedCourse = null; }
+            st.expandedSemester = (st.expandedSemester === sem) ? null : sem;
+            st.expandedCourse = null;
             pcRenderBrowseTree();
         }
 
@@ -25854,7 +25900,8 @@
             renderPaperCorrectionStudentDetailHeader(s);
 
             _paperCorrectionTripleContainerId = 'paperCorrectionStudentTripleViewContent';
-            _paperCorrectionActiveTripleTab = (s.images && s.images.length) ? 'scan' : 'transcript';
+            // النسختان (الورقية والمفرَّغة) مخفيتان افتراضياً — تُعرض عند الضغط على أحد الزرين
+            _paperCorrectionActiveTripleTab = null;
             renderPaperCorrectionTripleView();
 
             renderPaperCorrectionStudentResults(s);
@@ -25932,6 +25979,16 @@
         }
 
         // ---- عرض نتيجة المطابقة والتصحيح أسفل العرض الثلاثي لهذا الطالب تحديداً ----
+        // حالة فتح/إغلاق قائمة نتائج المطابقة لكل طالب (مغلقة افتراضياً)
+        const _pcResultsOpen = {};
+        function togglePaperCorrectionResultsList(studentId) {
+            _pcResultsOpen[studentId] = !_pcResultsOpen[studentId];
+            const list = document.getElementById('paperCorrectionResultsList');
+            const caret = document.getElementById('paperCorrectionResultsCaret');
+            if (list) list.classList.toggle('hidden', !_pcResultsOpen[studentId]);
+            if (caret) caret.style.transform = `rotate(${_pcResultsOpen[studentId] ? 180 : 0}deg)`;
+        }
+
         function renderPaperCorrectionStudentResults(s) {
             const wrap = document.getElementById('paperCorrectionStudentResultsWrap');
             if (!wrap) return;
@@ -25999,8 +26056,12 @@
                                 <span id="paperCorrectionStudentFinalPct" class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold mr-auto">${pct}%</span>
                             </div>
                         </div>
+                        <button onclick="togglePaperCorrectionResultsList('${s.id}')" title="عرض/إخفاء نتائج المطابقة (الأسئلة المصحَّحة)"
+                            class="glass-icon-btn w-9 h-9 rounded-xl flex items-center justify-center text-gray-500 hover:text-primary flex-shrink-0">
+                            <i id="paperCorrectionResultsCaret" class="ph ph-caret-down transition-transform" style="transform: rotate(${_pcResultsOpen[s.id] ? 180 : 0}deg)"></i>
+                        </button>
                     </div>
-                    <div class="space-y-2 mb-3">${rowsHtml}</div>
+                    <div id="paperCorrectionResultsList" class="space-y-2 mb-3 ${_pcResultsOpen[s.id] ? '' : 'hidden'}">${rowsHtml}</div>
                     <button onclick="printPaperCorrectionStudentReport('${s.id}')"
                         class="w-full py-2 rounded-xl glass-icon-btn text-xs text-gray-600 font-semibold hover:bg-gray-50 flex items-center justify-center gap-1.5">
                         <i class="ph ph-printer"></i> طباعة تقرير هذا الطالب
@@ -26227,7 +26288,11 @@ ${blocksHtml}
                 <div class="flex items-center gap-2 mb-2">
                     <input type="text" value="${s.name ? escapeHtml(s.name) : ''}" placeholder="اسم الطالب"
                         oninput="updatePaperCorrectionBatchStudentName('${s.id}', this.value)"
-                        class="flex-1 glass-panel rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-primary">
+                        class="flex-1 min-w-0 glass-panel rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-primary">
+                    <button onclick="openPaperCorrectionTraineePicker('${s.id}')" title="بحث عن طالب أو إضافة طالب جديد"
+                        class="glass-icon-btn w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 shrink-0 hover:border-emerald-300">
+                        <i class="ph ph-user-plus text-sm"></i>
+                    </button>
                     <button onclick="analyzePaperCorrectionBatchStudentName('${s.id}')" title="تحليل اسم الطالب وإجاباته من الصور المرفقة"
                         class="glass-icon-btn w-8 h-8 rounded-lg flex items-center justify-center text-primary shrink-0 hover:border-primary/50">
                         <i class="ph ph-magic-wand text-sm"></i>
@@ -26256,6 +26321,21 @@ ${blocksHtml}
                 <p class="text-[10px] text-gray-400 mt-1.5">${(s.images || []).length ? ((s.images.length) + ' صفحة مرفقة') : 'لم تُرفق أي صفحة بعد'}</p>
                 ${statusHtml}
             </div>`;
+        }
+
+        // ---- زر "بحث عن طالب أو إضافة طالب جديد" بجانب خانة الاسم: يفتح نفس نافذة إضافة
+        // متدرب للدورة (بحث في السجل / إضافة جديد)، لكن اختيار الطالب هنا يضع اسمه في خانة
+        // الاسم فقط (دون إضافته لقائمة الدورة) ----
+        function openPaperCorrectionTraineePicker(studentId) {
+            openTraineeAddChoiceModal(_paperCorrectionBatch.programKey, _paperCorrectionBatch.courseKey, { pc: true, pcStudentId: studentId });
+        }
+
+        function pcApplyTraineeNameToStudent(studentId, trainee) {
+            const s = findPaperCorrectionBatchStudent(studentId);
+            if (!s || !trainee) return;
+            updatePaperCorrectionBatchStudentName(studentId, trainee.nameAr || '');
+            rerenderPaperCorrectionBatchStudentRow(studentId);
+            if (typeof renderPaperCorrectionSidebarList === 'function') { try { renderPaperCorrectionSidebarList(); } catch (_) {} }
         }
 
         // ---- إعادة رسم بطاقة طالب واحدة فقط (بدل اللوحة كاملة) — تُستخدَم أثناء التحليل
@@ -28385,7 +28465,9 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
         let _paperCorrectionTripleContainerId = 'paperCorrectionTripleViewContent';
 
         function switchPaperCorrectionTripleTab(tab) {
-            _paperCorrectionActiveTripleTab = tab;
+            // في صفحة عرض بيانات الطالب: الضغط على التبويب المفتوح مرة أخرى يُخفي محتواه
+            const inStudentDetail = _paperCorrectionTripleContainerId === 'paperCorrectionStudentTripleViewContent';
+            _paperCorrectionActiveTripleTab = (inStudentDetail && _paperCorrectionActiveTripleTab === tab) ? null : tab;
             renderPaperCorrectionTripleView();
         }
 
@@ -28805,6 +28887,13 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
             const { exam, answers, ocrImages, ocrConfidence, usedOcr } = _paperCorrection;
             const container = document.getElementById(_paperCorrectionTripleContainerId || 'paperCorrectionTripleViewContent');
             if (!container) return;
+
+            if (!tab && !_paperCorrectionSplitViewActive) {
+                container.innerHTML = '';
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
 
             if (_paperCorrectionSplitViewActive) {
                 renderPaperCorrectionSplitView(container, exam);
