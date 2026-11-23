@@ -55,6 +55,15 @@
     </script>
 
     <style>
+        /* القائمة الجانبية مخفية افتراضياً منذ أول رسم للصفحة (تمنع ظهورها ثم اختفاءها عند بدء التحميل).
+           openSidebar() يضبط inline styles التي تتغلب على هذه القواعد عند الفتح. */
+        #sidebar:not(.sb-ready) {
+            transform: translateX(120%);
+            width: 0;
+            margin: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
         /* ===== خطوط إضافية (AirArabia / Beirut / Nada / Andalus) — بجميع الأوزان =====
            ضع ملفات الخطوط داخل مجلد fonts/<اسم الخط>/ بجانب هذا الملف بنفس أسماء
            الملفات المستخدمة أدناه (woff2 أساسي، ttf احتياطي). عدّل الأوزان/الأسماء
@@ -15990,6 +15999,10 @@
 
         // ======== نظام الفرز والترتيب ========
         let currentSortOption = 'alpha-asc'; // الافتراضي: أبجدي أ←ي
+        // إلى أن يختار المستخدم ترتيباً يدوياً، تستخدم كل قائمة ترتيبها الافتراضي الخاص
+        // (المدربون والمتدربون: الأحدث أولاً — البرامج والدورات: أبجدي)
+        let _sortUserChosen = false;
+        let _lastSortApplied = 'alpha-asc';
 
         const sortIcons = {
             'alpha-asc':  'ph-sort-ascending',
@@ -16005,12 +16018,13 @@
             document.querySelectorAll('.sort-opt').forEach(b => {
                 b.classList.remove('bg-primary/10', 'text-primary');
             });
-            const active = document.getElementById('sortOpt_' + currentSortOption);
+            const active = document.getElementById('sortOpt_' + (_sortUserChosen ? currentSortOption : _lastSortApplied));
             if (active) active.classList.add('bg-primary/10', 'text-primary');
         }
 
         function setSortOption(option) {
             currentSortOption = option;
+            _sortUserChosen = true;
             // تحديث أيقونة الزر
             const icon = document.getElementById('sortBtnIcon');
             if (icon) {
@@ -16037,14 +16051,25 @@
         }
 
         // دالة مساعدة: ترتيب مصفوفة حسب الخيار الحالي
-        function sortItems(arr, getTitle, getDate) {
-            return [...arr].sort((a, b) => {
-                if (currentSortOption === 'alpha-asc')  return (getTitle(a) || '').localeCompare(getTitle(b) || '', 'ar');
-                if (currentSortOption === 'alpha-desc') return (getTitle(b) || '').localeCompare(getTitle(a) || '', 'ar');
-                if (currentSortOption === 'date-desc')  return toComparableTime(getDate(b)) - toComparableTime(getDate(a));
-                if (currentSortOption === 'date-asc')   return toComparableTime(getDate(a)) - toComparableTime(getDate(b));
-                return 0;
+        function sortItems(arr, getTitle, getDate, defaultOpt) {
+            const opt = _sortUserChosen ? currentSortOption : (defaultOpt || currentSortOption);
+            _lastSortApplied = opt;
+            if (!_sortUserChosen) {
+                const iconEl = document.getElementById('sortBtnIcon');
+                if (iconEl && sortIcons[opt]) iconEl.className = 'ph ' + sortIcons[opt] + ' text-lg';
+            }
+            // فرز مستقر: عند تساوي الوقت (أو غيابه) يُعتمد ترتيب الإضافة الأصلي (الأحدث = الأخير في المصفوفة)
+            const indexed = arr.map((item, i) => ({ item, i }));
+            indexed.sort((x, y) => {
+                const a = x.item, b = y.item;
+                let r = 0;
+                if (opt === 'alpha-asc')       r = (getTitle(a) || '').localeCompare(getTitle(b) || '', 'ar');
+                else if (opt === 'alpha-desc') r = (getTitle(b) || '').localeCompare(getTitle(a) || '', 'ar');
+                else if (opt === 'date-desc')  r = (toComparableTime(getDate(b)) - toComparableTime(getDate(a))) || (y.i - x.i);
+                else if (opt === 'date-asc')   r = (toComparableTime(getDate(a)) - toComparableTime(getDate(b))) || (x.i - y.i);
+                return r;
             });
+            return indexed.map(o => o.item);
         }
 
         // إغلاق الـ dropdown عند الضغط خارجه
@@ -16242,7 +16267,7 @@
             if (document.body.classList.contains('trainer-mode')) {
                 allPrograms = allPrograms.filter(([k, p]) => trainerParticipatesInProgram(p));
             }
-            const sortedPrograms = sortItems(allPrograms, ([k,p]) => p.title, ([k,p]) => p.createdAt || k);
+            const sortedPrograms = sortItems(allPrograms, ([k,p]) => p.title, ([k,p]) => p.createdAt || k, 'alpha-asc');
             if (sortedPrograms.length === 0 && document.body.classList.contains('trainer-mode')) {
                 const empty = document.createElement('div');
                 empty.className = 'text-center py-10 text-gray-400';
@@ -16339,7 +16364,7 @@
             if (document.body.classList.contains('trainer-mode')) {
                 filteredCourses = filteredCourses.filter(c => trainerParticipatesInCourse(c));
             }
-            const sortedCourses = sortItems(filteredCourses, c => c.code, c => c.createdAt || c.key);
+            const sortedCourses = sortItems(filteredCourses, c => c.code, c => c.createdAt || c.key, 'alpha-asc');
             if (sortedCourses.length === 0 && document.body.classList.contains('trainer-mode')) {
                 const empty = document.createElement('div');
                 empty.className = 'text-center py-6 text-gray-400 text-xs';
@@ -18349,7 +18374,11 @@
             }
 
             const isGuest = document.body.classList.contains('guest-mode');
-            const courses = program.courses || [];
+            // الدورات المسجلة: من الأحدث إلى الأقدم افتراضياً (حسب وقت الإضافة، وعند غيابه حسب ترتيب الإضافة)
+            const courses = (program.courses || [])
+                .map((c, i) => ({ c, i, t: toComparableTime(c.createdAt) }))
+                .sort((x, y) => (y.t - x.t) || (y.i - x.i))
+                .map(o => o.c);
             const container = document.getElementById('detailsViewBody');
             container.innerHTML = `
                 <div class="space-y-6">
@@ -19651,7 +19680,7 @@
         Object.assign(_floatBtn.style, {
             display:        'none',
             position:       'fixed',
-            zIndex:         '9999',
+            zIndex:         '45',
             alignItems:     'center',
             justifyContent: 'center',
             width:          '36px',
@@ -19752,6 +19781,7 @@
             sidebar.style.margin = '';
             sidebar.style.opacity = '1';
             sidebar.style.pointerEvents = '';
+            sidebar.classList.add('sb-ready');
             isSidebarOpen = true;
         }
 
@@ -19765,6 +19795,7 @@
             sidebar.style.margin = '0';
             sidebar.style.opacity = '0';
             sidebar.style.pointerEvents = 'none';
+            sidebar.classList.add('sb-ready');
             _closeSidebarFloatBtnTimer = setTimeout(() => {
                 _closeSidebarFloatBtnTimer = null;
                 _positionFloatBtn();
@@ -20588,7 +20619,7 @@
             // الترتيب حسب "الأحدث/الأقدم" يعتمد على وقت إضافة المتدرب الفعلي للنظام
             // (createdAt، بالتاريخ والساعة) وليس تاريخ التسجيل المُدخَل يدوياً — مع
             // الرجوع لتاريخ التسجيل فقط للمتدربين القدامى الذين لا يملكون createdAt
-            const sortedTrainees = sortItems(registryTrainees, t => t.nameAr, t => t.createdAt || t.registrationDate);
+            const sortedTrainees = sortItems(registryTrainees, t => t.nameAr, t => t.createdAt || t.registrationDate, 'date-desc');
             sortedTrainees.forEach(trainee => {
                 const isActive = trainee.id === activeTraineeId;
                 const card = document.createElement('div');
@@ -23886,7 +23917,7 @@
                 return;
             }
 
-            const sortedTrainers = sortItems(registryTrainers, t => t.nameAr, t => t.registrationDate);
+            const sortedTrainers = sortItems(registryTrainers, t => t.nameAr, t => t.createdAt || t.registrationDate, 'date-desc');
             sortedTrainers.forEach(trainer => {
                 const isActive = trainer.id === activeTrainerId;
                 const card = document.createElement('div');
@@ -24423,6 +24454,7 @@
                     recreateTrainerAuthAccount(trainerModalEditId, prevAuthUid);
                 }
             } else {
+                trainerData.createdAt = new Date(); // وقت الإضافة الفعلي — يُستخدم لترتيب المدربين من الأحدث إلى الأقدم
                 const fieldCtx = pendingCourseTrainerFieldContext;
                 closeRegistryTrainerModal();
                 showToast('⏳ جاري الحفظ...', 'info');
