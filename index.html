@@ -29206,6 +29206,12 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             // إن كانت النتائج محمَّلة مسبقاً لنفس الامتحان، لا داعي لإعادة الجلب من القاعدة
             if (_paperResultsList.loaded && _paperResultsList.examId === examId) {
                 renderPaperResultsList();
+                // تحديث النتائج الإلكترونية بصمت (قد يكون طلاب جدد سلَّموا بعد التحميل الأول)
+                try {
+                    const fresh = await db.collection('examinations').doc(examId).collection('sessions').get();
+                    _paperResultsList.electronic = fresh.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => x.status === 'submitted');
+                    renderPaperResultsList();
+                } catch (_) {}
                 return;
             }
 
@@ -31511,12 +31517,12 @@ ${JSON.stringify(payload, null, 0)}
         reSidebarState.activeSubjectKey = `${pk}__${year}__${sem}__${subj}`;
         reRenderSidebarTree();
 
-        // تحت العنوان الرئيسي: «الامتحانات المسجلة لبرنامج» ← اسم البرنامج ← السنة الدراسية - الفصل الدراسي (بلون أغمق)
+        // تحت العنوان الرئيسي: اسم البرنامج (رابط لتفاصيل البرنامج) ← السنة الدراسية - الفصل الدراسي
         const _reSubEl = document.getElementById('registeredExamsViewSubtitle');
         _reSubEl.className = 'text-xs text-gray-600 leading-relaxed';
         _reSubEl.innerHTML = `
-            <span class="block font-semibold">الامتحانات المسجلة لبرنامج</span>
-            <span class="block font-bold text-gray-700">${escapeHtml(program?.title || '')}</span>
+            <button type="button" onclick="showProgramDetails('${pk}')" title="عرض تفاصيل البرنامج"
+                class="block font-bold text-gray-700 hover:text-primary hover:underline text-right transition-colors">${escapeHtml(program?.title || '')}</button>
             <span class="block">${escapeHtml(year)} - ${escapeHtml(sem)}</span>`;
         reViewState = { typeFilter: 'all', sortBy: 'date-desc', kinds: {} };
         document.getElementById('registeredExamsViewActions').innerHTML = '';
@@ -31569,6 +31575,22 @@ ${JSON.stringify(payload, null, 0)}
         const codes = keys.map(k => (program?.courses || []).find(c => c.key === k)?.code || k).filter(Boolean);
         if (codes.length) return codes.join('، ');
         return exam.courseCode || '—';
+    }
+
+    // أجزاء نص السطر الثاني: كل رمز دورة مع مفتاحها (ليصبح رابطاً لتفاصيل الدورة)،
+    // أما أسماء الطلاب (امتحان فردي) فلا مفتاح لها فتُعرض نصاً فقط
+    function reExamTargetParts(exam, program) {
+        if (exam.assignmentScope === 'students') {
+            const names = (exam.assignedTraineeNames || []).filter(Boolean);
+            return [{ text: names.length ? names.join('، ') : '—', courseKey: null }];
+        }
+        const keys = (exam.courseKeys && exam.courseKeys.length) ? exam.courseKeys : (exam.courseKey ? [exam.courseKey] : []);
+        const parts = keys.map(k => {
+            const c = (program?.courses || []).find(cc => cc.key === k);
+            return { text: c?.code || k, courseKey: c ? k : null };
+        }).filter(x => x.text);
+        if (parts.length) return parts;
+        return [{ text: exam.courseCode || '—', courseKey: null }];
     }
 
     // يستنتج نوع كل امتحان (إلكتروني/ورقي) من وجود جلسات مسلَّمة أو تسليمات ورقية له — لا يوجد حقل نوع مخزَّن على الامتحان نفسه
@@ -31633,9 +31655,10 @@ ${JSON.stringify(payload, null, 0)}
             return dateKey(b).localeCompare(dateKey(a)); // date-desc (الافتراضي)
         });
 
-        const selCls = 'glass-panel rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary';
+        const selCls = 'glass-panel rounded-xl px-2 sm:px-3 py-2 text-xs sm:text-sm focus:outline-none focus:border-primary flex-1 min-w-0 sm:flex-none';
         const toolbar = `
             <div class="flex flex-wrap items-center gap-2 mb-4">
+              <div class="flex flex-nowrap items-center gap-2 w-full sm:w-auto">
                 <select onchange="reSetTypeFilter(this.value)" class="${selCls}" title="فلترة حسب نوع الامتحان">
                     <option value="all" ${typeFilter === 'all' ? 'selected' : ''}>الكل (ورقي + إلكتروني)</option>
                     <option value="electronic" ${typeFilter === 'electronic' ? 'selected' : ''}>إلكتروني</option>
@@ -31647,6 +31670,7 @@ ${JSON.stringify(payload, null, 0)}
                     <option value="name-asc" ${sortBy === 'name-asc' ? 'selected' : ''}>الدورة/الطالب (أ-ي)</option>
                     <option value="name-desc" ${sortBy === 'name-desc' ? 'selected' : ''}>الدورة/الطالب (ي-أ)</option>
                 </select>
+              </div>
                 <span class="text-[11px] text-gray-400">${list.length} من ${reCourseExams.length} امتحان</span>
             </div>`;
 
@@ -31667,8 +31691,13 @@ ${JSON.stringify(payload, null, 0)}
                         ? exam.examDate + (exam.examTime ? ' · ' + exam.examTime : '')
                         : '—';
                     const isStudents = exam.assignmentScope === 'students';
+                    const labelHTML = reExamTargetParts(exam, program).map(pt => pt.courseKey
+                        ? `<span onclick="event.stopPropagation(); showCourseDetails('${pk}','${pt.courseKey}')" title="عرض تفاصيل الدورة"
+                              class="cursor-pointer hover:text-primary hover:underline">${escapeHtml(pt.text)}</span>`
+                        : `<span>${escapeHtml(pt.text)}</span>`).join('<span>، </span>');
                     return `
-                    <button onclick="reOpenExamCard('${pk}', '${exam.id}')"
+                    <div role="button" tabindex="0" onclick="reOpenExamCard('${pk}', '${exam.id}')"
+                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();reOpenExamCard('${pk}', '${exam.id}')}"
                         class="glass-element rounded-2xl p-4 text-right cursor-pointer hover:border-primary/50 hover:-translate-y-0.5 transition-all">
                         <div class="flex items-center gap-2 mb-2">
                             <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-lg flex-shrink-0">
@@ -31678,11 +31707,11 @@ ${JSON.stringify(payload, null, 0)}
                                 <p class="font-bold text-sm text-gray-800 truncate">${escapeHtml(examDateStr)}</p>
                                 <p class="text-[11px] text-gray-500 truncate flex items-center gap-1" title="${escapeHtml(label)}">
                                     <i class="ph ${isStudents ? 'ph-users-three' : 'ph-graduation-cap'} text-gray-400 shrink-0"></i>
-                                    <span class="truncate">${escapeHtml(label)}</span>
+                                    <span class="truncate">${labelHTML}</span>
                                 </p>
                             </div>
                         </div>
-                    </button>`;
+                    </div>`;
                 }).join('')}
             </div>`;
     }
@@ -34109,7 +34138,7 @@ ${JSON.stringify(payload, null, 0)}
             });
         }
 
-        document.getElementById('examinationViewBody').innerHTML = emsBuildExamDetailsHTML(exam, { pk, ck, canManagePapers: (canEditBase || canDeleteBase) });
+        document.getElementById('examinationViewBody').innerHTML = emsBuildExamDetailsHTML(exam, { pk, ck, canManagePapers: (canEditBase || canDeleteBase || emsIsAdmin() || (emsCurrentRole() === 'trainer' && !!course && emsIsMainTrainerOfCourse(course))) });
     }
 
     // إظهار/إخفاء قائمة الأسئلة في شاشة عرض تفاصيل الامتحان (مخفية افتراضياً)
