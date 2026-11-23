@@ -3548,7 +3548,7 @@
 
             <!-- ط. نظام الامتحانات (EMS View) -->
             <div id="examinationView" class="hidden min-h-full flex flex-col animate-[fadeIn_0.3s_ease-in-out]">
-                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-white/40">
+                <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 mb-5 pb-4 border-b border-white/40">
                     <div class="w-10 h-10 rounded-xl glass-icon-tile flex items-center justify-center text-primary text-xl flex-shrink-0">
                         <i class="ph ph-exam"></i>
                     </div>
@@ -3556,7 +3556,8 @@
                         <h2 id="examinationViewTitle" class="text-xl font-bold text-gray-800">نظام الامتحانات</h2>
                         <p id="examinationViewSubtitle" class="text-xs text-gray-400">إدارة الامتحانات والأسئلة</p>
                     </div>
-                    <div id="examinationViewActions" class="flex items-center gap-1"></div>
+                    <!-- على الموبايل تنزل أزرار المهام في سطر مستقل تحت رمز الدورة -->
+                    <div id="examinationViewActions" class="flex items-center gap-1 flex-wrap w-full sm:w-auto empty:hidden"></div>
                 </div>
                 <div id="examinationViewBody" class="flex-1"></div>
             </div>
@@ -29326,8 +29327,8 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
                 const isElec = s._kind === 'electronic';
                 const totalMark = s.totalMark || exam.totalMark || 0;
                 const pct = s.percentage ?? (totalMark > 0 ? Math.round(((s.earnedMark || 0) / totalMark) * 1000) / 10 : 0);
-                const pctClass = pct >= 60 ? 'text-green-600' : 'text-red-500';
-                const grade = getGradeLabel(pct);
+                const pctClass = pct >= emsGetPassMark(exam) ? 'text-green-600' : 'text-red-500';
+                const grade = emsGradeForExam(pct, exam);
                 const typeBadge = isElec
                     ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-sky-50 text-sky-700 border-sky-200">إلكتروني</span>'
                     : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">ورقي</span>';
@@ -29644,7 +29645,7 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             const rows = list.map((s, i) => {
                 const totalMark = s.totalMark || 0;
                 const pct = s.percentage ?? (totalMark > 0 ? Math.round(((s.earnedMark || 0) / totalMark) * 1000) / 10 : 0);
-                const gradeInfo = (typeof getGradeLabel === 'function') ? getGradeLabel(pct) : null;
+                const gradeInfo = emsGradeForExam(pct, exam);
                 return `<tr><td>${i + 1}</td><td>${s.traineeName || '—'}</td><td>${s.earnedMark ?? 0}</td><td>${totalMark}</td><td>${pct}%</td><td>${gradeInfo?.label || '—'}</td><td>${s._kind === 'electronic' ? 'إلكتروني' : 'ورقي'}</td></tr>`;
             }).join('');
 
@@ -32006,7 +32007,7 @@ ${JSON.stringify(payload, null, 0)}
                         total  = card.paper.totalMark ?? totalMark;
                         pct    = card.paper.percentage ?? (total > 0 && earned !== null ? Math.round((earned/total)*100) : null);
                     }
-                    if (pct !== null) gradeInfo = _examGetGradeLabel(pct);
+                    if (pct !== null) gradeInfo = _examGetGradeLabel(pct, exam);
 
                     const timeLabel = isElec ? csFormatDuration(card.electronic.durationMs) : '—';
 
@@ -32626,7 +32627,7 @@ ${JSON.stringify(payload, null, 0)}
               </div>
 
               <!-- نوع الامتحان + المدة -->
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
                   <label class="text-xs text-gray-500 mb-1 block">نوع الامتحان</label>
                   <select id="emsExamType" onchange="emsToggleExamTypeOther()" class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
@@ -32640,6 +32641,12 @@ ${JSON.stringify(payload, null, 0)}
                   <label class="text-xs text-gray-500 mb-1 block">مدة الامتحان (دقيقة)</label>
                   <input id="emsExamDuration" type="number" min="5" max="360" value="${existingExam?.duration||60}"
                     class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                </div>
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">الحد الأدنى للنجاح (%)</label>
+                  <input id="emsExamPassMark" type="number" min="1" max="100" step="any" value="${existingExam?.passMark ?? ''}" placeholder="50"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                  <p class="text-[10px] text-gray-400 mt-1">إن تُرك فارغاً يُعتبر 50%</p>
                 </div>
               </div>
 
@@ -32657,6 +32664,26 @@ ${JSON.stringify(payload, null, 0)}
                 </div>
               </div>
 
+              <!-- بيانات إضافية (تظهر في عرض الامتحان وورقة الطباعة) -->
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">اسم المقرر <span class="text-red-500">*</span></label>
+                  <input id="emsExamSubjectName" type="text" value="${existingExam?.subjectName||''}" placeholder="مثال: مبادئ الإسعاف"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                </div>
+                <div>
+                  <label class="text-xs text-gray-500 mb-1 block">اسم المنشأة التعليمية <span class="text-gray-300">(اختياري)</span></label>
+                  <input id="emsExamCenterName" type="text" value="${existingExam?.centerName||''}" placeholder="مثال: اسم المعهد / المنشأة"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                </div>
+                ${emsSelectOtherFieldHTML('emsExamAcademicYear', 'السنة الدراسية',
+                    ['السنة الأولى','السنة الثانية','السنة الثالثة','السنة الرابعة','السنة الخامسة','السنة السادسة'],
+                    existingExam?.academicYear || '', true)}
+                ${emsSelectOtherFieldHTML('emsExamSemester', 'الفصل الدراسي',
+                    ['الفصل الأول','الفصل الثاني','الفصل الثالث','الفصل الرابع'],
+                    existingExam?.semester || '', true)}
+              </div>
+
               <!-- تفعيل/تعطيل كلمة السر لدخول الامتحان -->
               <div class="glass-panel rounded-xl p-3.5 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2.5 min-w-0">
@@ -32664,8 +32691,8 @@ ${JSON.stringify(payload, null, 0)}
                     <i class="ph ph-lock-key text-indigo-600 text-lg"></i>
                   </div>
                   <div class="min-w-0">
-                    <p class="text-sm font-semibold text-gray-700">طلب كلمة سر لدخول الامتحان</p>
-                    <p class="text-[11px] text-gray-400">إن فُعِّلت، تُولَّد كلمة سر تلقائياً عند الحفظ ويُطلَب من الطالب إدخالها قبل بدء الامتحان</p>
+                    <p class="text-sm font-semibold text-gray-700">كلمة سر دخول الامتحان</p>
+                    <p class="text-[11px] text-gray-400">يُطلب إدخالها من قبل الطالب للدخول إلى الامتحان الإلكتروني فقط</p>
                   </div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer shrink-0">
@@ -32675,26 +32702,6 @@ ${JSON.stringify(payload, null, 0)}
                     <span class="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:-translate-x-5"></span>
                   </div>
                 </label>
-              </div>
-
-              <!-- بيانات إضافية (تظهر في عرض الامتحان وورقة الطباعة) -->
-              <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div>
-                  <label class="text-xs text-gray-500 mb-1 block">اسم المقرر <span class="text-red-500">*</span></label>
-                  <input id="emsExamSubjectName" type="text" value="${existingExam?.subjectName||''}" placeholder="مثال: مبادئ الإسعاف"
-                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
-                </div>
-                <div>
-                  <label class="text-xs text-gray-500 mb-1 block">اسم المركز <span class="text-gray-300">(اختياري)</span></label>
-                  <input id="emsExamCenterName" type="text" value="${existingExam?.centerName||''}" placeholder="مثال: المركز الرئيسي"
-                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
-                </div>
-                ${emsSelectOtherFieldHTML('emsExamAcademicYear', 'السنة الدراسية',
-                    ['السنة الأولى','السنة الثانية','السنة الثالثة','السنة الرابعة','السنة الخامسة','السنة السادسة'],
-                    existingExam?.academicYear || '', true)}
-                ${emsSelectOtherFieldHTML('emsExamSemester', 'الفصل الدراسي',
-                    ['الفصل الأول','الفصل الثاني','الفصل الثالث','الفصل الرابع'],
-                    existingExam?.semester || '', true)}
               </div>
 
             </div>
@@ -33631,6 +33638,13 @@ ${JSON.stringify(payload, null, 0)}
         const examTypeOther = examType === 'other' ? (document.getElementById('emsExamTypeOther')?.value.trim() || '') : '';
         const subjectName   = document.getElementById('emsExamSubjectName')?.value.trim()   || '';
         const centerName    = document.getElementById('emsExamCenterName')?.value.trim()    || '';
+        // الحد الأدنى للنجاح (%): اختياري، وإن لم يُدخل يُعتبر 50% عند العرض والتصحيح
+        const _passRaw = (document.getElementById('emsExamPassMark')?.value || '').trim();
+        let passMark = null;
+        if (_passRaw !== '') {
+            passMark = parseFloat(_passRaw);
+            if (isNaN(passMark) || passMark < 1 || passMark > 100) { alert('الحد الأدنى للنجاح يجب أن يكون رقماً بين 1 و 100'); return; }
+        }
         const academicYear  = emsGetSelectOtherValue('emsExamAcademicYear');
         const semester      = emsGetSelectOtherValue('emsExamSemester');
 
@@ -33760,6 +33774,7 @@ ${JSON.stringify(payload, null, 0)}
             examTime:  examTime || '',
             subjectName,
             centerName,
+            passMark,
             academicYear,
             semester,
             totalMark,
@@ -34032,7 +34047,7 @@ ${JSON.stringify(payload, null, 0)}
               </div>` : ''}
               ${exam.centerName ? `
               <div class="glass-panel p-3.5 rounded-lg">
-                <p class="text-[10px] text-gray-400 mb-1">اسم المركز</p>
+                <p class="text-[10px] text-gray-400 mb-1">اسم المنشأة التعليمية</p>
                 <p class="font-bold text-sm text-gray-800">${exam.centerName}</p>
               </div>` : ''}
               ${exam.academicYear ? `
@@ -34045,6 +34060,10 @@ ${JSON.stringify(payload, null, 0)}
                 <p class="text-[10px] text-gray-400 mb-1">الفصل الدراسي</p>
                 <p class="font-bold text-sm text-gray-800" dir="rtl">${exam.semester}</p>
               </div>` : ''}
+              <div class="glass-panel p-3.5 rounded-lg">
+                <p class="text-[10px] text-gray-400 mb-1">الحد الأدنى للنجاح</p>
+                <p class="font-bold text-sm text-gray-800">${emsGetPassMark(exam)}%${exam.passMark ? '' : ' <span class="text-[10px] font-normal text-gray-400">(افتراضي)</span>'}</p>
+              </div>
               <div class="glass-panel p-3.5 rounded-lg">
                 <p class="text-[10px] text-gray-400 mb-1">نوع الامتحان</p>
                 <p class="font-bold text-sm text-gray-800">${esExamTypeLabel(exam)}</p>
@@ -34550,7 +34569,7 @@ ${JSON.stringify(payload, null, 0)}
   </div>
   <div class="header-grid">
     ${exam.subjectName ? `<div class="info-cell"><div class="label">اسم المقرر</div><div class="value">${exam.subjectName}</div></div>` : ''}
-    ${exam.centerName ? `<div class="info-cell"><div class="label">اسم المركز</div><div class="value">${exam.centerName}</div></div>` : ''}
+    ${exam.centerName ? `<div class="info-cell"><div class="label">اسم المنشأة التعليمية</div><div class="value">${exam.centerName}</div></div>` : ''}
     ${exam.academicYear ? `<div class="info-cell"><div class="label">السنة الدراسية</div><div class="value" dir="rtl">${exam.academicYear}</div></div>` : ''}
     ${exam.semester ? `<div class="info-cell"><div class="label">الفصل الدراسي</div><div class="value" dir="rtl">${exam.semester}</div></div>` : ''}
     <div class="info-cell"><div class="label">اسم البرنامج</div><div class="value">${program?.title||'—'}</div></div>
@@ -35129,6 +35148,18 @@ ${questionsHtml}
         }
     }
 
+    // إظهار/إخفاء تفاصيل قسم كلمة السر (مخفية افتراضياً — نفس نمط نموذج الأسئلة ونتائج الامتحان)
+    // تُحفظ الحالة لكل امتحان كي لا تُغلق عند إعادة رسم الشاشة بعد توليد كلمة جديدة
+    function emsToggleExamPasswordSection(examId) {
+        const body = document.getElementById('examPwdSectionBody_' + examId);
+        const icon = document.getElementById('examPwdSectionIcon_' + examId);
+        if (!body || !icon) return;
+        const nowHidden = body.classList.toggle('hidden');
+        icon.style.transform = nowHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+        window._examPwdSectionOpen = window._examPwdSectionOpen || {};
+        window._examPwdSectionOpen[examId] = !nowHidden;
+    }
+
     // ─── إضافة زر كلمة السر في Exam Viewer (للأدمن) ─────────────
     // نعيد كتابة نهاية emsShowExamViewer لإضافة قسم كلمة السر
     const _origEmsShowExamViewer = emsShowExamViewer;
@@ -35144,21 +35175,29 @@ ${questionsHtml}
         if (!isAdmin && !isTrainer) return;
 
         const pwdEnabled = exam.requirePassword !== false;
+        const _pwdOpen = !!(window._examPwdSectionOpen && window._examPwdSectionOpen[exam.id]);
         const pwdSection = document.createElement('div');
         pwdSection.className = 'mt-4';
         pwdSection.innerHTML = `
         <div class="glass-element rounded-xl p-5">
-            <div class="flex items-center justify-between gap-3 ${pwdEnabled ? 'mb-4' : ''}">
+            <div class="flex items-center justify-between gap-3 mb-4">
                 <h3 class="font-bold text-base text-indigo-700 flex items-center gap-2">
                     <i class="ph ph-lock-key"></i> كلمة السر
                 </h3>
-                <button onclick="toggleExamPasswordProtection('${pk}','${ck}')"
-                    id="examPwdToggleBtn_${exam.id}"
-                    title="${pwdEnabled ? 'اضغط لتعطيل طلب كلمة السر' : 'اضغط لتفعيل طلب كلمة السر'}"
-                    class="relative w-14 h-8 rounded-full transition-colors duration-200 shrink-0 ${pwdEnabled ? 'bg-indigo-600' : 'bg-gray-300'}">
-                    <span class="absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all duration-200 ${pwdEnabled ? 'right-1' : 'left-1'}"></span>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleExamPasswordProtection('${pk}','${ck}')"
+                        id="examPwdToggleBtn_${exam.id}"
+                        title="${pwdEnabled ? 'اضغط لتعطيل طلب كلمة السر' : 'اضغط لتفعيل طلب كلمة السر'}"
+                        class="relative w-14 h-8 rounded-full transition-colors duration-200 shrink-0 ${pwdEnabled ? 'bg-indigo-600' : 'bg-gray-300'}">
+                        <span class="absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all duration-200 ${pwdEnabled ? 'right-1' : 'left-1'}"></span>
+                    </button>
+                    <button onclick="emsToggleExamPasswordSection('${exam.id}')" title="إظهار/إخفاء كلمة السر"
+                        class="w-8 h-8 rounded-lg glass-icon-btn flex items-center justify-center text-primary hover:bg-primary/10 transition-colors">
+                        <i id="examPwdSectionIcon_${exam.id}" class="ph ph-caret-down text-sm" style="transition:transform 0.2s ease; transform:rotate(${_pwdOpen ? '180' : '0'}deg);"></i>
+                    </button>
+                </div>
             </div>
+            <div id="examPwdSectionBody_${exam.id}" class="${_pwdOpen ? '' : 'hidden'}">
             ${!pwdEnabled ? `
             <p class="text-sm text-gray-500">هذا الامتحان لا يتطلب كلمة سر — الدخول متاح مباشرة لكل الطلاب المستهدَفين. اضغط المفتاح أعلاه لتفعيلها.</p>
             ` : exam.accessPassword ? `
@@ -35186,6 +35225,7 @@ ${questionsHtml}
                 <i class="ph ph-info text-primary"></i>
                 أعطِ هذه الكلمة للطلاب يوم الامتحان فقط. يمكنك توليد كلمة جديدة أو تعطيل الطلب في أي وقت.
             </p>
+            </div>
         </div>`;
         viewBody.querySelector('.space-y-5')?.appendChild(pwdSection);
     };
@@ -36117,12 +36157,12 @@ ${questionsHtml}
 
         // — حفظ النتيجة في Firestore —
         const scorePct  = totalMark > 0 ? Math.round((totalEarned / totalMark) * 100) : 0;
-        const gradeInfo = _examGetGradeLabel(scorePct);
+        const gradeInfo = _examGetGradeLabel(scorePct, examDoc);
 
         // عند عقوبة الغش: تصفير العلامة بغض النظر عن الإجابات
         const finalScore   = isCheatPenalty ? 0 : totalEarned;
         const finalPct     = isCheatPenalty ? 0 : scorePct;
-        const finalGrade   = isCheatPenalty ? _examGetGradeLabel(0) : gradeInfo;
+        const finalGrade   = isCheatPenalty ? _examGetGradeLabel(0, examDoc) : gradeInfo;
 
         if (sessionRef) {
             try {
@@ -36143,13 +36183,27 @@ ${questionsHtml}
         _examShowResultScreen(overlay, results, finalScore, totalMark, finalPct, finalGrade, canAuto, isCheatPenalty);
     }
 
+    // ── الحد الأدنى للنجاح: قيمة الامتحان إن وُجدت، وإلا 50% ──
+    function emsGetPassMark(exam) {
+        const p = parseFloat(exam && exam.passMark);
+        return (isNaN(p) || p <= 0 || p > 100) ? 50 : p;
+    }
+    // التقدير النصي/اللوني (فئات Tailwind) مع مراعاة الحد الأدنى للنجاح لامتحان معيّن
+    function emsGradeForExam(pct, exam) {
+        if (pct < emsGetPassMark(exam)) return getGradeLabel(0);
+        const g = getGradeLabel(pct);
+        if (g.label === 'راسب') return { label: 'مقبول', color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' };
+        return g;
+    }
+
     /* ── تحديد التقدير ── */
-    function _examGetGradeLabel(pct) {
+    function _examGetGradeLabel(pct, exam) {
+        const pm = emsGetPassMark(exam);
+        if (pct < pm) return { label: 'راسب',        color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: 'ph-x-circle' };
         if (pct >= 90) return { label: 'ممتاز',    color: '#059669', bg: '#f0fdf4', border: '#bbf7d0', icon: 'ph-trophy' };
         if (pct >= 80) return { label: 'جيد جداً', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', icon: 'ph-star'   };
         if (pct >= 70) return { label: 'جيد',       color: '#4f46e5', bg: '#eef2ff', border: '#c7d2fe', icon: 'ph-thumbs-up' };
-        if (pct >= 60) return { label: 'مقبول',     color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: 'ph-minus-circle' };
-        return              { label: 'راسب',        color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: 'ph-x-circle' };
+        return              { label: 'مقبول',     color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: 'ph-minus-circle' };
     }
 
     /* ── شاشة عرض النتيجة النهائية ── */
@@ -36544,8 +36598,8 @@ ${questionsHtml}
                     total  = paper.totalMark ?? totalMark;
                     pct    = paper.percentage ?? (total > 0 && earned !== null ? Math.round((earned/total)*100) : null);
                 }
-                if (!gradeLabel && pct !== null) gradeLabel = _examGetGradeLabel(pct).label;
-                const gi = pct !== null ? _examGetGradeLabel(pct) : { color:'#6b7280', bg:'#f9fafb', border:'#e5e7eb' };
+                if (!gradeLabel && pct !== null) gradeLabel = _examGetGradeLabel(pct, exam).label;
+                const gi = pct !== null ? _examGetGradeLabel(pct, exam) : { color:'#6b7280', bg:'#f9fafb', border:'#e5e7eb' };
 
                 const hasCopy = isElec && session?.submittedAnswers;
 
@@ -36831,7 +36885,7 @@ ${questionsHtml}
             </div>`;
         }).join('');
 
-        const gradeInfo = _examGetGradeLabel(pct);
+        const gradeInfo = _examGetGradeLabel(pct, exam);
 
         const modal = document.createElement('div');
         modal.id = 'p5StudentCopyModal';
