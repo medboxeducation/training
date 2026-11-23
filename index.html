@@ -3641,8 +3641,13 @@
                         <i class="ph ph-ruler"></i>
                     </div>
                     <div class="min-w-0 flex-1">
-                        <h2 class="text-xl font-bold text-gray-800">القياس والتقييم</h2>
+                        <h2 id="measureEvalTitle" class="text-xl font-bold text-gray-800 flex flex-wrap items-baseline gap-x-2">
+                            <span id="measureEvalTitleText">القياس والتقييم</span>
+                            <span id="measureEvalTitleTrainee" class="hidden text-base font-bold text-primary"></span>
+                        </h2>
                         <p class="text-xs text-gray-400">إنشاء تقييمات مهارات سريرية للمتدربين</p>
+                        <!-- أزرار نتائج التقييم (تعديل / طباعة / حذف) أسفل العنوان الرئيسي: أيقونة + اسم الزر -->
+                        <div id="measureEvalTitleActions" class="hidden flex items-center gap-1.5 flex-wrap mt-3"></div>
                     </div>
                     <!-- إجراءات سياقية (حفظ / تعديل / حذف / طباعة) لتقييم الطالب
                          الظاهر حالياً في measureEvalViewBody — تُبنى ديناميكياً
@@ -3650,10 +3655,14 @@
                     <div id="measureEvalHeaderActions" class="flex items-center gap-1.5 flex-shrink-0"></div>
                 </div>
                 <!-- أزرار تحت عنوان اللوحة (أيقونة + اسم الزر): إنشاء أداة تقييم جديدة ثم البحث عن أداة تقييم -->
-                <div id="measureEvalToolbar" class="flex items-center gap-2 mb-4">
+                <div id="measureEvalToolbar" class="flex items-center gap-2 mb-4 flex-wrap">
                     <button onclick="openMeasureEvalChoiceModalStandalone()" title="إنشاء أداة تقييم جديدة"
                         class="flex-1 sm:flex-none justify-center glass-icon-btn h-9 px-3 rounded-lg text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
                         <i class="ph ph-plus-circle text-sm"></i> <span>إنشاء أداة تقييم جديدة</span>
+                    </button>
+                    <button onclick="mevOpenNewSessionPage()" title="إنشاء جلسة قياس وتقييم جديدة"
+                        class="flex-1 sm:flex-none justify-center glass-icon-btn h-9 px-3 rounded-lg text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
+                        <i class="ph ph-clipboard-text text-sm"></i> <span>إنشاء جلسة قياس وتقييم جديدة</span>
                     </button>
                     <button onclick="mevOpenToolSearchPage()" title="بحث عن أداة تقييم"
                         class="flex-1 sm:flex-none justify-center glass-icon-btn h-9 px-3 rounded-lg text-xs font-semibold text-gray-600 flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
@@ -20491,11 +20500,31 @@
         function mevSetHeaderActions(html) {
             const el = document.getElementById('measureEvalHeaderActions');
             if (el) el.innerHTML = html || '';
+            // إعادة العنوان والأزرار السفلية لوضعها الافتراضي (تُعيد شاشة النتائج ضبطها بعد الاستدعاء)
+            const t = document.getElementById('measureEvalTitleText');
+            if (t) t.textContent = 'القياس والتقييم';
+            const tn = document.getElementById('measureEvalTitleTrainee');
+            if (tn) { tn.textContent = ''; tn.classList.add('hidden'); }
+            const ta = document.getElementById('measureEvalTitleActions');
+            if (ta) { ta.innerHTML = ''; ta.classList.add('hidden'); }
+        }
+        // شاشة نتائج التقييم: عنوان "نتائج القياس والتقييم" + اسم المتدرب بجانبه،
+        // وأزرار (أيقونة + اسم الزر) أسفل العنوان الرئيسي
+        function mevSetResultsHeader(traineeName, actionsHtml) {
+            const t = document.getElementById('measureEvalTitleText');
+            if (t) t.textContent = 'نتائج القياس والتقييم';
+            const tn = document.getElementById('measureEvalTitleTrainee');
+            if (tn) {
+                tn.textContent = traineeName ? ('— ' + traineeName) : '';
+                tn.classList.toggle('hidden', !traineeName);
+            }
+            const ta = document.getElementById('measureEvalTitleActions');
+            if (ta) { ta.innerHTML = actionsHtml || ''; ta.classList.toggle('hidden', !actionsHtml); }
         }
         // زر إجراء موحَّد الشكل لهيدر لوحة "القياس والتقييم": أيقونة ثابتة
         // + نص يظهر فقط من مقاس sm فأعلى، مطابقاً لأسلوب أزرار
         // تعديل/طباعة/حذف بيانات المتدرب المستخدمة في بقية النظام
-        function mevHeaderActionBtnHTML(onclick, icon, label, colorClasses, filled) {
+        function mevHeaderActionBtnHTML(onclick, icon, label, colorClasses, filled, alwaysShowLabel) {
             const base = filled
                 ? `text-white font-semibold ${colorClasses}`
                 : `glass-icon-btn font-semibold ${colorClasses}`;
@@ -20504,7 +20533,7 @@
                 <button onclick="${onclick}" title="${label}"${style}
                     class="h-9 px-2.5 sm:px-3 rounded-lg flex items-center justify-center gap-1.5 text-xs transition-colors ${base}">
                     <i class="ph ${icon} text-sm"></i>
-                    <span class="hidden sm:inline">${label}</span>
+                    <span class="${alwaysShowLabel ? '' : 'hidden sm:inline'}">${label}</span>
                 </button>`;
         }
         // صحيح فقط عندما يبدأ التدفق من بطاقة "القياس والتقييم" في لوحة نظام
@@ -20513,13 +20542,19 @@
         let _mevStandaloneFlow = false;
         let _mevPendingTemplate = null;     // بطاقة المهارة المختارة بانتظار تحديد المتدرب (تدفق مستقل)
         // سياق البرنامج/الدورة/السنة الدراسية/الفصل الدراسي لجلسة القياس
-        // والتقييم الحالية — تُعرض وتُحدَّث من داخل قسم "إعدادات جلسة القياس
+        // والتقييم الحالية — تُعرض وتُحدَّث من داخل قسم "إعدادات أداة القياس
         // والتقييم" نفسه (بنفس أسلوب حقول صفحة "تصميم امتحان جديد")، وتبقى
         // محفوظة عبر إعادة رسم الصفحة (مثلاً عند تغيير المتدرب) حتى لا تُفقد
         let _mevSelectedProgramKey = null;
         let _mevSelectedCourseKey = null;
         let _mevSelectedAcademicYear = '';
         let _mevSelectedSemester = '';
+        // وضع صفحة "جلسة قياس وتقييم جديدة": تُعرض إعدادات الأداة أولاً ثم بطاقة
+        // اختيار بطاقة قياس وتقييم مخزَّنة (أو إنشاء بطاقة جديدة) أسفلها
+        let _mevNewSessionMode = false;
+        // مسودة حقول إعدادات الجلسة (نوع التقييم/التاريخ/التوقيت/المدة/المدرب/المكان)
+        // تُحفظ مؤقتاً عند الانتقال لاختيار المتدرب حتى لا تُفقد عند إعادة رسم الصفحة
+        let _mevSessionDraft = null;
 
         function _mevCanManage() {
             return !!(currentUser && (currentUser.role === 'admin' || currentUser.role === 'trainer'));
@@ -20545,6 +20580,8 @@
         function openMeasureEvalChoiceModalStandalone() {
             if (!_mevCanManage()) return;
             _mevStandaloneFlow = true;
+            _mevNewSessionMode = false;
+            _mevSessionDraft = null;
             _mevPendingTemplate = null;
             _mevCurrentTraineeId = null;
             _mevCurrentTraineeName = '';
@@ -20583,39 +20620,7 @@
                     </select>
                   </div>
 
-                  <!-- بطاقة: إنشاء بطاقة قياس وتقييم جديدة -->
-                  <div class="glass-element rounded-xl p-5">
-                    <h3 class="font-bold text-base mb-4 text-primary flex items-center gap-2">
-                      <i class="ph ph-plus-circle"></i> إنشاء بطاقة قياس وتقييم جديدة
-                    </h3>
-                    <div class="grid grid-cols-1 gap-3">
-                      <div>
-                        <label class="text-xs text-gray-500 mb-1 block">اسم المهارة السريرية (الإجراء) <span class="text-red-500">*</span></label>
-                        <input id="mevInlineSkillNameInput" type="text" placeholder="مثال: قياس ضغط الدم"
-                          class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
-                      </div>
-                      <div>
-                        <label class="text-xs text-gray-500 mb-1 block">الدرجة الكاملة <span class="text-red-500">*</span></label>
-                        <input id="mevInlineFullScoreInput" type="number" min="1" step="0.5" placeholder="مثال: 20"
-                          class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
-                        <p class="text-[10px] text-gray-400 mt-1">ستُحتسب الدرجة النهائية بناءً على هذه الدرجة، حسب نسبة الأداء في كل عنصر</p>
-                      </div>
-                      <div class="pt-2 border-t border-white/40">
-                        <div class="flex items-center justify-between mb-2">
-                          <label class="text-xs font-semibold text-gray-700 block">عناصر المهارة</label>
-                          <button onclick="addMevElementRowInline()" class="glass-icon-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-primary flex items-center gap-1 hover:bg-primary/10">
-                            <i class="ph ph-plus"></i> إضافة عنصر
-                          </button>
-                        </div>
-                        <div id="mevInlineElementsList" class="space-y-2"></div>
-                      </div>
-                    </div>
-                    <button onclick="saveMevTemplateInline()"
-                      class="w-full mt-4 py-3 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 transition-all"
-                      style="background:linear-gradient(135deg,#0790AC,#056276)">
-                      <i class="ph ph-floppy-disk"></i> حفظ البطاقة والمتابعة
-                    </button>
-                  </div>
+                  ${mevNewToolCardHTML(false)}
 
                 </div>`;
 
@@ -20636,6 +20641,8 @@
             const body = document.getElementById('measureEvalViewBody');
             if (!body) return;
             _mevStandaloneFlow = true;
+            _mevNewSessionMode = false;
+            _mevSessionDraft = null;
             _mevPendingTemplate = null;
             _mevCurrentTraineeId = null;
             _mevCurrentTraineeName = '';
@@ -20717,7 +20724,8 @@
             }
             _mevTemplates.unshift(template);
             try { mevRenderToolsTree(); } catch (_) {}
-            mevOpenInlineSessionPage(template);
+            if (_mevNewSessionMode) mevShowSessionTool(template);
+            else mevOpenInlineSessionPage(template);
         }
 
         // ── قسم "البحث عن أداة تقييم مخزنة" المدمج بالصفحة ──
@@ -20793,6 +20801,8 @@
         function mevResetStandaloneView() {
             const body = document.getElementById('measureEvalViewBody');
             if (!body) return;
+            _mevNewSessionMode = false;
+            _mevSessionDraft = null;
             mevSetHeaderActions('');
             mevToolbarShow(true);
             body.innerHTML = `
@@ -21133,7 +21143,7 @@
                             <i class="ph ph-x text-lg"></i>
                         </button>
                     </div>
-                    <p class="text-xs text-gray-500 mb-4">اختر طريقة تحديد المتدرب الذي سيُسجَّل له تقييم مهارة "${(_mevPendingTemplate?.skillName || '').replace(/"/g,'&quot;')}"</p>
+                    <p class="text-xs text-gray-500 mb-4">اختر طريقة تحديد المتدرب الذي سيُسجَّل له ${_mevPendingTemplate ? `تقييم مهارة "${(_mevPendingTemplate.skillName || '').replace(/"/g,'&quot;')}"` : 'جلسة القياس والتقييم'}</p>
                     <div class="space-y-3">
                         <button onclick="mevChooseSearchTrainee()" class="w-full glass-panel hover:border-primary hover:bg-primary/5 rounded-xl p-4 flex items-center gap-3 text-right transition-colors">
                             <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
@@ -21249,51 +21259,41 @@
         }
         function mevSelectTraineeFromSearch(traineeId) {
             const trainee = registryTrainees.find(t => t.id === traineeId);
-            if (!trainee || !_mevPendingTemplate) return;
+            if (!trainee || (!_mevPendingTemplate && !_mevNewSessionMode)) return;
             closeMevTraineeSearchModal();
             _mevCurrentTraineeId = trainee.id;
             _mevCurrentTraineeName = trainee.nameAr;
             _mevCurrentTraineeCode = trainee.code;
             const template = _mevPendingTemplate;
             _mevPendingTemplate = null;
-            mevOpenInlineSessionPage(template);
+            if (_mevNewSessionMode) mevRenderNewSessionPage();
+            else mevOpenInlineSessionPage(template);
         }
         // يُستدعى بعد تسجيل متدرب جديد في السجل عبر مسار "القياس والتقييم"
         // المستقل (courseCtx.mev === true ضمن دالة حفظ نافذة تسجيل المتدرب) —
         // يحدِّد المتدرب المُنشأ للتو كهدف للتقييم ثم يفتح صفحة الجلسة المدمجة
         // مباشرة ببطاقة المهارة التي سبق اختيارها
         function mevTraineeCreatedStandalone(trainee) {
-            if (!trainee || !_mevPendingTemplate) return;
+            if (!trainee || (!_mevPendingTemplate && !_mevNewSessionMode)) return;
             _mevCurrentTraineeId = trainee.id;
             _mevCurrentTraineeName = trainee.nameAr;
             _mevCurrentTraineeCode = trainee.code;
             const template = _mevPendingTemplate;
             _mevPendingTemplate = null;
-            mevOpenInlineSessionPage(template);
+            if (_mevNewSessionMode) mevRenderNewSessionPage();
+            else mevOpenInlineSessionPage(template);
         }
 
-        // ══════════════════════════════════════════════════════════════════
-        // ٤ج) صفحة "جلسة القياس والتقييم" المدمجة بلوحة العرض الرئيسية —
-        // تظهر بعد تحديد أداة التقييم (بطاقة جديدة أو من البحث) وتحديد
-        // المتدرب، بنفس أسلوب صفحة "تصميم امتحان جديد": قسم إعدادات أعلى
-        // الصفحة، ثم قسم أداة التقييم نفسها لإدخال النتائج، ثم زر الحفظ
-        // ══════════════════════════════════════════════════════════════════
-        function mevOpenInlineSessionPage(template, existingRecord = null) {
-            mevToolbarShow(false);
-            _mevSelectedTemplate = template;
-            if (!existingRecord) _mevSelectedTrainerName = '';
-            const body = document.getElementById('measureEvalViewBody');
-            if (!body) return;
-
-            const todayStr = existingRecord?.assessmentDate || new Date().toISOString().slice(0, 10);
-
-            body.innerHTML = `
-                <div class="space-y-5 pb-10 animate-[fadeIn_0.3s_ease-in-out]">
-
-                  <!-- قسم إعدادات جلسة القياس والتقييم (بنفس عناصر قسم إعدادات الامتحان) -->
+        // ── بطاقة "إعدادات أداة القياس والتقييم" (مشتركة بين صفحة الجلسة المدمجة
+        // وصفحة "جلسة قياس وتقييم جديدة") ──
+        function mevSessionSettingsCardHTML(existingRecord) {
+            const src = existingRecord || _mevSessionDraft || {};
+            const todayStr = src.assessmentDate || new Date().toISOString().slice(0, 10);
+            return `
+                  <!-- قسم إعدادات أداة القياس والتقييم (بنفس عناصر قسم إعدادات الامتحان) -->
                   <div class="glass-element rounded-xl p-5">
                     <h3 class="font-bold text-base mb-4 text-primary flex items-center gap-2">
-                      <i class="ph ph-info"></i> إعدادات جلسة القياس والتقييم
+                      <i class="ph ph-info"></i> إعدادات أداة القياس والتقييم
                       ${existingRecord ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">وضع التعديل</span>` : ''}
                     </h3>
                     <div class="grid grid-cols-1 gap-3">
@@ -21358,7 +21358,7 @@
                         </div>
                         <div>
                           <label class="text-xs text-gray-500 mb-1 block">مدة الجلسة (دقيقة) <span class="text-gray-300">(اختياري)</span></label>
-                          <input id="mevInlineSessionDuration" type="number" min="1" max="360" placeholder="مثال: 15" value="${existingRecord?.sessionDuration || ''}"
+                          <input id="mevInlineSessionDuration" type="number" min="1" max="360" placeholder="مثال: 15" value="${src.sessionDuration || ''}"
                             class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
                         </div>
                       </div>
@@ -21372,7 +21372,7 @@
                         </div>
                         <div>
                           <label class="text-xs text-gray-500 mb-1 block">توقيت التقييم <span class="text-gray-300">(اختياري)</span></label>
-                          <input id="mevInlineAssessmentTime" type="time" value="${existingRecord?.assessmentTime || ''}"
+                          <input id="mevInlineAssessmentTime" type="time" value="${src.assessmentTime || ''}"
                             class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
                         </div>
                       </div>
@@ -21381,35 +21381,289 @@
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="relative">
                           <label class="text-xs text-gray-500 mb-1 block">اسم المدرب المقيِّم <span class="text-red-500">*</span></label>
-                          <input id="mevInlineTrainerSearchInput" type="text" autocomplete="off" placeholder="ابحث عن اسم المدرب..." value="${escapeHtml(existingRecord?.trainerName || '')}"
+                          <input id="mevInlineTrainerSearchInput" type="text" autocomplete="off" placeholder="ابحث عن اسم المدرب..." value="${escapeHtml(src.trainerName || '')}"
                             oninput="renderMevTrainerSuggestionsInline()" onfocus="renderMevTrainerSuggestionsInline()"
                             class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
                           <div id="mevInlineTrainerSuggestions" class="hidden absolute z-20 top-full right-0 left-0 mt-1 glass-panel bg-white/95 rounded-lg shadow-xl max-h-48 overflow-y-auto"></div>
                         </div>
                         <div>
                           <label class="text-xs text-gray-500 mb-1 block">مكان إجراء التقييم <span class="text-gray-300">(اختياري)</span></label>
-                          <input id="mevInlineCenterName" type="text" placeholder="مثال: المركز الرئيسي" value="${escapeHtml(existingRecord?.centerName || '')}"
+                          <input id="mevInlineCenterName" type="text" placeholder="مثال: المركز الرئيسي" value="${escapeHtml(src.centerName || '')}"
                             class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
                         </div>
                       </div>
 
                     </div>
                   </div>
+`;
+        }
 
+        // ── بطاقة أداة القياس والتقييم المختارة (عناصرها + الدرجة النهائية) ──
+        function mevToolCardHTML(template, allowChange) {
+            return `
                   <!-- قسم أداة القياس والتقييم المختارة -->
                   <div class="glass-element rounded-xl p-5">
                     <div class="flex items-center justify-between mb-4">
                       <h3 class="font-bold text-base text-primary flex items-center gap-2">
                         <i class="ph ph-ruler"></i> ${escapeHtml(template.skillName)}
                       </h3>
-                      <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">الدرجة الكاملة: ${template.fullScore}</span>
+                      <div class="flex items-center gap-2 shrink-0">
+                        ${allowChange ? `<button onclick="mevShowSessionToolChooser()" class="text-[11px] text-primary font-semibold hover:underline">تغيير الأداة</button>` : ''}
+                        <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">الدرجة الكاملة: ${template.fullScore}</span>
+                      </div>
                     </div>
                     <div id="mevInlineFillElementsList" class="space-y-3"></div>
                     <div class="glass-panel rounded-xl p-3 mt-4 flex items-center justify-between bg-primary/5">
                       <span class="text-sm font-semibold text-gray-700">الدرجة النهائية</span>
                       <span id="mevInlineFinalScoreDisplay" class="font-bold text-primary text-lg">0 / ${template.fullScore}</span>
                     </div>
+                  </div>`;
+        }
+
+        // ── بطاقة "إنشاء بطاقة قياس وتقييم جديدة" (مشتركة) ──
+        function mevNewToolCardHTML(withCancel) {
+            return `
+                  <!-- بطاقة: إنشاء بطاقة قياس وتقييم جديدة -->
+                  <div class="glass-element rounded-xl p-5">
+                    <div class="flex items-center justify-between gap-2 mb-4">
+                      <h3 class="font-bold text-base text-primary flex items-center gap-2">
+                        <i class="ph ph-plus-circle"></i> إنشاء بطاقة قياس وتقييم جديدة
+                      </h3>
+                      ${withCancel ? `<button onclick="mevShowSessionToolChooser()" class="text-[11px] text-gray-500 font-semibold hover:underline shrink-0">إلغاء</button>` : ''}
+                    </div>
+                    <div class="grid grid-cols-1 gap-3">
+                      <div>
+                        <label class="text-xs text-gray-500 mb-1 block">اسم المهارة السريرية (الإجراء) <span class="text-red-500">*</span></label>
+                        <input id="mevInlineSkillNameInput" type="text" placeholder="مثال: قياس ضغط الدم"
+                          class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                      </div>
+                      <div>
+                        <label class="text-xs text-gray-500 mb-1 block">الدرجة الكاملة <span class="text-red-500">*</span></label>
+                        <input id="mevInlineFullScoreInput" type="number" min="1" step="0.5" placeholder="مثال: 20"
+                          class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                        <p class="text-[10px] text-gray-400 mt-1">ستُحتسب الدرجة النهائية بناءً على هذه الدرجة، حسب نسبة الأداء في كل عنصر</p>
+                      </div>
+                      <div class="pt-2 border-t border-white/40">
+                        <div class="flex items-center justify-between mb-2">
+                          <label class="text-xs font-semibold text-gray-700 block">عناصر المهارة</label>
+                          <button onclick="addMevElementRowInline()" class="glass-icon-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-primary flex items-center gap-1 hover:bg-primary/10">
+                            <i class="ph ph-plus"></i> إضافة عنصر
+                          </button>
+                        </div>
+                        <div id="mevInlineElementsList" class="space-y-2"></div>
+                      </div>
+                    </div>
+                    <button onclick="saveMevTemplateInline()"
+                      class="w-full mt-4 py-3 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 transition-all"
+                      style="background:linear-gradient(135deg,#0790AC,#056276)">
+                      <i class="ph ph-floppy-disk"></i> حفظ البطاقة والمتابعة
+                    </button>
+                  </div>`;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // صفحة "جلسة قياس وتقييم جديدة": بطاقة إعدادات أداة القياس والتقييم
+        // أعلى الصفحة، وأسفلها بطاقة "اختيار بطاقة قياس وتقييم" المخزَّنة
+        // (بجانب عنوانها زرا البحث عن بطاقة مخزنة وإنشاء بطاقة جديدة).
+        // عند إنشاء بطاقة جديدة تُحذف بطاقة الاختيار ويحل محلها نموذج الإنشاء
+        // ══════════════════════════════════════════════════════════════════
+        function mevOpenNewSessionPage() {
+            if (!_mevCanManage()) return;
+            _mevStandaloneFlow = true;
+            _mevNewSessionMode = true;
+            _mevSessionDraft = null;
+            _mevPendingTemplate = null;
+            _mevCurrentTraineeId = null;
+            _mevCurrentTraineeName = '';
+            _mevCurrentTraineeCode = '';
+            _mevSelectedProgramKey = null;
+            _mevSelectedCourseKey = null;
+            _mevSelectedAcademicYear = '';
+            _mevSelectedSemester = '';
+            _mevSelectedTemplate = null;
+            _mevSelectedTrainerName = '';
+            _mevEditRecordId = null;
+            mevRenderNewSessionPage();
+            closeSidebarOnMobile();
+        }
+
+        function mevRenderNewSessionPage() {
+            const body = document.getElementById('measureEvalViewBody');
+            if (!body) return;
+            body.innerHTML = `
+                <div class="space-y-5 pb-10 animate-[fadeIn_0.3s_ease-in-out]">
+                  ${mevSessionSettingsCardHTML(null)}
+                  <div id="mevSessionToolArea"></div>
+                </div>`;
+            populateMevAssessmentTypeSelectInline((_mevSessionDraft && _mevSessionDraft.assessmentType) || null);
+            if (_mevSelectedTemplate) mevShowSessionTool(_mevSelectedTemplate);
+            else mevShowSessionToolChooser();
+        }
+
+        // يحفظ مؤقتاً حقول إعدادات الجلسة قبل الانتقال لتحديد المتدرب
+        function mevCaptureSessionDraft() {
+            const g = id => document.getElementById(id);
+            if (!g('mevInlineAssessmentDate')) return;
+            _mevSessionDraft = {
+                assessmentType: g('mevInlineAssessmentTypeSelect')?.value || '',
+                assessmentDate: g('mevInlineAssessmentDate')?.value || '',
+                assessmentTime: g('mevInlineAssessmentTime')?.value || '',
+                sessionDuration: g('mevInlineSessionDuration')?.value || '',
+                trainerName: (g('mevInlineTrainerSearchInput')?.value || '').trim(),
+                centerName: (g('mevInlineCenterName')?.value || '').trim()
+            };
+        }
+
+        // بطاقة اختيار بطاقة قياس وتقييم (المحفوظة)
+        function mevShowSessionToolChooser() {
+            const area = document.getElementById('mevSessionToolArea');
+            if (!area) return;
+            _mevSelectedTemplate = null;
+            mevToolbarShow(true);
+            mevSetHeaderActions('');
+            area.innerHTML = `
+                <div class="glass-element rounded-xl p-5">
+                  <div class="flex items-center justify-between gap-2 mb-3">
+                    <h3 class="font-bold text-base text-primary flex items-center gap-2">
+                      <i class="ph ph-list-magnifying-glass"></i> اختيار بطاقة قياس وتقييم
+                    </h3>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <button onclick="mevSessionToggleSearch()" title="البحث عن بطاقة مخزنة"
+                        class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10">
+                        <i class="ph ph-magnifying-glass text-sm"></i>
+                      </button>
+                      <button onclick="mevSessionShowNewToolForm()" title="إنشاء بطاقة جديدة"
+                        class="glass-icon-btn w-9 h-9 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10">
+                        <i class="ph ph-plus-circle text-sm"></i>
+                      </button>
+                    </div>
                   </div>
+                  <label class="text-xs text-gray-500 mb-1 block">اختر من البطاقات المخزَّنة</label>
+                  <select id="mevSessToolSelect" onchange="mevSessionPickTemplate(this.value)"
+                    class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                    <option value="">-- جاري تحميل البطاقات... --</option>
+                  </select>
+                  <div id="mevSessSearchPanel" class="hidden mt-3">
+                    <input id="mevSessSearchInput" type="text" oninput="mevSessionRenderSearchResults()" placeholder="ابحث باسم المهارة..."
+                      class="w-full glass-panel rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+                    <div id="mevSessSearchResults" class="space-y-2 mt-3"></div>
+                  </div>
+                </div>`;
+            mevSessionLoadTemplates();
+        }
+
+        async function mevSessionLoadTemplates() {
+            await mevEnsureTemplatesLoaded();
+            const sel = document.getElementById('mevSessToolSelect');
+            if (!sel) return;
+            if (!_mevTemplates.length) {
+                sel.innerHTML = '<option value="">-- لا توجد بطاقات مخزَّنة --</option>';
+            } else {
+                sel.innerHTML = '<option value="">-- اختر بطاقة مخزَّنة --</option>' +
+                    _mevTemplates.map(t => `<option value="${t.id}">${escapeHtml(t.skillName || '')} (${(t.elements || []).length} عنصر)</option>`).join('');
+            }
+            sel.value = '';
+            mevSessionRenderSearchResults();
+        }
+
+        function mevSessionToggleSearch() {
+            const panel = document.getElementById('mevSessSearchPanel');
+            if (!panel) return;
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) {
+                mevSessionRenderSearchResults();
+                setTimeout(() => document.getElementById('mevSessSearchInput')?.focus(), 50);
+            }
+        }
+
+        function mevSessionRenderSearchResults() {
+            const list = document.getElementById('mevSessSearchResults');
+            if (!list) return;
+            const q = (document.getElementById('mevSessSearchInput')?.value || '').trim().toLowerCase();
+            const filtered = q ? _mevTemplates.filter(t => (t.skillName || '').toLowerCase().includes(q)) : _mevTemplates;
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="text-center py-6 text-gray-400"><i class="ph ph-clipboard-text text-2xl block mb-1.5 mx-auto text-gray-300"></i><p class="text-xs">لا توجد بطاقات مطابقة</p></div>';
+                return;
+            }
+            list.innerHTML = filtered.map(t => `
+                <button onclick="mevSessionPickTemplate('${t.id}')" class="w-full glass-element rounded-lg p-3 text-right hover:border-primary/50 hover:-translate-y-0.5 transition-all flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-gray-800 truncate">${escapeHtml(t.skillName || '')}</p>
+                        <p class="text-[10px] text-gray-400 mt-0.5">${(t.elements || []).length} عنصر · الدرجة الكاملة ${t.fullScore}</p>
+                    </div>
+                    <i class="ph ph-caret-left text-gray-400 shrink-0"></i>
+                </button>
+            `).join('');
+        }
+
+        function mevSessionPickTemplate(id) {
+            if (!id) return;
+            const template = _mevTemplates.find(t => t.id === id);
+            if (!template) return;
+            mevShowSessionTool(template);
+        }
+
+        // عرض بطاقة الأداة المختارة (بدل بطاقة الاختيار) أسفل بطاقة الإعدادات
+        function mevShowSessionTool(template) {
+            const area = document.getElementById('mevSessionToolArea');
+            if (!area) return;
+            _mevSelectedTemplate = template;
+            mevToolbarShow(false);
+            area.innerHTML = mevToolCardHTML(template, true);
+            mevSetHeaderActions(mevHeaderActionBtnHTML(
+                'saveMevAssessmentInline()', 'ph-floppy-disk', 'حفظ التقييم', '', true
+            ));
+            renderMevFillElementsInline(template.elements, null);
+            updateMevFinalScoreInline();
+        }
+
+        // إنشاء بطاقة جديدة: تُحذف بطاقة الاختيار ويحل محلها نموذج الإنشاء
+        function mevSessionShowNewToolForm() {
+            const area = document.getElementById('mevSessionToolArea');
+            if (!area) return;
+            _mevSelectedTemplate = null;
+            mevSetHeaderActions('');
+            area.innerHTML = mevNewToolCardHTML(true);
+            _mevElements = [];
+            addMevElementRowInline();
+            setTimeout(() => document.getElementById('mevInlineSkillNameInput')?.focus(), 50);
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // ٤ج) صفحة "جلسة القياس والتقييم" المدمجة بلوحة العرض الرئيسية —
+        // تظهر بعد تحديد أداة التقييم (بطاقة جديدة أو من البحث) وتحديد
+        // المتدرب، بنفس أسلوب صفحة "تصميم امتحان جديد": قسم إعدادات أعلى
+        // الصفحة، ثم قسم أداة التقييم نفسها لإدخال النتائج، ثم زر الحفظ
+        // ══════════════════════════════════════════════════════════════════
+        function mevOpenInlineSessionPage(template, existingRecord = null, toolDetailsOnly = false) {
+            mevToolbarShow(false);
+            _mevSelectedTemplate = template;
+            if (!existingRecord) _mevSelectedTrainerName = '';
+            const body = document.getElementById('measureEvalViewBody');
+            if (!body) return;
+
+            _mevNewSessionMode = false;
+            const src = existingRecord || _mevSessionDraft || {};
+
+            // عند فتح أداة من القائمة الجانبية: عرض تفاصيل الأداة فقط (دون بطاقة إعدادات الجلسة)
+            if (toolDetailsOnly) {
+                body.innerHTML = `
+                <div class="space-y-5 pb-10 animate-[fadeIn_0.3s_ease-in-out]">
+                  ${mevToolCardHTML(template, false)}
+                </div>`;
+                mevSetHeaderActions('');
+                renderMevFillElementsInline(template.elements, null);
+                updateMevFinalScoreInline();
+                return;
+            }
+
+            body.innerHTML = `
+                <div class="space-y-5 pb-10 animate-[fadeIn_0.3s_ease-in-out]">
+
+                  ${mevSessionSettingsCardHTML(existingRecord)}
+
+                  ${mevToolCardHTML(template, false)}
+
 
                 </div>`;
 
@@ -21423,7 +21677,7 @@
 
             renderMevFillElementsInline(template.elements, existingRecord ? existingRecord.elements : null);
             updateMevFinalScoreInline();
-            populateMevAssessmentTypeSelectInline(existingRecord ? existingRecord.assessmentType : null);
+            populateMevAssessmentTypeSelectInline(src.assessmentType || null);
         }
 
         // إعادة تشغيل تدفق تحديد المتدرب من صفحة الجلسة المدمجة (زر "تغيير"
@@ -21431,6 +21685,7 @@
         // ما أُدخل من سياق البرنامج/الدورة/السنة الدراسية/الفصل الدراسي حتى
         // لا يُفقد عند إعادة رسم الصفحة بعد اختيار/تسجيل المتدرب
         function mevChangeTraineeInline() {
+            mevCaptureSessionDraft();
             const progSel = document.getElementById('mevInlineProgramSelect');
             if (progSel) _mevSelectedProgramKey = progSel.value || null;
             const courseSel = document.getElementById('mevInlineCourseSelect');
@@ -21441,7 +21696,7 @@
             openMevTraineeChoiceModal();
         }
 
-        // ─── خانتا "البرنامج" و"الدورة" داخل قسم إعدادات جلسة القياس والتقييم
+        // ─── خانتا "البرنامج" و"الدورة" داخل قسم إعدادات أداة القياس والتقييم
         // (بنفس أسلوب خانتي البرنامج/الدورة في صفحة "تصميم امتحان جديد") ───
         function mevBuildProgramOptionsHTML(selectedPk) {
             const progs = Object.keys(programsData || {})
@@ -21715,6 +21970,8 @@
             _mevSelectedAcademicYear = '';
             _mevSelectedSemester = '';
             _mevEditRecordId = null;
+            _mevNewSessionMode = false;
+            _mevSessionDraft = null;
 
             if (isEdit) {
                 // بعد التعديل، أعِد عرض صفحة تفاصيل التقييم بنفس السجل المحدَّث
@@ -21896,6 +22153,8 @@
             const t = (_mevTemplates || []).find(x => x.id === toolId);
             if (!t) return;
             _mevStandaloneFlow = true;
+            _mevNewSessionMode = false;
+            _mevSessionDraft = null;
             _mevPendingTemplate = null;
             _mevCurrentTraineeId = null;
             _mevCurrentTraineeName = '';
@@ -21903,7 +22162,7 @@
             _mevEditRecordId = null;
             _mevSelectedProgramKey = (pk && !pk.startsWith('__')) ? pk : null;
             _mevSelectedCourseKey = (ck && !ck.startsWith('__')) ? ck : null;
-            mevOpenInlineSessionPage(t);
+            mevOpenInlineSessionPage(t, null, true);
             closeSidebarOnMobile();
         }
 
@@ -22135,6 +22394,8 @@
             const body = document.getElementById('measureEvalViewBody');
             if (!r || !body) return;
             mevToolbarShow(false);
+            _mevNewSessionMode = false;
+            _mevSessionDraft = null;
             _mevDetailCurrentId = recordId;
             _mevDetailCurrentTraineeId = traineeId;
 
@@ -22191,10 +22452,11 @@
             // أزرار "تعديل / حذف / طباعة" التقييم تنتقل لأقصى يسار هيدر لوحة
             // العرض الرئيسية بدل أسفل الصفحة، بنفس تصميم أزرار تعديل/طباعة/حذف
             // بيانات المتدرب المستخدَم في بقية النظام
-            mevSetHeaderActions(
-                mevHeaderActionBtnHTML('mevEditFromDetailInline()', 'ph-pencil-simple', 'تعديل التقييم', '', true) +
-                mevHeaderActionBtnHTML('mevPrintAssessmentDetail()', 'ph-printer', 'طباعة', 'text-gray-600 hover:bg-gray-100') +
-                mevHeaderActionBtnHTML('mevDeleteFromDetailInline()', 'ph-trash', 'حذف التقييم', 'text-red-500 hover:bg-red-50 hover:border-red-300')
+            mevSetHeaderActions('');
+            mevSetResultsHeader(r.traineeName || '',
+                mevHeaderActionBtnHTML('mevEditFromDetailInline()', 'ph-pencil-simple', 'تعديل التقييم', '', true, true) +
+                mevHeaderActionBtnHTML('mevPrintAssessmentDetail()', 'ph-printer', 'طباعة', 'text-gray-600 hover:bg-gray-100', false, true) +
+                mevHeaderActionBtnHTML('mevDeleteFromDetailInline()', 'ph-trash', 'حذف التقييم', 'text-red-500 hover:bg-red-50 hover:border-red-300', false, true)
             );
         }
 
