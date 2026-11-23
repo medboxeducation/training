@@ -2443,8 +2443,8 @@
                         <i class="ph ph-books text-3xl text-primary"></i>
                         <h2 class="text-2xl font-bold text-gray-800">البرامج التدريبية</h2>
                     </div>
-                    <button id="btnAddProgramGrid" class="program-actions glass-panel px-4 py-2 rounded-lg text-sm font-semibold text-primary flex items-center gap-2 hover:border-primary transition-colors" onclick="addProgram()">
-                        <i class="ph ph-plus"></i> إضافة برنامج جديد
+                    <button id="btnAddProgramGrid" title="إضافة برنامج جديد" aria-label="إضافة برنامج جديد" class="program-actions glass-panel px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold text-primary flex items-center gap-2 hover:border-primary transition-colors" onclick="addProgram()">
+                        <i class="ph ph-plus"></i> <span class="hidden sm:inline">إضافة برنامج جديد</span>
                     </button>
                 </div>
 
@@ -3481,14 +3481,14 @@
                          الشاشات المتوسطة والكبيرة، وأيقونة فقط في الشاشات
                          الصغيرة (نفس أسلوب أزرار التعديل/الحذف في هيدر عرض
                          الامتحان) -->
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
                         <button onclick="esCreateNewExam()" title="إنشاء امتحان جديد"
-                          class="glass-icon-btn px-2.5 sm:px-4 py-2.5 rounded-xl text-sm font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
-                          <i class="ph ph-file-plus text-base"></i> <span class="hidden sm:inline">إنشاء امتحان جديد</span>
+                          class="flex-1 sm:flex-none justify-center glass-icon-btn px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
+                          <i class="ph ph-file-plus text-base"></i> <span>إنشاء امتحان جديد</span>
                         </button>
                         <button onclick="esCreateNewMeasureEval()" title="إنشاء قياس وتقييم جديد"
-                          class="glass-icon-btn px-2.5 sm:px-4 py-2.5 rounded-xl text-sm font-semibold text-teal-700 flex items-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors">
-                          <i class="ph ph-ruler text-base"></i> <span class="hidden sm:inline">إنشاء قياس وتقييم جديد</span>
+                          class="flex-1 sm:flex-none justify-center glass-icon-btn px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold text-teal-700 flex items-center gap-1.5 hover:bg-teal-50 hover:border-teal-300 transition-colors">
+                          <i class="ph ph-ruler text-base"></i> <span>إنشاء قياس وتقييم جديد</span>
                         </button>
                     </div>
                 </div>
@@ -3557,7 +3557,7 @@
                         <p id="examinationViewSubtitle" class="text-xs text-gray-400">إدارة الامتحانات والأسئلة</p>
                     </div>
                     <!-- على الموبايل تنزل أزرار المهام في سطر مستقل تحت رمز الدورة -->
-                    <div id="examinationViewActions" class="flex items-center gap-1 flex-wrap w-full sm:w-auto empty:hidden"></div>
+                    <div id="examinationViewActions" class="flex items-center gap-2 sm:gap-1 flex-nowrap sm:flex-wrap w-full sm:w-auto empty:hidden"></div>
                 </div>
                 <div id="examinationViewBody" class="flex-1"></div>
             </div>
@@ -25222,19 +25222,21 @@
         // المعتمدة في باقي التطبيق. المرفقات فقط (صفحات نموذج الطالب الورقي) تُرفع
         // إلى Google Drive بصيغتها الأصلية (JPEG)، ويُعاد رفع الصفحات الجديدة/المعدَّلة
         // حصراً — أي صفحة سبق رفعها ولها مرجع Drive جاهز لا تُعاد رفعها إطلاقاً ----
-        async function pcSaveCorrectionToDrive() {
+        async function pcSaveCorrectionToDrive(opts) {
+            const silent = !!(opts && opts.silent);
             const batch = _paperCorrectionBatch;
-            if (!batch.exam) { showToast('⚠️ حدِّد الامتحان أولاً', 'warning'); return; }
-            if (!db) { showToast('❌ لا يوجد اتصال بقاعدة البيانات', 'error'); return; }
+            if (_pcSaveInFlight) { if (silent) _pcAutoSavePending = true; return; }
+            if (!batch.exam) { if (!silent) showToast('⚠️ حدِّد الامتحان أولاً', 'warning'); return; }
+            if (!db) { if (!silent) showToast('❌ لا يوجد اتصال بقاعدة البيانات', 'error'); return; }
 
             const students = batch.students.filter(s => s.name && s.name.trim() && s.grading);
-            if (!students.length) { showToast('⚠️ لا توجد نتائج طلاب جاهزة للحفظ بعد', 'warning'); return; }
+            if (!students.length) { if (!silent) showToast('⚠️ لا توجد نتائج طلاب جاهزة للحفظ بعد', 'warning'); return; }
 
             // Google Drive مطلوب فقط إن وُجدت صفحات مصوَّرة محلياً (base64) لم تُرفع بعد؛
             // الطلاب الذين صورهم مرفوعة أصلاً (مراجع Drive) لا يحتاجون أي اتصال بـ Drive هنا
             const needsDrive = students.some(s => (s.images || []).some(img => typeof img === 'string'));
             if (needsDrive && !driveToken) {
-                showToast('⚠️ سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" لرفع نماذج الطلاب الورقية', 'warning');
+                if (!silent) showToast('⚠️ سجّل الدخول بحساب Google Drive أولاً من "المزامنة وتصدير البيانات" لرفع نماذج الطلاب الورقية', 'warning');
                 return;
             }
 
@@ -25246,6 +25248,7 @@
             const program = programsData[batch.programKey];
             const course  = (program?.courses || []).find(c => c.key === batch.courseKey);
             let savedCount = 0, failedCount = 0;
+            _pcSaveInFlight = true;
 
             try {
                 if (needsDrive && !gapiReady) await initGapi();
@@ -25331,10 +25334,10 @@
 
                 if (failedCount) {
                     showToast(`⚠️ تم حفظ ${savedCount} طالب — تعذّر حفظ ${failedCount}`, 'warning');
-                } else {
+                } else if (!silent) {
                     showToast(`✅ تم حفظ نتائج ${savedCount} طالب`, 'success');
                 }
-                if (savedCount) {
+                if (savedCount && !silent) {
                     addNotification({
                         type: 'exam',
                         action: 'paperCorrectionSaved',
@@ -25348,8 +25351,10 @@
                 pcBrowseTreeState = { tree: null, expandedYear: null, expandedSemester: null, expandedCourse: null };
             } catch (err) {
                 console.error('pcSaveCorrectionToDrive error:', err);
-                showToast('❌ فشل حفظ التصحيح: ' + (err.message || ''), 'error');
+                showToast((silent ? '❌ فشل الحفظ التلقائي: ' : '❌ فشل حفظ التصحيح: ') + (err.message || ''), 'error');
             } finally {
+                _pcSaveInFlight = false;
+                if (_pcAutoSavePending) { _pcAutoSavePending = false; pcQueueAutoSave(500); }
                 if (btn) { btn.disabled = false; btn.innerHTML = originalHtml || `<i class="ph ph-cloud-arrow-up text-sm"></i> <span class="hidden sm:inline">حفظ التصحيح</span>`; }
             }
         }
@@ -25598,8 +25603,40 @@
         // (بلا أي تنبيه إضافي) إن لم يكن المستخدم مسجَّلاً دخول Google بعد، لأنه
         // سبق تنبيهه بذلك عند دخول القسم عبر pcPromptDriveSignInIfNeeded ----
         async function pcAutoSaveAfterAnalysis() {
-            if (!driveToken) return;
-            try { await pcSaveCorrectionToDrive(); } catch(_) {}
+            pcQueueAutoSave(300);
+        }
+
+        // ---- حفظ تلقائي لأي تغيير في تصحيح الطلاب (علامة يدوية، تعديل إجابة، مطابقة وتصحيح،
+        // تعديل اسم الطالب...) دون الحاجة لزر "حفظ التصحيح": تأخير قصير (debounce) لتجميع
+        // التعديلات المتتابعة، ثم حفظ صامت (لا إشعارات نجاح) عبر نفس دالة الحفظ اليدوي ----
+        let _pcAutoSaveTimer = null;
+        let _pcSaveInFlight = false;
+        let _pcAutoSavePending = false;
+        function pcQueueAutoSave(delay) {
+            if (!_paperCorrectionBatch || !_paperCorrectionBatch.exam) return;
+            clearTimeout(_pcAutoSaveTimer);
+            _pcAutoSaveTimer = setTimeout(() => {
+                pcSaveCorrectionToDrive({ silent: true }).catch(() => {});
+            }, delay == null ? 1500 : delay);
+        }
+
+        // ---- بعد تعديل إجابة في العرض الثلاثي: أعد حساب علامة الطالب المفتوح (إن كان مصحَّحاً
+        // سابقاً) كي لا تُحفَظ علامات قديمة، ثم احفظ تلقائياً ----
+        let _pcAnswerEditTimer = null;
+        function pcOnAnswerEdited() {
+            clearTimeout(_pcAnswerEditTimer);
+            _pcAnswerEditTimer = setTimeout(() => {
+                const s = findPaperCorrectionBatchStudent(_paperCorrectionBatch.activeStudentId);
+                if (s && s.grading && s.answers === _paperCorrection.answers) {
+                    const prevManual = s.manualMarks;
+                    paperCorrectionGradeStudent(s);
+                    if (prevManual) s.manualMarks = prevManual;
+                    renderPaperCorrectionStudentDetailHeader(s);
+                    renderPaperCorrectionStudentResults(s);
+                    renderPaperCorrectionSidebarList();
+                }
+                pcQueueAutoSave(1200);
+            }, 700);
         }
 
         // ---- عرض جسم لوحة العرض الرئيسية: يوزّع بين وضع "الإعداد" (إرفاق نسخ الطلاب) ووضع
@@ -25881,6 +25918,7 @@
                 renderPaperCorrectionStudentResults(activeStudent);
             }
 
+            if (done) pcQueueAutoSave(800);
             if (!failed) showToast(`✅ تمت المطابقة والتصحيح لـ ${done} طالب`, 'success');
             else showToast(`⚠️ تمت مطابقة ${done} — تعذّر تصحيح ${failed} (${failReasons[0] || ''})`, 'warning');
         }
@@ -25979,6 +26017,7 @@
             if (num > maxMark) num = maxMark;
             if (!s.manualMarks) s.manualMarks = {};
             s.manualMarks[qIndex] = num;
+            pcQueueAutoSave(1500);
 
             const finalEarned = paperCorrectionStudentFinalEarnedTotal(s);
             const pct = s.grading.totalMark > 0 ? Math.round((finalEarned / s.grading.totalMark) * 1000) / 10 : 0;
@@ -26270,6 +26309,7 @@ ${blocksHtml}
             if (!s) return;
             s.name = value;
             s.nameSource = 'manual';
+            if (s.grading) pcQueueAutoSave(2000);
         }
 
         // ---- زر "تحليل": يشغّل التحليل الآلي الكامل (اسم الطالب + إجاباته) لهذه النسخة تحديداً
@@ -28128,6 +28168,7 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
         // ---- دوال ضبط قيمة إجابة كل نوع سؤال في الحالة المؤقتة ----
         function setPaperCorrectionTFAnswer(qIndex, val, btnEl) {
             _paperCorrection.answers[qIndex] = val;
+            pcOnAnswerEdited();
             btnEl.parentElement.querySelectorAll('.paper-tf-btn').forEach(b => {
                 const active = b.dataset.val === val;
                 b.classList.toggle('bg-primary', active);
@@ -28139,6 +28180,7 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
 
         function setPaperCorrectionMCQAnswer(qIndex, optIndex, btnEl) {
             _paperCorrection.answers[qIndex] = optIndex;
+            pcOnAnswerEdited();
             btnEl.parentElement.querySelectorAll('.paper-mcq-btn').forEach(b => {
                 const active = parseInt(b.dataset.val) === optIndex;
                 b.classList.toggle('bg-primary/10', active);
@@ -28153,6 +28195,7 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
             const idx = current.indexOf(optIndex);
             if (idx >= 0) current.splice(idx, 1); else current.push(optIndex);
             _paperCorrection.answers[qIndex] = current;
+            pcOnAnswerEdited();
             const active = current.includes(optIndex);
             btnEl.classList.toggle('bg-primary/10', active);
             btnEl.classList.toggle('border-primary', active);
@@ -28163,20 +28206,24 @@ ${!ocrQuestions.length ? '\nملاحظة: هذه القائمة فارغة، أ�
         function setPaperCorrectionEnumAnswer(qIndex, itemIndex, val) {
             if (!Array.isArray(_paperCorrection.answers[qIndex])) _paperCorrection.answers[qIndex] = [];
             _paperCorrection.answers[qIndex][itemIndex] = val;
+            pcOnAnswerEdited();
         }
 
         function setPaperCorrectionMatchAnswer(qIndex, itemIndex, val) {
             if (!Array.isArray(_paperCorrection.answers[qIndex])) _paperCorrection.answers[qIndex] = [];
             _paperCorrection.answers[qIndex][itemIndex] = val;
+            pcOnAnswerEdited();
         }
 
         function setPaperCorrectionEssayAnswer(qIndex, val) {
             _paperCorrection.answers[qIndex] = val;
+            pcOnAnswerEdited();
         }
 
         function setPaperCorrectionEssayReqAnswer(qIndex, reqIndex, val) {
             if (!Array.isArray(_paperCorrection.answers[qIndex])) _paperCorrection.answers[qIndex] = [];
             _paperCorrection.answers[qIndex][reqIndex] = val;
+            pcOnAnswerEdited();
         }
 
         /* ---- حفظ ورقة الطالب كمسودة في Firestore (بلا حساب علامة بعد — المرحلة 2) ---- */
@@ -34100,30 +34147,30 @@ ${JSON.stringify(payload, null, 0)}
         document.getElementById('examinationViewActions').innerHTML = `
             ${showPaperCorrectionBackBtn ? `
             <button onclick="returnToPaperCorrectionFromExamViewer()" title="التراجع والعودة لعرض بيانات الطلاب"
-              class="glass-icon-btn px-2 sm:px-3 py-2 rounded-xl text-xs font-semibold text-amber-600 flex items-center gap-1.5 hover:bg-amber-50 hover:border-amber-300 transition-colors">
-              <i class="ph ph-arrow-u-up-left text-sm"></i> <span class="hidden sm:inline">تراجع</span>
+              class="glass-icon-btn flex-1 sm:flex-none justify-center px-1.5 sm:px-3 py-2 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap text-amber-600 flex items-center gap-1.5 hover:bg-amber-50 hover:border-amber-300 transition-colors">
+              <i class="ph ph-arrow-u-up-left text-sm"></i> <span>تراجع</span>
             </button>` : ''}
             ${(canEditView || canDeleteView) ? `
-            <span class="flex items-center gap-1.5">
+            <span class="contents">
             ${canEditView ? `
             <button id="${editBtnId}" onclick="emsRequestEditExam('${pk}','${ck}','${exam.id || ''}')" title="تعديل"
-              class="glass-icon-btn px-2 sm:px-3 py-2 rounded-xl text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
-              <i class="ph ph-pencil-simple text-sm"></i> <span class="hidden sm:inline">تعديل</span>
+              class="glass-icon-btn flex-1 sm:flex-none justify-center px-1.5 sm:px-3 py-2 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
+              <i class="ph ph-pencil-simple text-sm"></i> <span>تعديل</span>
             </button>` : ''}
             ${canDeleteView ? `
             <button id="${deleteBtnId}" onclick="emsConfirmDeleteExam('${pk}','${ck}','${exam.id || ''}')" title="حذف"
-              class="glass-icon-btn px-2 sm:px-3 py-2 rounded-xl text-xs font-semibold text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors">
-              <i class="ph ph-trash text-sm"></i> <span class="hidden sm:inline">حذف</span>
+              class="glass-icon-btn flex-1 sm:flex-none justify-center px-1.5 sm:px-3 py-2 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap text-red-500 flex items-center gap-1.5 hover:bg-red-50 hover:border-red-300 transition-colors">
+              <i class="ph ph-trash text-sm"></i> <span>حذف</span>
             </button>` : ''}
             </span>` : ''}
             ${canManageView ? `
             <button id="qbImportExamBtn" onclick="qbImportExamQuestions('${pk}','${qbCk}','${exam.id || ''}')" title="إضافة لبنك الأسئلة"
-              class="glass-icon-btn px-2 sm:px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 flex items-center gap-1.5 hover:bg-indigo-50 hover:border-indigo-300 transition-colors">
-              <i class="ph ph-stack text-sm"></i> <span class="hidden sm:inline">إضافة لبنك الأسئلة</span>
+              class="glass-icon-btn flex-1 sm:flex-none justify-center px-1.5 sm:px-3 py-2 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap text-indigo-600 flex items-center gap-1.5 hover:bg-indigo-50 hover:border-indigo-300 transition-colors">
+              <i class="ph ph-stack text-sm"></i> <span class="sm:hidden">للبنك</span><span>إضافة لبنك الأسئلة</span>
             </button>` : ''}
             <button onclick="emsPrintExam('${examQRProgramKey}','${qbCk}','${exam.id || ''}')" title="طباعة"
-              class="glass-icon-btn px-2 sm:px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
-              <i class="ph ph-printer text-sm"></i> <span class="hidden sm:inline">طباعة</span>
+              class="glass-icon-btn flex-1 sm:flex-none justify-center px-1.5 sm:px-3 py-2 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap text-gray-600 flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
+              <i class="ph ph-printer text-sm"></i> <span>طباعة</span>
             </button>`;
 
         // تحقق غير متزامن من القفل: إن تأكَّد أن الامتحان قد سُلِّم من متدرب
