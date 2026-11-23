@@ -29312,14 +29312,34 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
             const examTotal = ex.totalMark || (ex.questions || []).reduce((a, q) => a + (parseFloat(q.mark) || 0), 0);
 
             // توحيد سجلات الإلكتروني بنفس أسماء حقول سجلات الورقي (traineeName, earnedMark, totalMark, percentage, createdAt)
-            const elec = (electronic || []).map(e => ({
-                id: e.id, _kind: 'electronic',
-                traineeName: e.traineeName || '', traineeId: e.traineeId || null,
-                earnedMark: e.score ?? 0, totalMark: examTotal,
-                percentage: e.scorePct ?? (examTotal > 0 ? Math.round(((e.score || 0) / examTotal) * 1000) / 10 : 0),
-                createdAt: e.submittedAt || e.gradedAt || null,
-                needsReview: e.autoGraded === false
-            }));
+            const elec = (electronic || []).map(e => {
+                let earned = e.score ?? null;
+                let pct = e.scorePct ?? null;
+                // احتياط: إن لم تُحفظ العلامة لكن إجابات الطالب محفوظة، تُحسب من الإجابات
+                // بنفس منطق التصحيح الآلي (كما في صفحة الامتحانات المنجزة) بدل عرض 0
+                if (earned === null && e.submittedAnswers && (ex.questions || []).length) {
+                    let recomputed = 0;
+                    (ex.questions || []).forEach((q, idx) => {
+                        const saObj = e.submittedAnswers.find(a => a.questionIndex === idx) || {};
+                        const { earned: qEarned } = _examGradeQuestion(q, saObj.answer ?? null);
+                        recomputed += qEarned;
+                    });
+                    earned = recomputed;
+                    pct = examTotal > 0 ? Math.round((earned / examTotal) * 1000) / 10 : 0;
+                }
+                const startMs = e.startTime?.toMillis ? e.startTime.toMillis() : null;
+                const endMs   = e.submittedAt?.toMillis ? e.submittedAt.toMillis() : null;
+                return {
+                    id: e.id, _kind: 'electronic',
+                    traineeName: e.traineeName || '', traineeId: e.traineeId || null,
+                    earnedMark: earned ?? 0, totalMark: examTotal,
+                    percentage: pct ?? (examTotal > 0 ? Math.round(((earned || 0) / examTotal) * 1000) / 10 : 0),
+                    createdAt: e.submittedAt || e.gradedAt || null,
+                    needsReview: e.autoGraded === false,
+                    durationMs: (startMs && endMs) ? (endMs - startMs) : null,
+                    isCheatPenalty: !!e.isCheatPenalty
+                };
+            });
 
             let all = [];
             if (typeFilter !== 'electronic') all = all.concat(submissions);
@@ -29387,6 +29407,12 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
                     ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-sky-50 text-sky-700 border-sky-200">إلكتروني</span>'
                     : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">ورقي</span>';
                 const gradeBadge = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${grade.bg} ${grade.color}">${grade.label}</span>`;
+                const cheatBadge = (isElec && s.isCheatPenalty)
+                    ? '<span class="text-[10px] bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5"><i class="ph ph-shield-warning text-[10px]"></i>عقوبة غش</span>'
+                    : '';
+                const durationHTML = isElec
+                    ? `<p class="text-[11px] text-gray-400 flex items-center gap-1"><i class="ph ph-timer text-gray-300"></i> الوقت المستغرق: ${csFormatDuration(s.durationMs)}</p>`
+                    : '';
                 const onCard = isElec ? `openElectronicResult('${s.id}')` : `openPaperResultViewModal('${s.id}')`;
                 const cardTitle = isElec ? 'عرض نسخة الحل الإلكتروني' : 'عرض التأكيد الثلاثي لهذه الورقة';
                 const actions = isElec ? '' : `
@@ -29416,8 +29442,9 @@ ${rowsHtml ? `<h3 class="section"><i>✎</i> تفصيل الدرجات حسب ا
                     </div>
                     <p class="text-[11px] text-gray-400 flex items-center gap-1 truncate"><i class="ph ph-book-bookmark text-gray-300"></i> ${escapeHtml(subjectName)}</p>
                     <p class="text-[11px] text-gray-400 flex items-center gap-1"><i class="ph ph-calendar-blank text-gray-300"></i> ${examDateStr}</p>
+                    ${durationHTML}
                     <p class="text-[11px] text-gray-500 font-semibold mt-0.5 flex items-center gap-1.5 flex-wrap">
-                        ${typeBadge}
+                        ${typeBadge}${cheatBadge}
                         <span>${s.earnedMark ?? 0} / ${totalMark}</span> — <span class="${pctClass}">${pct}%</span> — ${gradeBadge}
                         ${s.needsReview ? '<span class="text-[10px] text-amber-600 font-semibold">(يحتاج مراجعة يدوية)</span>' : ''}
                     </p>
