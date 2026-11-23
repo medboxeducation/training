@@ -3645,9 +3645,8 @@
                             <span id="measureEvalTitleText">القياس والتقييم</span>
                             <span id="measureEvalTitleTrainee" class="hidden text-base font-bold text-primary"></span>
                         </h2>
-                        <p class="text-xs text-gray-400">إنشاء تقييمات مهارات سريرية للمتدربين</p>
                         <!-- أزرار نتائج التقييم (تعديل / طباعة / حذف) أسفل العنوان الرئيسي: أيقونة + اسم الزر -->
-                        <div id="measureEvalTitleActions" class="hidden flex items-center gap-1.5 flex-wrap mt-3"></div>
+                        <div id="measureEvalTitleActions" class="hidden flex items-center gap-1.5 flex-wrap mt-2"></div>
                     </div>
                     <!-- إجراءات سياقية (حفظ / تعديل / حذف / طباعة) لتقييم الطالب
                          الظاهر حالياً في measureEvalViewBody — تُبنى ديناميكياً
@@ -21294,7 +21293,7 @@
                   <div class="glass-element rounded-xl p-5">
                     <h3 class="font-bold text-base mb-4 text-primary flex items-center gap-2">
                       <i class="ph ph-info"></i> إعدادات أداة القياس والتقييم
-                      ${existingRecord ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">وضع التعديل</span>` : ''}
+                      ${existingRecord ? `<span class="ms-auto inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-amber-300/70 bg-gradient-to-l from-amber-50 to-amber-100/60 text-amber-700 shadow-sm"><i class="ph ph-pencil-simple-line text-xs"></i> وضع التعديل</span>` : ''}
                     </h3>
                     <div class="grid grid-cols-1 gap-3">
 
@@ -21669,11 +21668,18 @@
 
             // زر "حفظ" ينتقل لأقصى يسار هيدر لوحة العرض الرئيسية بدل أسفل
             // الصفحة (نفس مكان أزرار تعديل/حذف/طباعة التقييم المحفوظ)
-            mevSetHeaderActions(mevHeaderActionBtnHTML(
-                'saveMevAssessmentInline()', 'ph-floppy-disk',
-                existingRecord ? 'حفظ التعديلات' : 'حفظ التقييم',
-                '', true
-            ));
+            if (existingRecord) {
+                // وضع التعديل: نفس عنوان وأزرار شاشة النتائج (حفظ + تراجع) أسفل العنوان
+                mevSetHeaderActions('');
+                mevSetResultsHeader(existingRecord.traineeName || _mevCurrentTraineeName || '',
+                    mevHeaderActionBtnHTML('saveMevAssessmentInline()', 'ph-floppy-disk', 'حفظ', '', true, true) +
+                    mevHeaderActionBtnHTML('mevCancelEditInline()', 'ph-arrow-u-up-left', 'تراجع', 'text-gray-600 hover:bg-gray-100', false, true)
+                );
+            } else {
+                mevSetHeaderActions(mevHeaderActionBtnHTML(
+                    'saveMevAssessmentInline()', 'ph-floppy-disk', 'حفظ التقييم', '', true
+                ));
+            }
 
             renderMevFillElementsInline(template.elements, existingRecord ? existingRecord.elements : null);
             updateMevFinalScoreInline();
@@ -22454,9 +22460,9 @@
             // بيانات المتدرب المستخدَم في بقية النظام
             mevSetHeaderActions('');
             mevSetResultsHeader(r.traineeName || '',
-                mevHeaderActionBtnHTML('mevEditFromDetailInline()', 'ph-pencil-simple', 'تعديل التقييم', '', true, true) +
-                mevHeaderActionBtnHTML('mevPrintAssessmentDetail()', 'ph-printer', 'طباعة', 'text-gray-600 hover:bg-gray-100', false, true) +
-                mevHeaderActionBtnHTML('mevDeleteFromDetailInline()', 'ph-trash', 'حذف التقييم', 'text-red-500 hover:bg-red-50 hover:border-red-300', false, true)
+                mevHeaderActionBtnHTML('mevEditFromDetailInline()', 'ph-pencil-simple', 'تعديل', '', true, true) +
+                mevHeaderActionBtnHTML('mevDeleteFromDetailInline()', 'ph-trash', 'حذف', 'text-red-500 hover:bg-red-50 hover:border-red-300', false, true) +
+                mevHeaderActionBtnHTML('mevPrintAssessmentDetail()', 'ph-printer', 'طباعة', 'text-gray-600 hover:bg-gray-100', false, true)
             );
         }
 
@@ -22539,6 +22545,15 @@
         // ─── الانتقال من صفحة التفاصيل المدمجة إلى صفحة "تعبئة التقييم"
         // نفسها المستخدَمة عند إنشاء تقييم جديد (mevOpenInlineSessionPage)،
         // مع تمرير بيانات السجل الحالي لتعبئة كل الحقول مسبقاً ───
+        // تراجع: إلغاء التعديل والعودة لعرض نتائج التقييم دون حفظ
+        function mevCancelEditInline() {
+            const rid = _mevEditRecordId || _mevDetailCurrentId;
+            const tid = _mevCurrentTraineeId || _mevDetailCurrentTraineeId;
+            _mevEditRecordId = null;
+            _mevSessionDraft = null;
+            mevRenderDetailInline(rid, tid);
+        }
+
         function mevEditFromDetailInline() {
             const records = _mevTraineeAssessmentsCache[_mevDetailCurrentTraineeId] || mevSidebarState.records.filter(r => r.traineeId === _mevDetailCurrentTraineeId);
             const r = records.find(x => x.id === _mevDetailCurrentId);
