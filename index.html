@@ -3641,12 +3641,15 @@
                         <i class="ph ph-ruler"></i>
                     </div>
                     <div class="min-w-0 flex-1">
-                        <h2 id="measureEvalTitle" class="text-xl font-bold text-gray-800 flex flex-wrap items-baseline gap-x-2">
-                            <span id="measureEvalTitleText">القياس والتقييم</span>
-                            <span id="measureEvalTitleTrainee" class="hidden text-base font-bold text-primary"></span>
-                        </h2>
-                        <!-- أزرار نتائج التقييم (تعديل / طباعة / حذف) أسفل العنوان الرئيسي: أيقونة + اسم الزر -->
-                        <div id="measureEvalTitleActions" class="hidden flex items-center gap-1.5 flex-wrap mt-2"></div>
+                        <!-- العنوان + أزرار نتائج التقييم (تعديل / حذف / طباعة): أسفل العنوان في الشاشات الصغيرة العمودية،
+                             وبجانب العنوان في الشاشات الكبيرة والوضع الأفقي للموبايل -->
+                        <div class="flex flex-col gap-y-2 gap-x-4 landscape:flex-row landscape:items-center landscape:flex-wrap lg:flex-row lg:items-center lg:flex-wrap">
+                            <h2 id="measureEvalTitle" class="text-xl font-bold text-gray-800 flex flex-wrap items-baseline gap-x-2">
+                                <span id="measureEvalTitleText">القياس والتقييم</span>
+                                <span id="measureEvalTitleTrainee" class="hidden text-base font-bold text-primary"></span>
+                            </h2>
+                            <div id="measureEvalTitleActions" class="hidden flex items-center gap-1.5 flex-wrap landscape:mt-0 lg:mt-0"></div>
+                        </div>
                     </div>
                     <!-- إجراءات سياقية (حفظ / تعديل / حذف / طباعة) لتقييم الطالب
                          الظاهر حالياً في measureEvalViewBody — تُبنى ديناميكياً
@@ -3655,13 +3658,13 @@
                 </div>
                 <!-- أزرار تحت عنوان اللوحة (أيقونة + اسم الزر): إنشاء أداة تقييم جديدة ثم البحث عن أداة تقييم -->
                 <div id="measureEvalToolbar" class="flex items-center gap-2 mb-4 flex-wrap">
-                    <button onclick="openMeasureEvalChoiceModalStandalone()" title="إنشاء أداة تقييم جديدة"
+                    <button onclick="openMeasureEvalChoiceModalStandalone()" title="إنشاء أداة"
                         class="flex-1 sm:flex-none justify-center glass-icon-btn h-9 px-3 rounded-lg text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
-                        <i class="ph ph-plus-circle text-sm"></i> <span>إنشاء أداة تقييم جديدة</span>
+                        <i class="ph ph-plus-circle text-sm"></i> <span>إنشاء أداة</span>
                     </button>
-                    <button onclick="mevOpenNewSessionPage()" title="إنشاء جلسة قياس وتقييم جديدة"
+                    <button onclick="mevOpenNewSessionPage()" title="إنشاء جلسة"
                         class="flex-1 sm:flex-none justify-center glass-icon-btn h-9 px-3 rounded-lg text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-primary/10 transition-colors">
-                        <i class="ph ph-clipboard-text text-sm"></i> <span>إنشاء جلسة قياس وتقييم جديدة</span>
+                        <i class="ph ph-clipboard-text text-sm"></i> <span>إنشاء جلسة</span>
                     </button>
                     <button onclick="mevOpenToolSearchPage()" title="بحث عن أداة تقييم"
                         class="flex-1 sm:flex-none justify-center glass-icon-btn h-9 px-3 rounded-lg text-xs font-semibold text-gray-600 flex items-center gap-1.5 hover:bg-gray-100 transition-colors">
@@ -21651,6 +21654,9 @@
                   ${mevToolCardHTML(template, false)}
                 </div>`;
                 mevSetHeaderActions('');
+                // عنوان لوحة العرض = اسم الأداة بدل "القياس والتقييم"
+                const _mevTitleEl = document.getElementById('measureEvalTitleText');
+                if (_mevTitleEl) _mevTitleEl.textContent = template.skillName || 'أداة تقييم';
                 renderMevFillElementsInline(template.elements, null);
                 updateMevFinalScoreInline();
                 return;
@@ -22118,29 +22124,29 @@
                     const cOpen = mevToolsExpanded.has(cNode);
                     const items = cd.items.slice().sort((a, b) => (a.tool.skillName || '').localeCompare(b.tool.skillName || '', 'ar'));
                     return `
-                    <div class="mb-1">
+                    <div class="glass-element rounded-lg overflow-hidden">
                         <button onclick="mevToggleToolsNode('${mevJsAttr(cNode)}')"
-                            class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-primary/5 transition-colors">
+                            class="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-primary/5 transition-colors">
                             <span class="flex items-center gap-2 min-w-0"><i class="ph ph-graduation-cap text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(cd.cLabel)}</span></span>
                             <span class="flex items-center gap-1.5 flex-shrink-0">
                                 <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${items.length}</span>
                                 <i class="ph ph-caret-down text-[10px] text-gray-400 transition-transform" style="transform: rotate(${cOpen ? '180' : '0'}deg)"></i>
                             </span>
                         </button>
-                        ${cOpen ? `<div class="pr-3 pl-1 space-y-0.5 mb-1">${items.map(pl => mevToolLeafHTML(pl)).join('')}</div>` : ''}
+                        ${cOpen ? `<div class="px-2 pb-2 space-y-0.5">${items.map(pl => mevToolLeafHTML(pl)).join('')}</div>` : ''}
                     </div>`;
                 }).join('');
                 return `
-                <div class="mb-1">
+                <div class="glass-panel rounded-xl mb-2 overflow-hidden">
                     <button onclick="mevToggleToolsNode('${mevJsAttr(pNode)}')"
-                        class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-primary/5 transition-colors">
+                        class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/5 transition-colors">
                         <span class="flex items-center gap-2 min-w-0"><i class="ph ph-books text-primary/70 flex-shrink-0"></i><span class="truncate">${escapeHtml(pg.pTitle)}</span></span>
                         <span class="flex items-center gap-1.5 flex-shrink-0">
                             <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${total}</span>
                             <i class="ph ph-caret-down text-xs text-gray-400 transition-transform" style="transform: rotate(${pOpen ? '180' : '0'}deg)"></i>
                         </span>
                     </button>
-                    ${pOpen ? `<div class="pr-3 pl-1 mb-1">${coursesHTML}</div>` : ''}
+                    ${pOpen ? `<div class="px-2 pb-2 space-y-1.5">${coursesHTML}</div>` : ''}
                 </div>`;
             }).join('');
         }
@@ -22221,6 +22227,36 @@
                 </div>`;
         }
 
+        // اسم المقرر لسجل تقييم: يُستخرج من بيانات الدورة المسجَّلة في البرنامج
+        // (عنوان الدورة)، ويرجع لرمز الدورة المخزَّن في السجل إن لم يوجد
+        function mevRecordCourseName(r) {
+            const course = (programsData[r.programKey]?.courses || []).find(c => c.key === r.courseKey);
+            return (course && (course.title || course.code)) || r.courseCode || r.courseKey || 'مقرر غير محدد';
+        }
+
+        // عقدة قابلة للطي بشكل بطاقة: البرنامج بطاقة رئيسية (glass-panel) وما تحتها
+        // بطاقات فرعية (glass-element) — بنفس أسلوب شجرة "الامتحانات المسجلة"
+        function mevTreeCardHTML(nodeKey, icon, label, count, kind, innerFn) {
+            const open = mevSidebarState.expandedNodes.has(nodeKey);
+            const isP = kind === 'p';
+            return `
+            <div class="${isP ? 'glass-panel rounded-xl mb-2' : 'glass-element rounded-lg'} overflow-hidden">
+                <button onclick="mevToggleSidebarNode('${mevJsAttr(nodeKey)}')"
+                    class="w-full flex items-center justify-between gap-2 px-3 ${isP ? 'py-2.5 text-sm font-bold text-gray-700' : 'py-2 text-xs font-semibold text-gray-600'} hover:bg-primary/5 transition-colors">
+                    <span class="flex items-center gap-2 min-w-0">
+                        <i class="ph ${icon} text-primary/70 flex-shrink-0"></i>
+                        <span class="truncate">${escapeHtml(label || '—')}</span>
+                    </span>
+                    <span class="flex items-center gap-1.5 flex-shrink-0">
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${count}</span>
+                        <i class="ph ph-caret-down ${isP ? 'text-xs' : 'text-[10px]'} text-gray-400 transition-transform" style="transform: rotate(${open ? '180' : '0'}deg)"></i>
+                    </span>
+                </button>
+                ${open ? `<div class="px-2 pb-2 space-y-1">${innerFn()}</div>` : ''}
+            </div>`;
+        }
+
+        // شجرة تقييمات المتدربين: اسم البرنامج ← اسم المقرر ← السنة ← الفصل ← رمز الدورة (الدفعة) ← المتدرب
         function mevRenderSidebarTree() {
             mevRenderToolsTree();
             const container = document.getElementById('sidebarMeasureEvalTree');
@@ -22235,7 +22271,6 @@
                 return;
             }
 
-            // ─── المستوى ١: تجميع حسب البرنامج ───
             const byProgram = {};
             mevSidebarState.records.forEach(r => {
                 const pk = r.programKey || '__noprogram__';
@@ -22243,136 +22278,52 @@
                 byProgram[pk].records.push(r);
             });
             const programGroups = Object.values(byProgram).sort((a, b) => (a.programTitle || '').localeCompare(b.programTitle || '', 'ar'));
+            const sortAr = (arr, f) => arr.slice().sort((a, b) => (f(a) || '').localeCompare(f(b) || '', 'ar'));
+            const groupBy = (records, keyFn) => {
+                const m = new Map();
+                records.forEach(r => { const k = keyFn(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
+                return sortAr([...m.entries()].map(([k, recs]) => ({ k, recs })), g => g.k);
+            };
+            const traineeGroupsOf = (records) => {
+                const byTrainee = {};
+                records.forEach(r => {
+                    const tKey = r.traineeId || r.traineeName;
+                    if (!byTrainee[tKey]) byTrainee[tKey] = { traineeId: r.traineeId, traineeName: r.traineeName, records: [] };
+                    byTrainee[tKey].records.push(r);
+                });
+                return sortAr(Object.values(byTrainee), t => t.traineeName);
+            };
 
             container.innerHTML = programGroups.map(pg => {
                 const pKey = `p:${pg.programKey}`;
-                const pOpen = mevSidebarState.expandedNodes.has(pKey);
-
-                // ─── داخل البرنامج: طلاب "مسجَّلون" (لديهم دورة محددة) مقابل
-                // طلاب "أحرار" (بلا دورة/سنة/فصل) — يظهر الأحرار مباشرة تحت
-                // اسم البرنامج دون مستويات وسيطة ───
+                // طلاب "مسجَّلون" (لديهم دورة) مقابل "أحرار" (بلا دورة) — الأحرار مباشرة تحت البرنامج
                 const registeredRecords = pg.records.filter(r => r.courseKey);
                 const freeRecords = pg.records.filter(r => !r.courseKey);
 
-                // ─── المستوى ٢-٤: السنة الدراسية ← الفصل الدراسي ← الدورة ───
-                const byYear = {};
-                registeredRecords.forEach(r => {
-                    const y = r.academicYear || 'سنة غير محددة';
-                    if (!byYear[y]) byYear[y] = {};
-                    const s = r.semester || 'فصل غير محدد';
-                    if (!byYear[y][s]) byYear[y][s] = {};
-                    const cKey = r.courseKey;
-                    if (!byYear[y][s][cKey]) byYear[y][s][cKey] = { courseLabel: r.courseCode || cKey, records: [] };
-                    byYear[y][s][cKey].records.push(r);
-                });
-                const yearKeys = Object.keys(byYear).sort((a, b) => a.localeCompare(b, 'ar'));
-
-                const yearsHTML = yearKeys.map(y => {
-                    const yKey = `${pKey}|y:${y}`;
-                    const yOpen = mevSidebarState.expandedNodes.has(yKey);
-                    const yCount = Object.values(byYear[y]).reduce((s, sems) => s + Object.values(sems).reduce((s2, c) => s2 + c.records.length, 0), 0);
-                    const semKeys = Object.keys(byYear[y]).sort((a, b) => a.localeCompare(b, 'ar'));
-
-                    const semestersHTML = semKeys.map(sem => {
-                        const sKey = `${yKey}|s:${sem}`;
-                        const sOpen = mevSidebarState.expandedNodes.has(sKey);
-                        const sCount = Object.values(byYear[y][sem]).reduce((s2, c) => s2 + c.records.length, 0);
-                        const courseEntries = Object.entries(byYear[y][sem])
-                            .sort((a, b) => (a[1].courseLabel || '').localeCompare(b[1].courseLabel || '', 'ar'));
-
-                        const coursesHTML = courseEntries.map(([cKey, cData]) => {
-                            const cNodeKey = `${sKey}|c:${cKey}`;
-                            const cOpen = mevSidebarState.expandedNodes.has(cNodeKey);
-
-                            // تجميع سجلات الدورة حسب الطالب
-                            const byTrainee = {};
-                            cData.records.forEach(r => {
-                                const tKey = r.traineeId || r.traineeName;
-                                if (!byTrainee[tKey]) byTrainee[tKey] = { traineeId: r.traineeId, traineeName: r.traineeName, records: [] };
-                                byTrainee[tKey].records.push(r);
-                            });
-                            const traineeGroups = Object.values(byTrainee).sort((a, b) => (a.traineeName || '').localeCompare(b.traineeName || '', 'ar'));
-
-                            return `
-                            <div class="mb-1">
-                                <button onclick="mevToggleSidebarNode('${mevJsAttr(cNodeKey)}')"
-                                    class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-gray-600 hover:bg-primary/5 transition-colors">
-                                    <span class="flex items-center gap-2 min-w-0">
-                                        <i class="ph ph-graduation-cap text-primary/70 flex-shrink-0"></i>
-                                        <span class="truncate">${escapeHtml(cData.courseLabel || '—')}</span>
-                                    </span>
-                                    <span class="flex items-center gap-1.5 flex-shrink-0">
-                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${cData.records.length}</span>
-                                        <i class="ph ph-caret-down text-[10px] text-gray-400 transition-transform" style="transform: rotate(${cOpen ? '180' : '0'}deg)"></i>
-                                    </span>
-                                </button>
-                                ${cOpen ? `
-                                <div class="pr-3 pl-1 mb-1">
-                                    ${traineeGroups.map(tg => mevRenderTraineeLeafHTML(tg, `${cNodeKey}|t:${tg.traineeId || tg.traineeName}`)).join('')}
-                                </div>` : ''}
-                            </div>`;
-                        }).join('');
-
-                        return `
-                        <div class="mb-1">
-                            <button onclick="mevToggleSidebarNode('${mevJsAttr(sKey)}')"
-                                class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-bold text-gray-700 hover:bg-primary/5 transition-colors">
-                                <span class="flex items-center gap-2 min-w-0">
-                                    <i class="ph ph-calendar-blank text-primary/70 flex-shrink-0"></i>
-                                    <span class="truncate">${escapeHtml(sem)}</span>
-                                </span>
-                                <span class="flex items-center gap-1.5 flex-shrink-0">
-                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${sCount}</span>
-                                    <i class="ph ph-caret-down text-[10px] text-gray-400 transition-transform" style="transform: rotate(${sOpen ? '180' : '0'}deg)"></i>
-                                </span>
-                            </button>
-                            ${sOpen ? `<div class="pr-3 pl-1 mb-1">${coursesHTML}</div>` : ''}
-                        </div>`;
-                    }).join('');
-
-                    return `
-                    <div class="mb-1">
-                        <button onclick="mevToggleSidebarNode('${mevJsAttr(yKey)}')"
-                            class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-bold text-gray-700 hover:bg-primary/5 transition-colors">
-                            <span class="flex items-center gap-2 min-w-0">
-                                <i class="ph ph-calendar text-primary/70 flex-shrink-0"></i>
-                                <span class="truncate">${escapeHtml(y)}</span>
-                            </span>
-                            <span class="flex items-center gap-1.5 flex-shrink-0">
-                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${yCount}</span>
-                                <i class="ph ph-caret-down text-[10px] text-gray-400 transition-transform" style="transform: rotate(${yOpen ? '180' : '0'}deg)"></i>
-                            </span>
-                        </button>
-                        ${yOpen ? `<div class="pr-3 pl-1 mb-1">${semestersHTML}</div>` : ''}
-                    </div>`;
+                const registeredHTML = () => groupBy(registeredRecords, mevRecordCourseName).map(cn => {
+                    const nKey = `${pKey}|n:${cn.k}`;
+                    return mevTreeCardHTML(nKey, 'ph-graduation-cap', cn.k, cn.recs.length, 'n', () =>
+                        groupBy(cn.recs, r => r.academicYear || 'سنة غير محددة').map(yg => {
+                            const yKey = `${nKey}|y:${yg.k}`;
+                            return mevTreeCardHTML(yKey, 'ph-calendar', yg.k, yg.recs.length, 'y', () =>
+                                groupBy(yg.recs, r => r.semester || 'فصل غير محدد').map(sg => {
+                                    const sKey = `${yKey}|s:${sg.k}`;
+                                    return mevTreeCardHTML(sKey, 'ph-calendar-blank', sg.k, sg.recs.length, 's', () =>
+                                        groupBy(sg.recs, r => r.courseCode || r.courseKey).map(cg => {
+                                            const cKey = `${sKey}|c:${cg.k}`;
+                                            return mevTreeCardHTML(cKey, 'ph-hash', cg.k, cg.recs.length, 'c', () =>
+                                                traineeGroupsOf(cg.recs).map(tg =>
+                                                    mevRenderTraineeLeafHTML(tg, `${cKey}|t:${tg.traineeId || tg.traineeName}`)).join(''));
+                                        }).join(''));
+                                }).join(''));
+                        }).join(''));
                 }).join('');
 
-                // ─── الطلاب الأحرار (بلا دورة/سنة/فصل) — مباشرة تحت البرنامج ───
-                const byFreeTrainee = {};
-                freeRecords.forEach(r => {
-                    const tKey = r.traineeId || r.traineeName;
-                    if (!byFreeTrainee[tKey]) byFreeTrainee[tKey] = { traineeId: r.traineeId, traineeName: r.traineeName, records: [] };
-                    byFreeTrainee[tKey].records.push(r);
-                });
-                const freeTraineeGroups = Object.values(byFreeTrainee).sort((a, b) => (a.traineeName || '').localeCompare(b.traineeName || '', 'ar'));
-                const freeTraineesHTML = freeTraineeGroups.map(tg =>
+                const freeHTML = () => traineeGroupsOf(freeRecords).map(tg =>
                     mevRenderTraineeLeafHTML(tg, `${pKey}|f:${tg.traineeId || tg.traineeName}`)).join('');
 
-                return `
-                <div class="mb-1">
-                    <button onclick="mevToggleSidebarNode('${mevJsAttr(pKey)}')"
-                        class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-primary/5 transition-colors">
-                        <span class="flex items-center gap-2 min-w-0">
-                            <i class="ph ph-books text-primary/70 flex-shrink-0"></i>
-                            <span class="truncate">${escapeHtml(pg.programTitle || '—')}</span>
-                        </span>
-                        <span class="flex items-center gap-1.5 flex-shrink-0">
-                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">${pg.records.length}</span>
-                            <i class="ph ph-caret-down text-xs text-gray-400 transition-transform" style="transform: rotate(${pOpen ? '180' : '0'}deg)"></i>
-                        </span>
-                    </button>
-                    ${pOpen ? `<div class="pr-3 pl-1 mb-1">${yearsHTML}${freeTraineesHTML}</div>` : ''}
-                </div>`;
+                return mevTreeCardHTML(pKey, 'ph-books', pg.programTitle, pg.records.length, 'p',
+                    () => registeredHTML() + freeHTML());
             }).join('');
         }
 
