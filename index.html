@@ -933,6 +933,32 @@
         #mainToolbar.nav-compact #navUserNameBtn #navConnectionLabel { opacity: 0; pointer-events: none; }
         #navUserNameBtn #navConnectionLabel { transition: opacity .25s ease; }
     }
+
+    /* ═══════════ التول بار المتقلّص عند التمرير — المرحلة 3 (شاشات < 1024px) ═══════════
+       أزرار السطر الثالث (البرامج / الموسوعة / الجلسات / الامتحانات) تتحوّل إلى أيقونات صغيرة
+       بلا أسماء وتنتقل إلى السطر الأول بين شعار البرنامج وزر الهوم. */
+    #navSectionIcons { display: none; }
+    @media (max-width: 1023.98px) {
+        #navSectionIcons {
+            display: flex; flex: 1 1 0; min-width: 0; align-items: center; justify-content: center;
+            gap: .375rem; padding-inline: .5rem;
+        }
+        #navSectionIcons > * { flex: none !important; width: auto !important; }
+        #navSectionIcons button {
+            width: 32px !important; height: 32px; padding: 0 !important; gap: 0 !important;
+            justify-content: center; flex: none;
+        }
+        #navSectionIcons button > span { display: none !important; }
+
+        #navRow3 {
+            transition: max-height .45s cubic-bezier(.4,0,.2,1), opacity .35s ease, margin .45s cubic-bezier(.4,0,.2,1),
+                        padding .45s cubic-bezier(.4,0,.2,1), border-width .45s cubic-bezier(.4,0,.2,1);
+        }
+        #mainToolbar.nav-compact #navRow3 {
+            max-height: 0 !important; opacity: 0; overflow: hidden; margin-top: -0.5rem;
+            padding-top: 0 !important; border-top-width: 0 !important; pointer-events: none;
+        }
+    }
     </style>
 </head>
 <body class="guest-mode text-gray-800 overflow-hidden flex flex-col">
@@ -1002,6 +1028,9 @@
             </div>
             
         </div>
+
+        <!-- المرحلة 3: حاوية أيقونات الأقسام في السطر الأول (بين الشعار وزر الهوم) — تُملأ عبر JS عند تقلّص التول بار -->
+        <div id="navSectionIcons"></div>
 
         <!-- اليسار: أزرار الإجراءات — سطر مستقل على الموبايل (تحت اسم البرنامج/المستخدم)، بجانبهم في الشاشات الكبيرة -->
         <div id="navActionsRow" class="order-3 basis-full lg:order-none lg:basis-auto flex items-center justify-between lg:justify-end gap-2 md:gap-3 flex-wrap">
@@ -1307,8 +1336,8 @@
         </div><!-- نهاية السطر الأول -->
 
         <!-- السطر الثالث: روابط الأقسام (البرامج التدريبية، الموسوعة، الجلسات الافتراضية) — أيقونات في الموبايل، مخفي في الشاشات الكبيرة -->
-        <div class="flex lg:hidden items-center gap-2 border-t border-white/30 pt-2">
-            <button class="flex-1 glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5" onclick="showProgramsGrid()">
+        <div id="navRow3" class="flex lg:hidden items-center gap-2 border-t border-white/30 pt-2">
+            <button title="البرامج التدريبية" class="flex-1 glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5" onclick="showProgramsGrid()">
                 <i class="ph ph-books text-base"></i>
                 <span style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">
                     <span>البرامج</span>
@@ -1317,7 +1346,7 @@
             </button>
             <!-- زر الموسوعة الأكاديمية (موبايل) — ينتقل مباشرة إلى لوحة عرض
                  الموسوعة بدل القائمة المنسدلة السابقة -->
-            <button onclick="showAcademicPediaGrid()" class="flex-1 glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
+            <button title="الموسوعة الأكاديمية" onclick="showAcademicPediaGrid()" class="flex-1 glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
                 <i class="ph ph-graduation-cap text-base"></i>
                 <span style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">
                     <span>الموسوعة</span>
@@ -1327,7 +1356,7 @@
 
             <!-- Virtual Sessions Mobile — للمسجلين فقط -->
             <div class="flex-1 hidden" id="virtualSessionsMobileWrapper">
-                <button onclick="showVirtualSessionsGrid()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
+                <button title="الجلسات الافتراضية" onclick="showVirtualSessionsGrid()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
                     <i class="ph ph-video-camera text-base"></i>
                     <span style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">
                         <span>الجلسات</span>
@@ -1338,7 +1367,7 @@
 
             <!-- Exam System Mobile — يظهر للأدمن فقط حالياً -->
             <div class="flex-1 admin-only">
-                <button onclick="showExamSystemGrid()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
+                <button title="نظام الامتحانات" onclick="showExamSystemGrid()" class="w-full glass-element px-3 py-2 rounded-lg font-semibold text-xs hover:text-primary flex items-center justify-center gap-1.5">
                     <i class="ph ph-exam text-base"></i>
                     <span style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">
                         <span>الامتحانات</span>
@@ -5851,9 +5880,10 @@
         }
 
 
-        // ======== التول بار المتقلّص عند التمرير للأعلى — المرحلة 1 ========
+        // ======== التول بار المتقلّص عند التمرير للأعلى — المراحل 1 و2 و3 ========
         // (1) زر الحساب يتحوّل إلى دائرة بأول حرف من الاسم والكنية (انكماش سلس من اليمين إلى اليسار)
         // (2) اسم البرنامج يختفي بشكل سلس من اليسار إلى اليمين
+        // (3) السطر الثاني يختفي للأعلى + الهوم بجانب الحساب، وأزرار السطر الثالث تصبح أيقونات في السطر الأول
         // يعمل في الشاشات < 1024px فقط (حيث التول بار بثلاثة أسطر).
         let _navCompact = false;
         let _navLastToggle = 0;
@@ -5889,17 +5919,101 @@
             else if (home.parentElement !== ph.parentElement) ph.after(home);
         }
 
+        // ======== المرحلة 3: أزرار السطر الثالث → أيقونات صغيرة في السطر الأول ========
+        let _navSecOrig = null, _navSecGhosts = [];
+        const _NAV_EASE = 'cubic-bezier(.4,0,.2,1)';
+
+        // عناصر السطر الثالث بترتيبها الأصلي (تُلتقط مرة واحدة قبل أي نقل)
+        function _navSecItems() {
+            if (!_navSecOrig) {
+                const r3 = document.getElementById('navRow3');
+                _navSecOrig = r3 ? Array.from(r3.children) : [];
+            }
+            return _navSecOrig;
+        }
+        function _navSecBtn(el) { return el.tagName === 'BUTTON' ? el : el.querySelector('button'); }
+        function _navSecInBox() {
+            const box = document.getElementById('navSectionIcons');
+            const it = _navSecItems();
+            return !!(box && it.length && it[0].parentElement === box);
+        }
+        // toBox=true → السطر الأول (حاوية الأيقونات) ، false → السطر الثالث الأصلي
+        function _navSecMove(toBox) {
+            const r3 = document.getElementById('navRow3');
+            const box = document.getElementById('navSectionIcons');
+            if (!r3 || !box) return;
+            const target = toBox ? box : r3;
+            _navSecItems().forEach(function (el) { if (el.parentElement !== target) target.appendChild(el); });
+        }
+        // الأزرار الظاهرة فعلياً فقط (الجلسات/الامتحانات قد تكون مخفية حسب الدور)
+        function _navSecVisibleBtns() {
+            return _navSecItems().filter(function (el) { return el.offsetParent !== null; })
+                                 .map(_navSecBtn).filter(Boolean);
+        }
+        function _navPad(b) { const c = getComputedStyle(b); return c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft; }
+        function _navGap(b) { const g = getComputedStyle(b).columnGap; return (!g || g === 'normal') ? '0px' : g; }
+        function _navLabW(b) { const l = b.children[1]; return l ? l.getBoundingClientRect().width : 0; }
+
+        function _navSecClearGhosts() {
+            _navSecGhosts.forEach(function (g) { g.remove(); });
+            _navSecGhosts = [];
+            _navSecItems().forEach(function (el) { const b = _navSecBtn(el); if (b) b.style.visibility = ''; });
+        }
+
+        // نسخ طائرة: كل زر ينتقل ويتقلّص (أو يتمدّد) تدريجياً ويختفي اسمه (أو يظهر) بسلاسة
+        function _navSecFly(btns, first, last, o) {
+            const ghosts = btns.map(function (b, i) {
+                const f = first[i];
+                const g = b.cloneNode(true);
+                g.removeAttribute('id'); g.removeAttribute('onclick'); g.removeAttribute('title');
+                g.setAttribute('aria-hidden', 'true'); g.tabIndex = -1;
+                Object.assign(g.style, {
+                    position: 'fixed', left: f.left + 'px', top: f.top + 'px', width: f.width + 'px', height: f.height + 'px',
+                    margin: '0', padding: o.padFirst[i], columnGap: o.gapFirst[i], flex: 'none', overflow: 'hidden',
+                    zIndex: '9999', pointerEvents: 'none', transition: 'none', transform: 'none', visibility: 'visible'
+                });
+                const lab = g.children[1];
+                if (lab) {
+                    Object.assign(lab.style, {
+                        display: 'flex', overflow: 'hidden', whiteSpace: 'nowrap', flexShrink: '0',
+                        maxWidth: o.labFirst[i] + 'px', opacity: o.labFirst[i] > 0 ? '1' : '0', transition: 'none'
+                    });
+                }
+                document.body.appendChild(g);
+                return g;
+            });
+            void document.body.offsetWidth;
+            ghosts.forEach(function (g, i) {
+                const l = last[i];
+                g.style.transition = ['left', 'top', 'width', 'height', 'padding', 'column-gap']
+                    .map(function (p) { return p + ' ' + _NAV_MS + 'ms ' + _NAV_EASE; }).join(',');
+                g.style.left = l.left + 'px'; g.style.top = l.top + 'px';
+                g.style.width = l.width + 'px'; g.style.height = l.height + 'px';
+                g.style.padding = o.padLast[i]; g.style.columnGap = o.gapLast[i];
+                const lab = g.children[1];
+                if (lab) {
+                    lab.style.transition = 'max-width ' + _NAV_MS + 'ms ' + _NAV_EASE + ', opacity ' + (_NAV_MS * 0.75) + 'ms ease';
+                    lab.style.maxWidth = o.labLast[i] + 'px';
+                    lab.style.opacity = o.labLast[i] > 0 ? '1' : '0';
+                }
+            });
+            return ghosts;
+        }
+
         // قياس الحالة النهائية (بدون حركة) ثم الرجوع للحالة الحالية دون أي وميض
-        function _navMeasure(targetCompact) {
+        function _navMeasure(targetCompact, secBtns) {
+            secBtns = secBtns || [];
             const nav = document.getElementById('mainToolbar');
             const btn = document.getElementById('navUserNameBtn');
             const title = document.getElementById('navTitleWrap');
             const row = document.getElementById('navActionsRow');
+            const row3 = document.getElementById('navRow3');
             const home = document.getElementById('navHomeBtn');
             const slot = document.getElementById('navAuthSlot');
             const prevClass = nav.classList.contains('nav-compact');
             const prevW = btn ? btn.style.width : '', prevH = btn ? btn.style.height : '';
             const prevInSlot = home.parentElement === slot;
+            const prevSecInBox = _navSecInBox();
             nav.classList.add('nav-measuring');
             nav.classList.toggle('nav-compact', targetCompact);
             if (btn) {
@@ -5907,14 +6021,19 @@
                 else { btn.style.width = ''; btn.style.height = ''; }
             }
             _navHomeMove(targetCompact);
+            _navSecMove(targetCompact);
             const m = {
                 rect: home.getBoundingClientRect(),
                 btnW: btn ? btn.offsetWidth : 0, btnH: btn ? btn.offsetHeight : 0,
-                rowH: row ? row.offsetHeight : 0, titleW: title ? title.scrollWidth : 0
+                rowH: row ? row.offsetHeight : 0, titleW: title ? title.scrollWidth : 0,
+                row3H: row3 ? row3.offsetHeight : 0,
+                sec: secBtns.map(function (b) { return b.getBoundingClientRect(); }),
+                secPad: secBtns.map(_navPad), secGap: secBtns.map(_navGap), secLab: secBtns.map(_navLabW)
             };
             nav.classList.toggle('nav-compact', prevClass);
             if (btn) { btn.style.width = prevW; btn.style.height = prevH; }
             _navHomeMove(prevInSlot);
+            _navSecMove(prevSecInBox);
             void nav.offsetWidth;
             nav.classList.remove('nav-measuring');
             return m;
@@ -5941,6 +6060,7 @@
             const btn   = document.getElementById('navUserNameBtn');
             const title = document.getElementById('navTitleWrap');
             const row   = document.getElementById('navActionsRow');
+            const row3  = document.getElementById('navRow3');
             const home  = document.getElementById('navHomeBtn');
             if (!nav || !home) return;
             if (compact && window.innerWidth >= 1024) compact = false;
@@ -5949,6 +6069,7 @@
             _navLastToggle = Date.now();
             clearTimeout(_navDoneTimer);
             if (_navGhost) { _navGhost.remove(); _navGhost = null; }
+            _navSecClearGhosts();
             home.style.visibility = '';
 
             // ── رجوع فوري بدون حركة (تغيير حجم الشاشة / تسجيل الخروج) ──
@@ -5958,7 +6079,9 @@
                 if (title) title.style.maxWidth = '';
                 if (btn) { btn.style.width = ''; btn.style.height = ''; }
                 if (row) { row.style.maxHeight = ''; row.style.overflow = ''; }
-                if (!compact) _navHomeMove(false);
+                if (row3) { row3.style.maxHeight = ''; row3.style.overflow = ''; }
+                if (!compact) { _navHomeMove(false); _navSecMove(false); }
+                else { _navHomeMove(true); _navSecMove(true); }
                 void nav.offsetWidth;
                 nav.classList.remove('nav-measuring');
                 return;
@@ -5966,21 +6089,37 @@
 
             const btnVisible = !!(btn && btn.offsetParent !== null);
             const first = home.getBoundingClientRect();
-            const m = _navMeasure(compact);
 
-            // الهوم يطير بنسخة مؤقتة، والزر الحقيقي مخفي حتى الوصول
+            // الحالة الحالية لأزرار السطر الثالث (قبل أي تغيير)
+            const secBtns   = _navSecVisibleBtns();
+            const secFirst  = secBtns.map(function (b) { return b.getBoundingClientRect(); });
+            const padFirst  = secBtns.map(_navPad);
+            const gapFirst  = secBtns.map(_navGap);
+            const labFirst  = secBtns.map(_navLabW);
+            const row3Now   = row3 ? row3.offsetHeight : 0;
+
+            const m = _navMeasure(compact, secBtns);
+
+            // الهوم وأزرار الأقسام تطير بنسخ مؤقتة، والأزرار الحقيقية مخفية حتى الوصول
             _navGhost = _navFlyGhost(home, first, m.rect);
+            _navSecGhosts = _navSecFly(secBtns, secFirst, m.sec, {
+                padFirst: padFirst, padLast: m.secPad, gapFirst: gapFirst, gapLast: m.secGap,
+                labFirst: labFirst, labLast: m.secLab
+            });
             home.style.visibility = 'hidden';
-            if (!compact) _navHomeMove(false);
+            secBtns.forEach(function (b) { b.style.visibility = 'hidden'; });
+            if (!compact) { _navHomeMove(false); _navSecMove(false); }
 
             // قيم البداية
             if (compact) {
                 if (title) title.style.maxWidth = m.titleW + 'px';
                 if (btnVisible) { btn.style.width = btn.offsetWidth + 'px'; btn.style.height = btn.offsetHeight + 'px'; }
                 if (row) { row.style.maxHeight = row.offsetHeight + 'px'; row.style.overflow = 'hidden'; }
+                if (row3) { row3.style.maxHeight = row3Now + 'px'; row3.style.overflow = 'hidden'; }
             } else {
                 if (title) title.style.maxWidth = '0px';
                 if (row) { row.style.maxHeight = '0px'; row.style.overflow = 'hidden'; }
+                if (row3) { row3.style.maxHeight = '0px'; row3.style.overflow = 'hidden'; }
             }
             void nav.offsetWidth;
             nav.classList.toggle('nav-compact', compact);
@@ -5992,19 +6131,23 @@
             } else {
                 if (title) title.style.maxWidth = m.titleW + 'px';
                 if (row) row.style.maxHeight = m.rowH + 'px';
+                if (row3) row3.style.maxHeight = m.row3H + 'px';
                 if (btnVisible) { btn.style.width = m.btnW + 'px'; btn.style.height = m.btnH + 'px'; }
             }
 
             _navDoneTimer = setTimeout(function () {
                 if (compact) {
                     _navHomeMove(true);
+                    _navSecMove(true);
                 } else {
                     if (title) title.style.maxWidth = '';
                     if (row) { row.style.maxHeight = ''; row.style.overflow = ''; }
                     if (btn) { btn.style.width = ''; btn.style.height = ''; }
                 }
+                if (row3) { row3.style.maxHeight = ''; row3.style.overflow = ''; }
                 home.style.visibility = '';
                 if (_navGhost) { _navGhost.remove(); _navGhost = null; }
+                _navSecClearGhosts();
                 // حالة خاصة: إن لم يعد المحتوى قابلاً للتمرير بعد التقلّص نعيد التول بار
                 if (compact && _navLastScroller && _navLastScroller.isConnected && _navLastScroller.scrollTop <= 4) _setNavCompact(false);
             }, _NAV_MS + 40);
